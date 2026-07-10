@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+
+    <!-- ── Build ──────────────────────────────────────────────────────── -->
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ULM</RootNamespace>
+
+    <!-- ── Assembly-Metadaten (erscheinen in EXE-Eigenschaften) ─────── -->
+    <AssemblyName>UniversalLinuxManager</AssemblyName>
+    <Product>Universal Linux Manager</Product>
+    <Company>ULM Project</Company>
+    <Copyright>© 2025 ULM Project. Open Source.</Copyright>
+    <Description>Portabler Linux-ISO-Manager mit Ventoy-USB-Unterstützung. Kein Installer nötig — einfach starten.</Description>
+    <Version>2.27.0</Version>
+    <AssemblyVersion>2.27.0.0</AssemblyVersion>
+    <FileVersion>2.27.0.0</FileVersion>
+
+    <!-- ── Portable Single-File EXE ─────────────────────────────────── -->
+    <!--
+      Ziel: Eine einzige .exe die auf jedem Windows 10/11 x64 läuft —
+      ohne .NET-Installation, ohne Installer, direkt ausführbar.
+
+      Publish-Befehl:
+        dotnet publish -c Release -r win-x64
+
+      Oder: Doppelklick auf publish.bat im Projektordner.
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <!--
+      PublishReadyToRun: Vorab-Kompilierung für schnelleren Programmstart.
+      (Startet gefühlt wie ein natives Win32-Programm, nicht wie managed .NET)
+    -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+
+    <!--
+      PublishTrimmed: Entfernt nicht verwendeten Code → kleinere EXE.
+      Für WPF auf false lassen — WPF nutzt Reflection intern und
+      würde bei aggressivem Trim instabil werden.
+    -->
+    <PublishTrimmed>false</PublishTrimmed>
+
+    <!--
+      Kein <ApplicationManifest> hier — das .NET 8 SDK generiert
+      automatisch ein standardkonformes Manifest (asInvoker, DPI-aware).
+      Admin-Elevation für Ventoy erfolgt ausschließlich über
+      Verb="runas" in MainViewModel.StartVentoyInstall().
+    -->
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- background.png wird als EmbeddedResource in die EXE eingebettet -->
+    <EmbeddedResource Include="background.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="scratch_test\**" />
+    <None    Remove="scratch_test\**" />
+    <Content Remove="scratch_test\**" />
+    <EmbeddedResource Remove="scratch_test\**" />
+    <Compile Remove="{Core\**" />
+    <None    Remove="{Core\**" />
+    <Content Remove="{Core\**" />
+    <EmbeddedResource Remove="{Core\**" />
+  </ItemGroup>
+
+</Project>

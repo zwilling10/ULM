@@ -1,0 +1,24 @@
+# Build-Ausgaben
+bin/
+obj/
+
+# Release-Artefakte (werden per build-release.sh erzeugt und als
+# GitHub-Release-Asset hochgeladen, nicht ins Repo committet)
+release/*.exe
+release/*.zip
+
+# Laufzeit-Daten (ISOs, Datenbank, Logs — nicht Teil des Quellcodes)
+ISOs/
+*.iso
+ulm.log
+
+# graphify Wissensgraph (lokales Analyse-Tool-Ausgabe, kein Teil des Quellcodes/der App)
+graphify-out/
+
+# Claude Code lokale Einstellungen
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+
+# IDE
+.vs/
+*.user
