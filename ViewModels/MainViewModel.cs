@@ -283,9 +283,14 @@ namespace ULM.ViewModels
             if (Drives.Count > 0) Log($"🔌 Laufwerke: {string.Join(", ", Drives.Select(d => $"{d.Letter} ({d.Label})"))}");
         }
 
+        // BUGFIX: Ohne Re-Entrancy-Sperre konnte ein zweiter TriggerUsbScan-Aufruf (z.B. durch eine
+        // erneute Laufwerkserkennung während eine Installation läuft) einen zweiten UsbScanWorker
+        // parallel zum bereits laufenden starten — doppelte Scan-Ergebnisse, doppelte Folge-Dialoge
+        // (unbekannte ISOs, neuere Version auf dem Stick). Ein laufender Scan wird jetzt zu Ende
+        // geführt, statt einen weiteren nebenher zu starten.
         public void TriggerUsbScan()
         {
-            if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
+            if (string.IsNullOrEmpty(SelectedDriveLetter) || UsbScanActive) return;
             Log($"💾 Stick-Scan: {SelectedDriveLetter}");
             StatusText = $"Scanne {SelectedDriveLetter}..."; UsbScanActive = true; UsbScanPercent = 0;
             string letter = SelectedDriveLetter;
@@ -327,7 +332,18 @@ namespace ULM.ViewModels
                 if (trueUnknowns.Count > 0) UnknownIsosOnStickDetected?.Invoke(trueUnknowns, ltr);
                 var missing = GetVerifiedCompleteEntriesMissingFromStick();
                 if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, ltr);
-                RunHealthCheck();
+                // Bewusst KEIN automatischer RunHealthCheck() mehr hier: TriggerUsbScan läuft bei
+                // jedem Stick-Einstecken, jeder Ventoy-Installation und jedem Kopiervorgang — ein
+                // voller Katalog-Gesundheitscheck (Netzwerk-Requests für JEDEN Eintrag) bei jedem
+                // dieser rein lokalen/Hardware-Ereignisse war unnötig und störend (siehe Nutzer-
+                // Feedback: Check kam sowohl beim Stick-Erkennen als auch direkt nach erfolgreicher
+                // Installation, beides ohne Bezug zur Online-Erreichbarkeit der URLs). Die Aufgabe
+                // "sind die Download-Quellen noch gültig?" übernimmt bereits TriggerAutoVersionCheck
+                // (läuft beim Start und danach periodisch alle Constants.AutoCheckIntervalDays Tage,
+                // ebenfalls mit checkAllEntries:true). RunHealthCheck() wird jetzt gezielt nur noch
+                // ausgelöst, wenn NEUE, unverifizierte Einträge zur DB hinzukommen (Stick-Import,
+                // manuelles Hinzufügen im DB-Editor, "Hinzufügen" bei neuerer Stick-Version — siehe
+                // MainWindow.xaml.cs) sowie weiterhin manuell über den Gesundheitscheck-Button.
             });
             _ = worker.RunAsync();
         }
@@ -539,7 +555,7 @@ namespace ULM.ViewModels
                     SetBusy(false); RefreshAllEntries();
                     StatusText = $"{ok}/{queue.Count} heruntergeladen" + (failed > 0 ? $", {failed} fehlgeschlagen" : "");
                     ProgressPercent = 100;
-                    if (!string.IsNullOrEmpty(drive)) TriggerUsbScan(); else RunHealthCheck();
+                    if (!string.IsNullOrEmpty(drive)) TriggerUsbScan();
                     if (ok > 0)
                     {
                         string msg = $"{ok} ISO(s) erfolgreich heruntergeladen.\n\nGespeichert unter:\n{_paths.DownloadDir}";

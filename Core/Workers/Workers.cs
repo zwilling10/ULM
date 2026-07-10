@@ -92,20 +92,73 @@ namespace ULM.Core.Workers
                     exePath = FindVentoy2DiskExe(paths.VentoyTempDir);
                 }
                 if (string.IsNullOrEmpty(exePath)) { ProgressLog?.Invoke("Fehler: Ventoy2Disk.exe nicht gefunden."); Completed?.Invoke(false); return; }
-                ProgressLog?.Invoke($"Starte Ventoy2Disk.exe auf {_letter} …"); Progress?.Invoke(55, "Installiere Ventoy …");
-                string args = _updateMode ? $"-u {_letter[0]}:" : $"-i -y {_letter[0]}:";
-                if (_secureBoot) args += " -s";
-                var psi = new ProcessStartInfo(exePath, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = Path.GetDirectoryName(exePath)! };
+
+                // BUGFIX: "-i -y {letter}:" / "-u {letter}:" / "-s" sind KEINE gültigen
+                // Ventoy2Disk.exe-Argumente — die echte CLI-Automatisierung heißt "VTOYCLI" und
+                // erwartet "/I" bzw. "/U" plus "/Drive:X:" (siehe ventoy.net/en/doc_windows_cli.html).
+                // Unerkannte Argumente ließen Ventoy2Disk.exe bisher lautlos in seinen normalen
+                // interaktiven GUI-Modus zurückfallen — DAS war der Grund, warum trotz Automatisierung
+                // immer noch ein Ventoy-eigenes Fenster erschien, das manuell bedient werden musste.
+                // Secure Boot ist bei "/I" standardmäßig AKTIV; "/NOSB" schaltet es ab (umgekehrte
+                // Polarität zum bisherigen, ohnehin nicht existierenden "-s"-Flag). "/NOUSBCheck"
+                // verhindert, dass Ventoys eigene Geräteprüfung ein Laufwerk ablehnt, das ULM bereits
+                // selbst als gültiges Wechsellaufwerk validiert hat (siehe UsbService.ListRemovableDrives).
+                string workDir   = Path.GetDirectoryName(exePath)!;
+                string driveArg  = $"/Drive:{_letter[0]}:";
+                string args = _updateMode
+                    ? $"VTOYCLI /U {driveArg}"
+                    : $"VTOYCLI /I {driveArg} /NOUSBCheck" + (_secureBoot ? string.Empty : " /NOSB");
+
+                // Ventoys eigene Status-Dateien (offiziell dokumentiert für den CLI-Modus) sind die
+                // zuverlässigste Quelle für Fortschritt/Ergebnis — zuverlässiger als der Exit-Code
+                // einer GUI-Anwendung. Reste eines vorherigen Laufs zuerst entfernen, damit eine
+                // alte cli_done.txt nicht fälschlich als aktuelles Ergebnis gelesen wird.
+                string doneFile    = Path.Combine(workDir, "cli_done.txt");
+                string percentFile = Path.Combine(workDir, "cli_percent.txt");
+                string logFile     = Path.Combine(workDir, "cli_log.txt");
+                foreach (string f in new[] { doneFile, percentFile, logFile }) { try { File.Delete(f); } catch { } }
+
+                ProgressLog?.Invoke($"Starte Ventoy2Disk.exe auf {_letter} (VTOYCLI, still) …"); Progress?.Invoke(55, "Installiere Ventoy …");
+                var psi = new ProcessStartInfo(exePath, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = workDir };
                 using Process? proc = Process.Start(psi);
                 if (proc is null) { ProgressLog?.Invoke("Fehler: Ventoy2Disk.exe konnte nicht gestartet werden."); Completed?.Invoke(false); return; }
-                bool exited = await Task.Run(() => proc.WaitForExit(5 * 60 * 1000), _cts.Token).ConfigureAwait(false);
-                string stdout = await proc.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
-                string stderr = await proc.StandardError.ReadToEndAsync().ConfigureAwait(false);
+
+                // Stdout/Stderr fortlaufend abziehen statt erst nach WaitForExit — verhindert einen
+                // Deadlock, falls der Kindprozess mehr schreibt, als der OS-Pipe-Puffer fasst, während
+                // wir parallel per Status-Dateien auf das Ergebnis warten.
+                var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                var stderrTask = proc.StandardError.ReadToEndAsync();
+
+                bool? doneOk = null;
+                var sw = Stopwatch.StartNew();
+                while (sw.Elapsed < TimeSpan.FromMinutes(5))
+                {
+                    if (_cts.IsCancellationRequested) { try { proc.Kill(); } catch { } break; }
+                    if (File.Exists(percentFile) && TryReadText(percentFile, out string pctRaw) &&
+                        int.TryParse(pctRaw.Trim(), out int pct))
+                        Progress?.Invoke(55 + Math.Clamp(pct, 0, 100) * 33 / 100, $"Installiere Ventoy … {pct}%");
+                    if (File.Exists(doneFile) && TryReadText(doneFile, out string doneRaw) &&
+                        int.TryParse(doneRaw.Trim(), out int doneCode))
+                    { doneOk = doneCode == 0; break; }
+                    if (proc.HasExited) break;
+                    await Task.Delay(400, CancellationToken.None).ConfigureAwait(false);
+                }
+                if (!proc.HasExited) { try { proc.WaitForExit(10_000); } catch { } }
+
+                string stdout = await stdoutTask.ConfigureAwait(false);
+                string stderr = await stderrTask.ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(stdout)) ProgressLog?.Invoke($"[Ventoy] {stdout.Trim()}");
                 if (!string.IsNullOrWhiteSpace(stderr))  ProgressLog?.Invoke($"[Ventoy STDERR] {stderr.Trim()}");
-                if (!exited) { ProgressLog?.Invoke("Fehler: Timeout."); try { proc.Kill(); } catch { } Completed?.Invoke(false); return; }
-                bool ok = proc.ExitCode == 0;
-                ProgressLog?.Invoke(ok ? $"✅ Ventoy {(_updateMode ? "aktualisiert" : "installiert")}." : $"❌ ExitCode {proc.ExitCode}.");
+                if (File.Exists(logFile) && TryReadText(logFile, out string cliLog) && !string.IsNullOrWhiteSpace(cliLog))
+                    ProgressLog?.Invoke($"[Ventoy CLI-Log]\n{cliLog.Trim()}");
+
+                if (!proc.HasExited) { ProgressLog?.Invoke("Fehler: Timeout."); try { proc.Kill(); } catch { } Completed?.Invoke(false); return; }
+
+                // cli_done.txt ist die primäre Erfolgsquelle (offiziell dokumentiert); der
+                // Prozess-Exitcode dient nur als Rückfallebene, falls die Datei aus irgendeinem
+                // Grund nie erschienen ist (z.B. unerwartet abweichendes Ventoy-Verhalten).
+                bool ok = doneOk ?? proc.ExitCode == 0;
+                ProgressLog?.Invoke(ok ? $"✅ Ventoy {(_updateMode ? "aktualisiert" : "installiert")}." : $"❌ Fehlgeschlagen (ExitCode {proc.ExitCode}{(doneOk is not null ? $", cli_done={(doneOk.Value ? 0 : 1)}" : "")}).");
                 if (ok && !_updateMode) { Progress?.Invoke(88, "Richte Theme ein …"); UsbService.EnsureVentoyTheme(_letter); }
                 Progress?.Invoke(100, ok ? "Fertig." : "Fehlgeschlagen."); Completed?.Invoke(ok);
             }
@@ -113,6 +166,15 @@ namespace ULM.Core.Workers
         });
         private static string FindVentoy2DiskExe(string dir)
         { if (!Directory.Exists(dir)) return string.Empty; string d = Path.Combine(dir, "Ventoy2Disk.exe"); if (File.Exists(d)) return d; foreach (string f in Directory.GetFiles(dir, "Ventoy2Disk.exe", SearchOption.AllDirectories)) return f; return string.Empty; }
+
+        // Ventoy2Disk.exe hält cli_percent.txt/cli_done.txt beim Schreiben ggf. kurz offen —
+        // FileShare.ReadWrite plus try/catch verhindert, dass ein zufälliger Lesezugriff mitten im
+        // Schreibvorgang die ganze Installation mit einer Exception abbrechen lässt.
+        private static bool TryReadText(string path, out string content)
+        {
+            try { using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); using var sr = new StreamReader(fs); content = sr.ReadToEnd(); return true; }
+            catch { content = string.Empty; return false; }
+        }
         private static async Task<string> FetchLatestVentoyUrlAsync()
         {
             const string Fallback = "https://github.com/ventoy/Ventoy/releases/download/v1.0.97/ventoy-1.0.97-windows.zip";

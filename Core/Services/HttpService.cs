@@ -867,8 +867,20 @@ namespace ULM.Core.Services
                     }
                     await file.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
-                if (written < Constants.MinIsoSizeBytes) { TryDelete(tempPath); return false; }
-                if (total > 0 && written < total) { TryDelete(tempPath); return false; }
+                // BUGFIX: Die 300-MB-Mindestgröße ist als Rückfallebene für ISO-Downloads gedacht,
+                // wenn der Server keine Content-Length liefert (siehe HelpDialog: "Ist online keine
+                // Größe ermittelbar, greift als Rückfallebene die 300-MB-Mindestgröße"). DownloadAsync
+                // wird aber generisch für JEDEN Download genutzt — auch für das ~16 MB kleine
+                // Ventoy-ZIP (VentoyInstallWorker). Die Schwelle unbedingt anzuwenden ließ jeden
+                // Ventoy-Download fälschlich als "zu klein" scheitern, obwohl er zu 100% vollständig
+                // war (Content-Length war bekannt und stimmte exakt überein). Ist die erwartete Größe
+                // bekannt (total > 0), ist der exakte Bytevergleich die präzisere und einzig korrekte
+                // Prüfung — die 300-MB-Schwelle greift nur noch, wenn total unbekannt ist.
+                if (total > 0)
+                {
+                    if (written < total) { TryDelete(tempPath); return false; }
+                }
+                else if (written < Constants.MinIsoSizeBytes) { TryDelete(tempPath); return false; }
                 if (File.Exists(destinationPath)) File.Delete(destinationPath);
                 File.Move(tempPath, destinationPath);
                 return true;

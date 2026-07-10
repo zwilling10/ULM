@@ -57,6 +57,11 @@ namespace ULM.Views
                         case NewerVersionChoice.Skip:    AppendLog($"   ⏭ {dbEntry.Name}"); break;
                     }
                 if (replaced > 0 || added > 0) { _vm.RebuildTree(); AppendLog($"✅ DB: {(replaced > 0 ? $"{replaced} ersetzt" : "")}{(replaced > 0 && added > 0 ? ", " : "")}{(added > 0 ? $"{added} hinzugefügt" : "")}."); }
+                // Gesundheitscheck NUR wenn tatsächlich neue, unverifizierte Einträge entstanden
+                // sind ("Hinzufügen" legt einen neuen Eintrag ohne geprüfte Url an) — "Ersetzen"
+                // aktualisiert nur den Dateinamen eines bereits bekannten Eintrags, dafür braucht es
+                // keinen erneuten Katalog-weiten Check.
+                if (added > 0) _vm.RunHealthCheck();
             };
 
             _vm.UnknownIsosOnStickDetected += (unknowns, drive) =>
@@ -79,6 +84,11 @@ namespace ULM.Views
                 AppendLog($"✅ {dlg.ImportedEntries.Count} ISO(s) zur Datenbank hinzugefügt" + (movedFailed > 0 ? $", {movedFailed} konnte(n) nicht in den Kategorie-Ordner verschoben werden" : "") + ".");
                 _vm.TriggerVentoyMenuUpdate(drive);
                 _vm.TriggerUsbScan();
+                // Frisch importierte Einträge haben (fast) nie eine geprüfte Url — genau hier lohnt
+                // sich der volle Gesundheitscheck, statt bis zum nächsten periodischen Online-Check
+                // zu warten (siehe MainViewModel.TriggerUsbScan für die Begründung, warum der Check
+                // nicht mehr bei jedem Scan automatisch läuft).
+                _vm.RunHealthCheck();
             };
 
             _vm.IncompleteIsosOnStickDetected += (incomplete, drive) =>
@@ -302,8 +312,18 @@ namespace ULM.Views
 
         private void BtnRefreshDrives_Click(object sender, RoutedEventArgs e) => CheckDriveChanges();
 
+        // BUGFIX: Während einer laufenden Ventoy-Installation/-Aktualisierung (IsBusy) kann das
+        // Ziel-Laufwerk beim Formatieren/Partitionieren kurzzeitig aus der WMI-Aufzählung
+        // verschwinden und wieder auftauchen. Ohne diese Sperre wertete CheckDriveChanges das als
+        // "neuer Stick eingesteckt" und zeigte die "Automatisch als Ventoy-Stick einrichten?"-Abfrage
+        // ein zweites Mal an — was eine ZWEITE, parallele Installation auf demselben Laufwerk
+        // gestartet hätte (doppelte Fenster, Race Condition auf dem Ziel-Laufwerk). Der komplette
+        // Timer-Tick wird deshalb übersprungen, solange IsBusy true ist — RefreshDrives() wird
+        // nicht einmal aufgerufen, damit während der Installation keinerlei Enumeration/Zugriff auf
+        // das Laufwerk mit Ventoy2Disk.exe konkurriert.
         private void CheckDriveChanges()
         {
+            if (_vm.IsBusy) return;
             string prev = _lastDriveSignatureUi; _vm.RefreshDrives();
             string curr = string.Join(";", _vm.Drives.Select(d => d.Letter)); _lastDriveSignatureUi = curr;
             if (curr != prev && curr.Length > prev.Length) OnNewDriveInserted();
@@ -383,7 +403,16 @@ namespace ULM.Views
         private async void BtnCheckUrls_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy) return; SetBusyUi(true); await Task.Run(() => _vm.CheckUrlsCommand.Execute(null)); SetBusyUi(false); }
         private async void BtnHealthCheck_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy || _vm.HealthCheckActive) return; SetBusyUi(true); await Task.Run(() => _vm.HealthCheckCommand.Execute(null)); SetBusyUi(false); }
         private void BtnSearch_Click(object sender, RoutedEventArgs e) => new IsoSearchDialog(IsoDatabaseService.Instance) { Owner = this }.ShowDialog();
-        private void BtnEditDb_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy) { MessageBox.Show("Bitte warten …"); return; } var dlg = new IsoListDialog(IsoDatabaseService.Instance) { Owner = this }; if (dlg.ShowDialog() == true) _vm.RebuildTree(); }
+        private void BtnEditDb_Click(object sender, RoutedEventArgs e)
+        {
+            if (_vm.IsBusy) { MessageBox.Show("Bitte warten …"); return; }
+            var dlg = new IsoListDialog(IsoDatabaseService.Instance) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            _vm.RebuildTree();
+            // Nur bei manuell neu angelegten Einträgen prüfen — die haben (fast) nie eine bereits
+            // verifizierte Url. Reines Bearbeiten/Löschen/Umsortieren braucht keinen Check.
+            if (dlg.AnyEntryAdded) _vm.RunHealthCheck();
+        }
 
         private void BtnCopyUsb_Click(object sender, RoutedEventArgs e)
         {

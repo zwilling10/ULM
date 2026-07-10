@@ -85,7 +85,7 @@ namespace ULM.Views.Dialogs
                 tocPanel.Children.Add(MakeNavLink(navLabel, scroll, section));
             }
 
-            content.Children.Add(MakeTitle("Universal Linux Manager v2.27"));
+            content.Children.Add(MakeTitle("Universal Linux Manager v2.27.1"));
             content.Children.Add(MakeSub("Bootfähige USB-Sticks mit Linux-ISOs einfach erstellen und verwalten."));
             content.Children.Add(Spacer(16));
 
@@ -262,7 +262,13 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("Ventoy installieren / aktualisieren",
                 "Nur im Expert-Modus sichtbar. " +
                 "⚠ NEUINSTALLATION löscht ALLE Daten auf dem Stick! " +
-                "Aktualisieren behält bestehende ISOs. Läuft als Administrator (UAC)."));
+                "Aktualisieren behält bestehende ISOs. Läuft als Administrator (UAC) in einem " +
+                "eigenen ULM-Fenster mit Fortschrittsanzeige und Protokoll — Ventoy2Disk.exe selbst " +
+                "läuft dabei komplett unsichtbar im Hintergrund (offizieller Silent-/CLI-Modus, " +
+                "keine eigene Ventoy-Oberfläche, keine manuelle Bedienung nötig). Während die " +
+                "Installation läuft, pausiert ULM die automatische Laufwerkserkennung — es können " +
+                "keine weiteren Abfragen oder Dialoge parallel erscheinen. Nach Abschluss (Erfolg " +
+                "oder Fehler) muss der 'Schließen'-Button aktiv geklickt werden, um fortzufahren."));
             content.Children.Add(MakeItem("Ventoy-Bootmenü",
                 "Wird automatisch nach jedem Kopiervorgang UND nach jedem ISO-Import vom Stick aktualisiert. " +
                 "Enthält leserliche Namen, Beschreibungen und Kategorien aus der Datenbank."));
@@ -337,10 +343,13 @@ namespace ULM.Views.Dialogs
                 "defekte Einträge (abgelaufene URL, umgezogene Distro-Website) sofort zu erkennen, statt " +
                 "sie erst beim nächsten Download-Versuch zu bemerken. Bei Ausfällen: im DB-Editor " +
                 "zusätzliche Mirror-URLs oder ein GitHub-Repo hinterlegen.\n\n" +
-                "Läuft jetzt zusätzlich automatisch — nicht mehr nur über den Button: nach jedem " +
-                "Stick-Scan UND nach jedem Download (auch ohne Stick-Ziel). Eigene Fortschrittsanzeige " +
-                "oben rechts, genauso wie beim Online-Scan (🩺 Gesundheitscheck). Vor jedem Lauf werden " +
-                "doppelte Datenbank-Einträge automatisch erkannt und bereinigt."));
+                "Läuft automatisch — gezielt genau dann, wenn neue, noch unverifizierte Einträge in " +
+                "die Datenbank kommen: nach Stick-Import, nach 'Hinzufügen' bei einer neueren Version " +
+                "auf dem Stick, und nach manuellem 'Neu' im DB-Editor. NICHT bei jedem Stick-Scan, " +
+                "Ventoy-Installation oder Kopiervorgang — das regelmäßige Prüfen bereits bekannter " +
+                "Einträge übernimmt der Online-Versionscheck (Start + alle paar Tage). Eigene " +
+                "Fortschrittsanzeige oben rechts, genauso wie beim Online-Scan (🩺 Gesundheitscheck). " +
+                "Vor jedem Lauf werden doppelte Datenbank-Einträge automatisch erkannt und bereinigt."));
             content.Children.Add(Spacer());
 
             // ── Protokoll ──────────────────────────────────────────────────

@@ -21,6 +21,11 @@ namespace ULM.Views.Dialogs
         private readonly IsoDatabaseService _db;
         private readonly ListBox            _list;
 
+        /// <summary>Mindestens ein neuer Eintrag wurde über "Neu" angelegt (nicht nur bearbeitet/
+        /// gelöscht/verschoben) — der Aufrufer kann das nutzen, um gezielt nur dann einen
+        /// Gesundheitscheck für den neuen, unverifizierten Eintrag auszulösen.</summary>
+        public bool AnyEntryAdded { get; private set; }
+
         public IsoListDialog(IsoDatabaseService db)
         {
             _db = db;
@@ -131,7 +136,7 @@ namespace ULM.Views.Dialogs
             var entry = new IsoEntry { Category = "Einsteiger" };
             var dlg = new IsoEditDialog(entry, isNew: true) { Owner = this };
             if (dlg.ShowDialog() != true) return;
-            _db.Add(entry); FillList(); SelectByEntryIndex(_db.Count - 1);
+            _db.Add(entry); AnyEntryAdded = true; FillList(); SelectByEntryIndex(_db.Count - 1);
         }
 
         private void BtnEdit_Click(object sender, RoutedEventArgs e)

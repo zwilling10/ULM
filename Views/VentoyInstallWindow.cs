@@ -31,6 +31,7 @@ namespace ULM.Views
         private readonly TextBlock   _logText;
         private readonly ScrollViewer _scroll;
         private readonly Button      _btnClose;
+        private int _exitCode = 1; // Standard: Fehler, bis ein Erfolg das Gegenteil belegt
 
         // Farben (keine Theme-Ressourcen nötig — dies ist ein Standalone-Fenster)
         private static readonly SolidColorBrush BrushBg      = new(Color.FromRgb(0x0D, 0x1B, 0x2A));
@@ -137,7 +138,9 @@ namespace ULM.Views
             Grid.SetRow(logBorder, 3);
             root.Children.Add(logBorder);
 
-            // ── Schließen-Button (nur bei Fehler) ──────────────────────────
+            // ── Schließen-Button (bei Erfolg UND Fehler — siehe RunInstallationAsync) ──────
+            // Schließt NIE automatisch: der Nutzer muss den Abschluss aktiv bestätigen, damit
+            // eindeutig ist, dass die Installation fertig ist, bevor er den Stick entfernt.
             _btnClose = new Button
             {
                 Content             = "✕ Schließen",
@@ -152,7 +155,7 @@ namespace ULM.Views
                 BorderThickness     = new Thickness(1),
                 FontSize            = 12,
             };
-            _btnClose.Click += (_, _) => Application.Current.Shutdown(1); // ExitCode 1 = Fehler
+            _btnClose.Click += (_, _) => Application.Current.Shutdown(_exitCode);
             Grid.SetRow(_btnClose, 4);
             root.Children.Add(_btnClose);
 
@@ -177,7 +180,7 @@ namespace ULM.Views
                 _pctText.Text = $"{pct}%";
             });
 
-            worker.Completed += success => Dispatcher.Invoke(async () =>
+            worker.Completed += success => Dispatcher.Invoke(() =>
             {
                 _bar.Value    = success ? 100 : _bar.Value;
                 _pctText.Text = success ? "100%" : _pctText.Text;
@@ -186,27 +189,32 @@ namespace ULM.Views
 
                 if (success)
                 {
-                    // ── Erfolg: Fenster zeigt kurz die Bestätigung, dann Shutdown(0) ──
-                    _titleText.Text       = $"✅ Ventoy wurde erfolgreich {(_updateMode ? "aktualisiert" : "installiert")}.";
-                    _titleText.Foreground = BrushSuccess;
+                    // ── Erfolg: NICHT automatisch schließen — der Nutzer bestätigt aktiv per
+                    // Button. Ein automatischer Timer-Schluss könnte sich mit einer zufällig
+                    // gleichzeitig auftretenden Laufwerks-Neuerkennung der normalen ULM-Instanz
+                    // überschneiden; ein expliziter Klick macht den Abschluss eindeutig.
+                    _exitCode              = 0;
+                    _titleText.Text        = $"✅ Ventoy wurde erfolgreich {(_updateMode ? "aktualisiert" : "installiert")}.";
+                    _titleText.Foreground  = BrushSuccess;
                     AppendLog("✅ Vorgang abgeschlossen.");
-                    AppendLog("   Dieses Fenster schließt sich in 3 Sekunden …");
-
-                    await Task.Delay(3000);
-
-                    // ExitCode 0 signalisiert der normalen ULM-Instanz: Erfolg
-                    Application.Current.Shutdown(0);
+                    AppendLog("   Bitte 'Schließen' klicken, um fortzufahren.");
+                    _btnClose.Content       = "✔ Schließen";
+                    _btnClose.BorderBrush   = BrushSuccess;
+                    _btnClose.Visibility    = Visibility.Visible;
                 }
                 else
                 {
                     // ── Fehler: Schließen-Button einblenden ───────────────────────────
-                    _titleText.Text       = "❌ Ventoy-Installation fehlgeschlagen.";
-                    _titleText.Foreground = BrushError;
+                    _exitCode              = 1;
+                    _titleText.Text        = "❌ Ventoy-Installation fehlgeschlagen.";
+                    _titleText.Foreground  = BrushError;
                     AppendLog("❌ Bitte das Protokoll prüfen.");
                     AppendLog("   Schließen-Button: ExitCode 1 → normale ULM-Instanz zeigt Fehlermeldung.");
-                    _btnClose.Visibility  = Visibility.Visible;
-                    // Shutdown(1) wird durch den Schließen-Button ausgelöst
+                    _btnClose.Content       = "✕ Schließen";
+                    _btnClose.BorderBrush   = BrushError;
+                    _btnClose.Visibility    = Visibility.Visible;
                 }
+                // Shutdown wird in beiden Fällen erst durch den Schließen-Button ausgelöst
             });
 
             await worker.RunAsync();
@@ -218,13 +226,19 @@ namespace ULM.Views
             _scroll.ScrollToBottom();
         }
 
-        // Fenster-Schließen durch X verhindert stillen Exit ohne Code:
-        // ExitCode 1 sicherstellen.
+        // BUGFIX: Schließen (X, Alt+F4, ODER der Schließen-Button selbst — dessen Klick ruft
+        // bereits Application.Current.Shutdown(_exitCode) auf, was Close() UND damit OnClosing
+        // erneut auslöst) rief hier bisher IMMER Shutdown(1) auf — auch nach einer erfolgreichen
+        // Installation. Da Environment.ExitCode zuletzt-gewinnt, wurde dadurch JEDER Erfolg beim
+        // Beenden nachträglich zu ExitCode 1 überschrieben, sodass die normale ULM-Instanz eine
+        // erfolgreiche Installation fälschlich als fehlgeschlagen meldete. ExitCode 1 wird jetzt nur
+        // noch erzwungen, wenn der Worker beim Schließen NOCH LÄUFT (Schließen-Button noch nicht
+        // sichtbar, siehe worker.Completed) — dann ist Abbruch tatsächlich gleichbedeutend mit
+        // Fehler. Nach Abschluss ist _exitCode bereits korrekt gesetzt und bleibt unangetastet.
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
         {
-            // Wenn der Worker noch läuft (kein btnClose sichtbar) und der
-            // Benutzer das X klickt, als Fehler werten.
-            Application.Current.Shutdown(1);
+            if (_btnClose.Visibility != Visibility.Visible) _exitCode = 1;
+            Application.Current.Shutdown(_exitCode);
             base.OnClosing(e);
         }
     }
