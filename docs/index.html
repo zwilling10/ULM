@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Linux Manager — Multiboot USB Stick Manager</title>
+<meta name="description" content="Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230075BE'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI, Arial' font-weight='bold' fill='white' text-anchor='middle'%3EUL%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0b1622; --bg-alt:#0f2540; --card:#132a44; --card-border:#1e3a5c;
+    --text:#eaf1f8; --text-dim:#8ba3be; --text-mute:#5f7c99;
+    --blue:#1a9ae0; --blue-deep:#0075be; --green:#27ae60; --amber:#e67e22; --teal:#1abc9c;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 20% -10%, #12305a 0%, var(--bg) 55%),var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  img{max-width:100%}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  /* ── Nav ─────────────────────────────────────────────────────── */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(11,22,34,.82);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--card-border);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+  .brand .logo{
+    width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--blue-deep));
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
+    box-shadow:0 4px 14px rgba(0,117,190,.4);
+  }
+  nav .links{display:flex;gap:22px;font-size:13.5px;color:var(--text-dim)}
+  nav .links a{color:var(--text-dim)}
+  nav .links a:hover{color:var(--text);text-decoration:none}
+  .btn-gh-nav{
+    display:flex;align-items:center;gap:6px;color:var(--text)!important;
+    border:1px solid var(--card-border);padding:6px 12px;border-radius:8px;font-size:13px;
+  }
+  .btn-gh-nav:hover{border-color:var(--blue);text-decoration:none}
+
+  /* ── Hero ────────────────────────────────────────────────────── */
+  header.hero{position:relative;padding:88px 0 70px;overflow:hidden}
+  header.hero::before{
+    content:"";position:absolute;inset:0;
+    background:
+      linear-gradient(180deg, rgba(11,22,34,.55) 0%, rgba(11,22,34,.94) 78%, var(--bg) 100%),
+      url('assets/background.png') center/cover no-repeat;
+    opacity:.55;
+    z-index:0;
+  }
+  header.hero .wrap{position:relative;z-index:1;text-align:center}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12.5px;font-weight:600;letter-spacing:.4px;color:var(--teal);
+    background:rgba(26,188,156,.12);border:1px solid rgba(26,188,156,.35);
+    padding:6px 14px;border-radius:999px;margin-bottom:22px;
+  }
+  h1{
+    font-size:clamp(34px,6vw,56px);font-weight:800;letter-spacing:-1px;
+    background:linear-gradient(180deg,#ffffff,#c7dcee);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .tagline{margin-top:16px;font-size:clamp(16px,2.4vw,20px);color:var(--text-dim);max-width:620px;margin-left:auto;margin-right:auto}
+  .cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:38px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:14px 26px;border-radius:11px;font-weight:700;font-size:14.5px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn:hover{transform:translateY(-2px);text-decoration:none}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),var(--blue-deep));color:#fff;box-shadow:0 10px 30px rgba(0,117,190,.35)}
+  .btn-primary:hover{box-shadow:0 14px 36px rgba(0,117,190,.5)}
+  .btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--card-border);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--text-mute)}
+  .meta-row{
+    display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:28px;
+    font-size:12.5px;color:var(--text-mute);
+  }
+  .meta-row span{display:flex;align-items:center;gap:6px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+
+  /* ── Sections ────────────────────────────────────────────────── */
+  section{padding:70px 0}
+  .section-head{text-align:center;max-width:640px;margin:0 auto 46px}
+  .section-head .kicker{font-size:12px;font-weight:700;letter-spacing:1px;color:var(--blue);text-transform:uppercase}
+  .section-head h2{font-size:clamp(24px,3.6vw,34px);margin-top:10px;letter-spacing:-.5px}
+  .section-head p{color:var(--text-dim);margin-top:12px;font-size:15px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .card{
+    background:linear-gradient(180deg,var(--card),rgba(19,42,68,.55));
+    border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:26px 24px;transition:border-color .15s ease, transform .15s ease;
+  }
+  .card:hover{border-color:var(--blue-deep);transform:translateY(-3px)}
+  .card .ic{
+    width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:20px;margin-bottom:16px;
+  }
+  .ic-blue{background:rgba(0,117,190,.15)}
+  .ic-green{background:rgba(39,174,96,.15)}
+  .ic-amber{background:rgba(230,126,34,.15)}
+  .ic-teal{background:rgba(26,188,156,.15)}
+  .card h3{font-size:16px;margin-bottom:8px}
+  .card p{font-size:13.5px;color:var(--text-dim)}
+
+  /* ── Category strip ──────────────────────────────────────────── */
+  .cat-strip{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .chip{
+    font-size:12.5px;padding:8px 14px;border-radius:999px;
+    background:rgba(255,255,255,.04);border:1px solid var(--card-border);color:var(--text-dim);
+  }
+
+  /* ── Tech ─────────────────────────────────────────────────────── */
+  .tech-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .tech-badge{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:11px;
+    padding:14px 20px;font-size:13.5px;font-weight:600;
+  }
+  .tech-badge .dot2{width:9px;height:9px;border-radius:50%}
+
+  /* ── Download panel ───────────────────────────────────────────── */
+  .dl-panel{
+    background:linear-gradient(135deg, rgba(0,117,190,.14), rgba(26,188,156,.08));
+    border:1px solid rgba(0,117,190,.35);border-radius:20px;
+    padding:46px 40px;text-align:center;
+  }
+  .dl-panel h2{font-size:26px;margin-bottom:10px}
+  .dl-panel p{color:var(--text-dim);font-size:14.5px;margin-bottom:26px}
+  .req-list{
+    display:flex;gap:26px;justify-content:center;flex-wrap:wrap;margin-top:30px;
+    font-size:12.5px;color:var(--text-mute);
+  }
+  .req-list span{display:flex;align-items:center;gap:7px}
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  footer{border-top:1px solid var(--card-border);padding:34px 0;margin-top:20px}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+  footer p{font-size:12.5px;color:var(--text-mute)}
+  footer .flinks{display:flex;gap:18px;font-size:12.5px}
+  footer .flinks a{color:var(--text-dim)}
+
+  @media (max-width:640px){
+    nav .links{display:none}
+    .dl-panel{padding:32px 22px}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="logo">UL</span> Universal Linux Manager</div>
+    <div class="links">
+      <a href="#features">Funktionen</a>
+      <a href="#distros">Distros</a>
+      <a href="#download">Download</a>
+    </div>
+    <a class="btn-gh-nav" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span> v2.27 · Open Source · 100% portabel</div>
+    <h1>Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten</h1>
+    <p class="tagline">ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener">⬇ Download für Windows</a>
+      <a class="btn btn-ghost" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">Quellcode auf GitHub</a>
+    </div>
+    <div class="meta-row">
+      <span><span class="dot"></span> Windows 10 / 11 (x64)</span>
+      <span>Keine Installation nötig</span>
+      <span>Keine .NET-Runtime nötig</span>
+      <span>MIT-lizenziert</span>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Funktionen</div>
+      <h2>Alles, was ein Multiboot-Stick braucht</h2>
+      <p>Vier Kernaufgaben, komplett automatisiert — vom Download bis zum fertigen Bootmenü.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="ic ic-blue">⬇</div>
+        <h3>Automatische ISO-Downloads</h3>
+        <p>Über 20 dedizierte Erkennungsroutinen lösen für jede unterstützte Distro immer die aktuellste Download-URL direkt beim Anbieter auf — keine hartkodierten Links, die veralten.</p>
+      </div>
+      <div class="card">
+        <div class="ic ic-teal">💾</div>
+        <h3>Ventoy-Integration</h3>
+        <p>Ein Stick, viele ISOs, kein Neu-Flashen. ULM kopiert Downloads direkt auf den Stick und aktualisiert das Bootmenü automatisch nach jeder Änderung.</p>
+      </div>
+      <div class="card">
+        <div class="ic ic-green">🩺</div>
+        <h3>Gesundheitscheck & Duplikat-Schutz</h3>
+        <p>Läuft automatisch nach jedem Download oder Scan: prüft alle Einträge auf Erreichbarkeit und bereinigt doppelte Datenbank-Einträge, bevor sie auffallen.</p>
+      </div>
+      <div class="card">
+        <div class="ic ic-amber">🧹</div>
+        <h3>Datenmüll-Schutz</h3>
+        <p>Vergleicht jede lokale und auf dem Stick gefundene ISO per Online-Größenprüfung mit dem Original — unvollständige Downloads werden zuverlässig erkannt.</p>
+      </div>
+      <div class="card">
+        <div class="ic ic-blue">📥</div>
+        <h3>Selbstlernende Erkennung</h3>
+        <p>Manuell hinzugefügte oder vom Stick importierte Distros werden automatisch einer passenden Quelle zugeordnet — gefundene URLs werden dauerhaft gemerkt.</p>
+      </div>
+      <div class="card">
+        <div class="ic ic-teal">📦</div>
+        <h3>Komplett portabel</h3>
+        <p>Eine einzige .exe, self-contained, ohne Installer. Einfach auf den Stick oder in einen beliebigen Ordner kopieren und starten.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="distros">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Katalog</div>
+      <h2>Für jeden Einsatzzweck die richtige Distro</h2>
+      <p>Vorkonfiguriert und kategorisiert — von Einsteiger-Desktops bis Pen-Testing.</p>
+    </div>
+    <div class="cat-strip">
+      <span class="chip">🖥 Einsteiger</span>
+      <span class="chip">⚙ Fortgeschrittene</span>
+      <span class="chip">🪶 Leichtgewicht</span>
+      <span class="chip">🎮 Gaming</span>
+      <span class="chip">🔒 Sicherheit</span>
+      <span class="chip">🛠 Rettung</span>
+      <span class="chip">🛡 Antivirus</span>
+      <span class="chip">🪟 WinPE</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker">Technik</div>
+      <h2>Gebaut mit</h2>
+    </div>
+    <div class="tech-row">
+      <div class="tech-badge"><span class="dot2" style="background:#0075be"></span> .NET 8</div>
+      <div class="tech-badge"><span class="dot2" style="background:#27ae60"></span> C# / WPF</div>
+      <div class="tech-badge"><span class="dot2" style="background:#e67e22"></span> MVVM</div>
+      <div class="tech-badge"><span class="dot2" style="background:#1abc9c"></span> Ventoy</div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="dl-panel">
+      <h2>Jetzt herunterladen</h2>
+      <p>Neueste Version von GitHub Releases — einfach entpacken/kopieren und starten.</p>
+      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener">⬇ Neueste Version herunterladen</a>
+      <div class="req-list">
+        <span>✔ Windows 10 / 11 (x64)</span>
+        <span>✔ ~70&nbsp;MB, eine Datei</span>
+        <span>✔ Kein Administrator nötig (außer für Ventoy-Setup)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>© 2025 ULM Project. Open Source.</p>
+    <div class="flinks">
+      <a href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/zwilling10/ULM/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/zwilling10/ULM/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
