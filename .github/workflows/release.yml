@@ -7,6 +7,15 @@ on:
   push:
     tags:
       - "v*"
+  # Manuelles Nachtriggern für einen bereits existierenden Tag — z.B. wenn der Workflow beim
+  # ersten Tag-Push aus einem anderen Grund fehlschlug (siehe build-release.sh: der frühere
+  # 'zip'-Bug ließ jeden Release-Versuch scheitern, OHNE dass ein Release erstellt wurde).
+  # Ohne diesen Trigger musste man dafür bisher den Tag lokal+remote löschen und neu pushen.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Bereits existierender Tag, für den das Release (nach)gebaut werden soll (z.B. v2.30.0)"
+        required: true
 
 permissions:
   contents: write # nötig, damit gh release create mit dem automatischen GITHUB_TOKEN funktioniert
@@ -17,6 +26,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: .NET 8 SDK einrichten
         uses: actions/setup-dotnet@v4
@@ -32,7 +43,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${GITHUB_REF_NAME}"
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
           gh release create "$TAG" release/*.exe release/*.zip \
             --title "Universal Linux Manager $TAG" \
             --generate-notes

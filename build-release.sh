@@ -47,6 +47,11 @@ echo "   Läuft ohne Installation auf jedem Windows 10/11 x64 — einfach kopier
 
 if [ "${1:-}" = "--zip" ]; then
     ZIP_NAME="UniversalLinuxManager-v${VERSION}-win-x64.zip"
-    (cd "$OUT_DIR" && rm -f "$ZIP_NAME" && zip -q "$ZIP_NAME" "$RELEASE_EXE_NAME")
+    # BUGFIX: 'zip' ist auf dem GitHub-Actions windows-latest-Runner nicht installiert — das ließ
+    # den Release-Workflow bisher IMMER an dieser Stelle scheitern (exit 127), obwohl die EXE
+    # selbst längst fertig gebaut war, und noch BEVOR "gh release create" lief. Kein Release
+    # wurde dadurch je automatisch veröffentlicht. PowerShells Compress-Archive ist auf jedem
+    # Windows-System (10/11, jeder CI-Runner) garantiert vorhanden — kein externes Tool nötig.
+    (cd "$OUT_DIR" && rm -f "$ZIP_NAME" && powershell -NoProfile -Command "Compress-Archive -Path '$RELEASE_EXE_NAME' -DestinationPath '$ZIP_NAME' -Force")
     echo "📦 Zusätzlich gepackt: ${OUT_DIR}/${ZIP_NAME}"
 fi
