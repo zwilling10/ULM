@@ -35,6 +35,11 @@ namespace ULM.Views
         public MainWindow()
         {
             InitializeComponent();
+            // BUGFIX: der Fenstertitel stand bisher als fester String in der XAML ("... v2.27") und
+            // wurde bei Versions-Releases nie mitgepflegt — Constants.AppFullTitle liest die Version
+            // bereits dynamisch aus der Assembly, das galt aber nur für den HelpDialog-Titel, nicht
+            // für das Hauptfenster selbst.
+            Title = Constants.AppFullTitle;
             _vm = new MainViewModel(Dispatcher);
             DataContext = _vm;
             _vm.LogMessage += AppendLog;

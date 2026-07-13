@@ -1,7 +1,7 @@
 <Window x:Class="ULM.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Universal Linux Manager v2.27"
+        Title="Universal Linux Manager"
         Width="1160" Height="750" MinWidth="900" MinHeight="580"
         Background="{StaticResource BrushBg}"
         WindowStartupLocation="CenterScreen">

@@ -15,11 +15,15 @@ namespace ULM.Core.Models
         public static readonly string AppVersion   = ReadVersion();
         public static string AppFullTitle => $"{AppTitle} v{AppVersion}";
 
+        // BUGFIX: bei einer .0-Patch-Version (z.B. AssemblyVersion 2.28.0.0) wurde der Build-Teil
+        // bisher weggelassen ("2.28" statt "2.28.0") — das weicht vom <Version> in der .csproj, dem
+        // Git-Tag und dem GitHub-Release-Namen ab (alle "2.28.0"), was in Fenstertitel/Hilfe-Dialog
+        // wie eine veraltete Version aussieht, obwohl es die aktuell gebaute ist.
         private static string ReadVersion()
         {
             var v = Assembly.GetExecutingAssembly().GetName().Version;
             if (v is null) return "0.0.0";
-            return v.Build > 0 ? $"{v.Major}.{v.Minor}.{v.Build}" : $"{v.Major}.{v.Minor}";
+            return $"{v.Major}.{v.Minor}.{v.Build}";
         }
 
         public const long MinIsoSizeBytes   = 314_572_800L; // 300 MB

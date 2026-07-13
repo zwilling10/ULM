@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.28.1", new[]
+            {
+                "Fenstertitel zeigte fälschlich immer eine fest hinterlegte, veraltete Versionsnummer statt der tatsächlich installierten — jetzt dynamisch aus der Programmversion gelesen",
+                "Neues Programm-Icon (passend zum Logo der Projektseite) für EXE, Taskleiste und Fenster-Titelleiste",
+            }),
             ("2.28.0", new[]
             {
                 "Neuer Automatismus löst für JEDE unbekannte/importierte Distro automatisch die Download-Quelle auf (DistroWatch- und SourceForge-Suche als zusätzliche Stufen) — nicht mehr nur für fest hinterlegte Distros",
