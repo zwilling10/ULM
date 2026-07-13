@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.29.1", new[]
+            {
+                "Einrichtungsfenster passte sich bisher nicht an kleine Bildschirme an — auf 800x600 ragte es über den Bildschirm hinaus und der 'Übernehmen'-Button war unsichtbar. Größe richtet sich jetzt nach dem tatsächlichen Bildschirm-Arbeitsbereich, Kopf- und Fußzeile bleiben immer sichtbar.",
+            }),
             ("2.29.0", new[]
             {
                 "Neu: Dark Mode — Design-Wahl System/Hell/Dunkel im Setup-Dialog oder jederzeit über den Knopf oben rechts im Hauptfenster, schaltet sofort um (kein Neustart nötig)",

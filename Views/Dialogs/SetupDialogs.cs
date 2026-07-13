@@ -32,21 +32,30 @@ namespace ULM.Views.Dialogs
         {
             ChosenThemeMode = currentThemeMode;
             Title  = "Universal Linux Manager — Einrichtung";
-            Width  = 760;
-            MinWidth  = 700;
-            // Höhe wird von WPF an den tatsächlichen Inhalt angepasst (siehe MaxHeight/ScrollViewer
-            // unten als Sicherheitsnetz) statt einer manuell geschätzten Pixelzahl — eine
-            // handgerechnete Höhe war je nach gezeigten Abschnitten (Erststart/Willkommen/Modus)
-            // zu knapp bemessen und schnitt den unteren Inhalt sichtbar ab.
+            // BUGFIX: Breite/Höhe waren fest auf 760x(automatisch bis zu ~950 sichtbaren Pixeln)
+            // ausgelegt — auf kleinen Bildschirmen (getestet: 800x600) ragte das Fenster oben UND
+            // unten über den sichtbaren Arbeitsbereich hinaus, wodurch der "Übernehmen"-Button in
+            // der Fußzeile unsichtbar wurde (ResizeMode=NoResize verhinderte jede Abhilfe durch den
+            // Nutzer). Breite und maximale Höhe orientieren sich jetzt am tatsächlich verfügbaren
+            // Arbeitsbereich (SystemParameters.WorkArea) des Bildschirms, auf dem ULM läuft.
+            double maxW = SystemParameters.WorkArea.Width  - 40;
+            double maxH = SystemParameters.WorkArea.Height - 40;
+            Width     = Math.Max(560, Math.Min(760, maxW));
+            MinWidth  = Math.Min(700, Width);
+            MaxHeight = Math.Max(360, maxH);
+            // SizeToContent wächst bis zur oben gesetzten MaxHeight — reicht der Platz nicht für
+            // den gesamten Inhalt (Erststart mit allen Abschnitten), übernimmt der Sternchen-Zeile
+            // im Grid unten (Body) die Rolle des kompressiblen Bereichs: Kopf- und Fußzeile bleiben
+            // dabei IMMER vollständig sichtbar, nur der mittlere Bereich bekommt einen Scrollbalken.
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = ThemeColors.Bg;
 
             var root = new Grid();
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Body
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Footer
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                        // Header
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });    // Body (kompressibel)
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                        // Footer
 
             // ── HEADER ───────────────────────────────────────────────
             // BrushHeaderBar statt Verlauf: dieser Streifen soll — genau wie die Kopfzeile des
@@ -75,10 +84,10 @@ namespace ULM.Views.Dialogs
             root.Children.Add(header);
 
             // ── BODY ─────────────────────────────────────────────────
-            // MaxHeight nur als Sicherheitsnetz für sehr kleine Bildschirme — im Normalfall
-            // sizet SizeToContent das Fenster exakt auf die Höhe aller sichtbaren Abschnitte,
-            // ohne dass hier gescrollt werden muss.
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 780 };
+            // Kein fester MaxHeight-Wert mehr nötig — das Fenster selbst begrenzt die Höhe anhand
+            // des tatsächlichen Bildschirm-Arbeitsbereichs (siehe oben), und die Body-Zeile im Grid
+            // ist sternchen-sized, übernimmt also automatisch die Rolle des scrollbaren Bereichs.
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var body   = new StackPanel { Margin = new Thickness(28, 22, 28, 18) };
 
             TextBox? txtPath = null;
