@@ -15,6 +15,11 @@ namespace ULM
         {
             base.OnStartup(e);
 
+            // Theme so früh wie möglich anwenden — noch bevor irgendein Fenster (Setup-Dialog,
+            // VentoyInstallWindow oder MainWindow) konstruiert wird, damit von Anfang an die
+            // richtige Farbpalette aktiv ist und kein kurzes Aufblitzen im falschen Theme auftritt.
+            ThemeService.Initialize();
+
             // ─────────────────────────────────────────────────────────────
             // Elevation-on-demand: Ventoy Admin-Modus
             //
@@ -112,7 +117,7 @@ namespace ULM
 
             if (!skipSetupDialog)
             {
-                var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert)
+                var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert, currentThemeMode: ThemeService.CurrentMode)
                 { WindowStartupLocation = WindowStartupLocation.CenterScreen };
                 if (setupDlg.ShowDialog() != true) { Shutdown(); return; }
 
@@ -124,6 +129,9 @@ namespace ULM
                 if (setupDlg.DontShowAgain)
                     IniService.Write(paths.SettingsIni, "App", "SkipSetupDialog", "1");
                 lastExpert = setupDlg.ExpertModeChosen;
+                // Erst NACH Dialog-Schluss anwenden (nicht live während der Auswahl im Dialog
+                // selbst) — MainWindow wird direkt danach mit der korrekten Palette konstruiert.
+                ThemeService.SetMode(setupDlg.ChosenThemeMode);
             }
 
             // STEP 4: Hauptfenster

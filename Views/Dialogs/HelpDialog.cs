@@ -5,27 +5,32 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;   // Ellipse
 using ULM.Core.Models;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
     public sealed class HelpDialog : Window
     {
-        private static readonly Brush BgDialog  = new SolidColorBrush(Color.FromRgb(250, 250, 252));
-        private static readonly Brush BgToc     = new SolidColorBrush(Color.FromRgb(244, 246, 249));
-        private static readonly Brush ClrTitle  = new SolidColorBrush(Color.FromRgb(26,  35,  55));
-        private static readonly Brush ClrSection= new SolidColorBrush(Color.FromRgb(21, 101, 192));
-        private static readonly Brush ClrLabel  = new SolidColorBrush(Color.FromRgb(36,  50,  74));
-        private static readonly Brush ClrBody   = new SolidColorBrush(Color.FromRgb(55,  65,  81));
-        private static readonly Brush ClrSub    = new SolidColorBrush(Color.FromRgb(100, 110, 125));
-        private static readonly Brush ClrBorder = new SolidColorBrush(Color.FromRgb(210, 214, 220));
+        // Statt fest hinterlegter Hex-Farben: Zugriff auf die aktuell aktive Palette (Hell/Dunkel),
+        // damit dieser Dialog automatisch zum gewählten Design passt. Als Properties (nicht mehr
+        // "static readonly" mit einmalig eingefrorenem Wert), da HelpDialog bei jedem Öffnen neu
+        // konstruiert wird und so immer die zum Zeitpunkt des Öffnens aktuelle Farbe liest.
+        private static Brush BgDialog  => ThemeColors.Bg;
+        private static Brush BgToc     => ThemeColors.Card;
+        private static Brush ClrTitle  => ThemeColors.Header;
+        private static Brush ClrSection=> ThemeColors.Blue;
+        private static Brush ClrLabel  => ThemeColors.Header;
+        private static Brush ClrBody   => ThemeColors.Mid;
+        private static Brush ClrSub    => ThemeColors.Dim;
+        private static Brush ClrBorder => ThemeColors.Border;
 
-        private static readonly Brush SwGreen  = new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60));
-        private static readonly Brush SwOrange = new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22));
-        private static readonly Brush SwRed    = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
-        private static readonly Brush SwTeal   = new SolidColorBrush(Color.FromRgb(0x1A, 0xBC, 0x9C));
-        private static readonly Brush SwBlue   = new SolidColorBrush(Color.FromRgb(0x4A, 0x67, 0x85));
-        private static readonly Brush SwGray   = new SolidColorBrush(Color.FromRgb(0x8B, 0xA3, 0xBE));
-        private static readonly Brush SwDark   = new SolidColorBrush(Color.FromRgb(0x1A, 0x2B, 0x3C));
+        private static Brush SwGreen  => ThemeColors.Green;
+        private static Brush SwOrange => ThemeColors.Amber;
+        private static Brush SwRed    => ThemeColors.Red;
+        private static Brush SwTeal   => ThemeColors.Teal;
+        private static Brush SwBlue   => ThemeColors.Mid;
+        private static Brush SwGray   => ThemeColors.Dim;
+        private static Brush SwDark   => ThemeColors.Header;
 
         public HelpDialog()
         {
@@ -222,6 +227,28 @@ namespace ULM.Views.Dialogs
                 "  🛠 Rettung           — Rettungs- und Reparatur-Live-Systeme (GParted, Clonezilla)\n" +
                 "  🛡 Antivirus         — Live-Systeme zur Virenprüfung und -entfernung\n" +
                 "  🪟 WinPE             — Windows-basierte Rettungsumgebungen (Hiren's BootCD)"));
+            content.Children.Add(Spacer());
+
+            // ── Design (Hell/Dunkel) ───────────────────────────────────────
+            AddSection("🌓 Design — Hell / Dunkel / System", "Design");
+            content.Children.Add(MakeText(
+                "ULM hat ein helles und ein dunkles Erscheinungsbild. Beide sind vollständig " +
+                "durchgestylt (Listen, Dialoge, Eingabefelder) und für gute Lesbarkeit geprüft."));
+            content.Children.Add(MakeItem("Einstellen",
+                "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf " +
+                "'🌓 Design: …' oben rechts im Hauptfenster (neben 'Modus: Anwender/Experte'). " +
+                "Ein Klick wechselt der Reihe nach zwischen System → Hell → Dunkel."));
+            content.Children.Add(MakeItem("System",
+                "Übernimmt automatisch die aktuelle Windows-Design-Einstellung (Hell oder Dunkel). " +
+                "Ändert sich das Windows-Design während ULM läuft, zieht ULM automatisch nach — " +
+                "ohne Neustart."));
+            content.Children.Add(MakeItem("Sofortige Umschaltung",
+                "Ein Wechsel wirkt sofort auf das gesamte offene Hauptfenster — inklusive der " +
+                "Zeilenfarben in der Distro-Liste. Kein Neustart nötig. Neu geöffnete Dialoge " +
+                "(Hilfe, Datenbank, Einrichtung, …) übernehmen die Wahl automatisch."));
+            content.Children.Add(MakeItem("Merkt sich die Wahl",
+                "Die getroffene Wahl wird gespeichert und beim nächsten Programmstart automatisch " +
+                "wieder angewendet."));
             content.Children.Add(Spacer());
 
             // ── Protokoll-Symbole ─────────────────────────────────────────

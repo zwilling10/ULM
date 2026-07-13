@@ -18,6 +18,12 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.29.0", new[]
+            {
+                "Neu: Dark Mode — Design-Wahl System/Hell/Dunkel im Setup-Dialog oder jederzeit über den Knopf oben rechts im Hauptfenster, schaltet sofort um (kein Neustart nötig)",
+                "\"System\" übernimmt automatisch die Windows-Design-Einstellung und folgt ihr auch live, wenn sie sich während der Laufzeit ändert",
+                "Alle Listen, Dialoge und Eingabefelder wurden für gute Lesbarkeit im Dark Mode durchgestylt und geprüft",
+            }),
             ("2.28.1", new[]
             {
                 "Fenstertitel zeigte fälschlich immer eine fest hinterlegte, veraltete Versionsnummer statt der tatsächlich installierten — jetzt dynamisch aus der Programmversion gelesen",

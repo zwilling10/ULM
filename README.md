@@ -15,6 +15,7 @@ Portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-Live-ISOs. 
 - **Freispeicher-Check** — prüft vor Download/Kopieren, ob genug Platz am Ziel vorhanden ist
 - **Selbst-Update-Check** — meldet im Protokoll, wenn eine neuere ULM-Version verfügbar ist, inkl. „Was ist neu?“-Dialog nach einem Update
 - **Log-Rotation** — die Protokolldatei wird ab 5 MB automatisch rotiert statt unbegrenzt zu wachsen
+- **Dark Mode** — Design-Wahl System/Hell/Dunkel, schaltet live um (kein Neustart nötig), folgt bei "System" automatisch der Windows-Einstellung
 - **Komplett portabel** — eine einzige .exe, self-contained, kein Installer, keine .NET-Installation auf dem Zielsystem nötig
 
 ## Download

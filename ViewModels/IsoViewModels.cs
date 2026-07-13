@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Windows.Media;
 using ULM.Core.Models;
+using ULM.Infrastructure;
 
 namespace ULM.ViewModels
 {
@@ -126,21 +127,21 @@ namespace ULM.ViewModels
             }
         }
 
-        public SolidColorBrush StatusBrush
+        public Brush StatusBrush
         {
             get
             {
                 if (_entry.UsbStatus == Core.Models.UsbStatus.Ok)
-                    return new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60));
+                    return ThemeColors.Green;
                 if (_entry.UsbStatus == Core.Models.UsbStatus.Outdated)
-                    return new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22));
+                    return ThemeColors.Amber;
                 if (_entry.IsLocallyAvailable(_downloadDir))
-                    return new SolidColorBrush(Color.FromRgb(0x4A, 0x67, 0x85));
-                return new SolidColorBrush(Color.FromRgb(0x8B, 0xA3, 0xBE));
+                    return ThemeColors.Mid;
+                return ThemeColors.Dim;
             }
         }
 
-        public SolidColorBrush ForegroundBrush => GetForeground();
+        public Brush ForegroundBrush => GetForeground();
 
         private string BuildDisplayName()
         {
@@ -154,26 +155,26 @@ namespace ULM.ViewModels
             return $"{prefix}{_entry.Name}{urlTag}{verTag}{status}";
         }
 
-        private SolidColorBrush GetForeground()
+        private Brush GetForeground()
         {
             bool isLocal = _entry.IsLocallyAvailable(_downloadDir);
 
             if (_entry.ImportedFromStick)
-                return new SolidColorBrush(Color.FromRgb(0x1A, 0xBC, 0x9C)); // Teal
+                return ThemeColors.Teal;
             if (_entry.UsbStatus == Core.Models.UsbStatus.Ok)
-                return new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60)); // Grün
+                return ThemeColors.Green;
             if (_entry.HasResolvedUpdate || _entry.UsbStatus == Core.Models.UsbStatus.Outdated)
-                return new SolidColorBrush(Color.FromRgb(0xE6, 0x7E, 0x22)); // Orange
+                return ThemeColors.Amber;
             if (_entry.UrlChecked && !_entry.UrlOk)
-                return new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B)); // Rot
+                return ThemeColors.Red;
             if (!_entry.UrlChecked && string.IsNullOrEmpty(_entry.Url) &&
                 string.IsNullOrEmpty(_entry.GithubRepo))
-                return new SolidColorBrush(Color.FromRgb(0x8B, 0xA3, 0xBE)); // Grau
+                return ThemeColors.Dim;
             if (isLocal)
-                return new SolidColorBrush(Color.FromRgb(0x27, 0xAE, 0x60)); // Grün
+                return ThemeColors.Green;
             if (_entry.HasOnlineVersionInfo)
-                return new SolidColorBrush(Color.FromRgb(0x4A, 0x67, 0x85)); // Gedämpftes Blau
-            return new SolidColorBrush(Color.FromRgb(0x1A, 0x2B, 0x3C));    // Standard
+                return ThemeColors.Mid;
+            return ThemeColors.Header; // Standard/Basis-Textfarbe
         }
 
         public void Refresh()

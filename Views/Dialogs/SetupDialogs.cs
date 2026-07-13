@@ -8,6 +8,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
 using ULM.Core.Models;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -19,15 +20,17 @@ namespace ULM.Views.Dialogs
     // ═════════════════════════════════════════════════════════════════
     public sealed class SetupDialog : Window
     {
-        public string ChosenDirectory  { get; private set; } = string.Empty;
-        public bool   DontShowAgain    { get; private set; }
-        public bool   ExpertModeChosen { get; private set; }
+        public string       ChosenDirectory  { get; private set; } = string.Empty;
+        public bool         DontShowAgain    { get; private set; }
+        public bool         ExpertModeChosen { get; private set; }
+        public AppThemeMode ChosenThemeMode  { get; private set; }
 
         private static string DefaultBase =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "UniversalLinuxManager");
 
-        public SetupDialog(bool showDirectory, bool showWelcome, bool currentExpertMode = false)
+        public SetupDialog(bool showDirectory, bool showWelcome, bool currentExpertMode = false, AppThemeMode currentThemeMode = AppThemeMode.System)
         {
+            ChosenThemeMode = currentThemeMode;
             Title  = "Universal Linux Manager — Einrichtung";
             Width  = 760;
             MinWidth  = 700;
@@ -38,7 +41,7 @@ namespace ULM.Views.Dialogs
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            Background = Brush(Constants.ColorBg);
+            Background = ThemeColors.Bg;
 
             var root = new Grid();
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
@@ -46,29 +49,26 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Footer
 
             // ── HEADER ───────────────────────────────────────────────
-            // Farben aus Constants (Glary Design System) statt eigenständiger Ad-hoc-Palette —
-            // vorher nutzte dieses Fenster ein anderes Blau (#2563EB) als der Rest der App
-            // (Constants.ColorBlue #0075BE), wirkte dadurch wie ein Fremdkörper vor dem
-            // eigentlichen Hauptfenster.
+            // BrushHeaderBar statt Verlauf: dieser Streifen soll — genau wie die Kopfzeile des
+            // Hauptfensters — in JEDEM Theme gleich dunkel bleiben, nicht mit dem Farbschema
+            // invertieren (siehe Kommentar in AppTheme.xaml).
             var header = new Border
             {
-                Background = new LinearGradientBrush(
-                    (Color)ColorConverter.ConvertFromString(Constants.ColorMid),
-                    (Color)ColorConverter.ConvertFromString(Constants.ColorHeader), 0),
+                Background = ThemeColors.HeaderBar,
                 Padding = new Thickness(28, 22, 28, 22),
             };
             var headerContent = new StackPanel { Orientation = Orientation.Horizontal };
             var icon = new Border
             {
-                Width = 52, Height = 52, CornerRadius = new CornerRadius(12), Background = Brush(Constants.ColorBlue),
+                Width = 52, Height = 52, CornerRadius = new CornerRadius(12), Background = ThemeColors.Blue,
                 Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center,
-                Effect = new DropShadowEffect { Color = (Color)ColorConverter.ConvertFromString(Constants.ColorBlue), Opacity = 0.45, BlurRadius = 16, ShadowDepth = 0 },
+                Effect = new DropShadowEffect { Color = ((SolidColorBrush)ThemeColors.Blue).Color, Opacity = 0.45, BlurRadius = 16, ShadowDepth = 0 },
             };
             icon.Child = new TextBlock { Text = "🚀", FontSize = 26, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             headerContent.Children.Add(icon);
             var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             titleStack.Children.Add(new TextBlock { Text = "Willkommen beim Universal Linux Manager", FontSize = 19, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-            titleStack.Children.Add(new TextBlock { Text = "Kurze Einrichtung, dann kann's losgehen.", FontSize = 12, Foreground = Brush(Constants.ColorDim), Margin = new Thickness(0, 3, 0, 0) });
+            titleStack.Children.Add(new TextBlock { Text = "Kurze Einrichtung, dann kann's losgehen.", FontSize = 12, Foreground = ThemeColors.Dim, Margin = new Thickness(0, 3, 0, 0) });
             headerContent.Children.Add(titleStack);
             header.Child = headerContent;
             Grid.SetRow(header, 0);
@@ -99,7 +99,7 @@ namespace ULM.Views.Dialogs
                 section.Children.Add(new TextBlock
                 {
                     Text = "Speicherort für ISO-Downloads und Einstellungsdateien:", FontSize = 12,
-                    FontWeight = FontWeights.SemiBold, Foreground = Brush(Constants.ColorHeader), Margin = new Thickness(0, 0, 0, 8),
+                    FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 8),
                 });
 
                 var pathRow = new Grid { Margin = new Thickness(0, 0, 0, 10) };
@@ -109,8 +109,8 @@ namespace ULM.Views.Dialogs
                 txtPath = new TextBox
                 {
                     Text = DefaultBase, Height = 34, VerticalContentAlignment = VerticalAlignment.Center,
-                    Padding = new Thickness(8, 0, 8, 0), FontSize = 12, Background = Brushes.White,
-                    Foreground = Brush(Constants.ColorHeader), BorderBrush = Brush(Constants.ColorBorder), BorderThickness = new Thickness(1),
+                    Padding = new Thickness(8, 0, 8, 0), FontSize = 12, Background = ThemeColors.White,
+                    Foreground = ThemeColors.Header, BorderBrush = ThemeColors.Border, BorderThickness = new Thickness(1),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
                 var txtPathRef = txtPath;
@@ -118,7 +118,7 @@ namespace ULM.Views.Dialogs
                 Grid.SetColumn(txtPathRef, 0);
                 pathRow.Children.Add(txtPathRef);
 
-                var btnBrowse = MakeButton("📂 Durchsuchen", Constants.ColorCard, Constants.ColorMid, 110, 34);
+                var btnBrowse = MakeButton("📂 Durchsuchen", ThemeColors.Card, ThemeColors.Mid, 110, 34);
                 btnBrowse.Margin = new Thickness(8, 0, 0, 0);
                 btnBrowse.Click += (_, _) =>
                 {
@@ -133,17 +133,17 @@ namespace ULM.Views.Dialogs
                 pathRow.Children.Add(btnBrowse);
                 section.Children.Add(pathRow);
 
-                var btnDefault = MakeButton("Standard-Pfad übernehmen", Constants.ColorBg, Constants.ColorMid, 190, 30);
-                btnDefault.BorderBrush = Brush(Constants.ColorBorder); btnDefault.BorderThickness = new Thickness(1);
+                var btnDefault = MakeButton("Standard-Pfad übernehmen", ThemeColors.Bg, ThemeColors.Mid, 190, 30);
+                btnDefault.BorderBrush = ThemeColors.Border; btnDefault.BorderThickness = new Thickness(1);
                 btnDefault.HorizontalAlignment = HorizontalAlignment.Left;
                 btnDefault.Margin = new Thickness(0, 0, 0, 14);
                 btnDefault.Click += (_, _) => txtPathRef.Text = DefaultBase;
                 section.Children.Add(btnDefault);
 
-                section.Children.Add(new TextBlock { Text = "Folgende Elemente werden angelegt:", FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Brush(Constants.ColorHeader), Margin = new Thickness(0, 0, 0, 6) });
+                section.Children.Add(new TextBlock { Text = "Folgende Elemente werden angelegt:", FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 6) });
                 var previewBorder = new Border
                 {
-                    Background = Brush(Constants.ColorLBlue), BorderBrush = Brush(Constants.ColorBorder), BorderThickness = new Thickness(1),
+                    Background = ThemeColors.LBlue, BorderBrush = ThemeColors.Border, BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 12, 10),
                 };
                 var previewGrid = new Grid();
@@ -172,7 +172,7 @@ namespace ULM.Views.Dialogs
                            "• Integrierte Ventoy-Installation & Secure-Boot-Support\n" +
                            "• Parallele Downloads für maximale Performance",
                     TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
-                    Foreground = Brush(Constants.ColorMid),
+                    Foreground = ThemeColors.Mid,
                 });
                 body.Children.Add(MakeCard("ℹ Über ULM", section));
             }
@@ -181,7 +181,7 @@ namespace ULM.Views.Dialogs
             var chkExpert = new CheckBox
             {
                 Content = "Experten-Modus aktivieren (alle Funktionen sichtbar)",
-                FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brush(Constants.ColorHeader),
+                FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header,
                 VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 8),
                 IsChecked = currentExpertMode, // merkt sich die zuletzt gewählte Einstellung
             };
@@ -190,9 +190,43 @@ namespace ULM.Views.Dialogs
             {
                 Text = "Bestimmt, wie viele Funktionen und erweiterte Einstellungen im Hauptprogramm angezeigt werden. " +
                        "Unmarkiert = Anwender-Modus (empfohlen). Der Modus kann später jederzeit oben rechts gewechselt werden.",
-                TextWrapping = TextWrapping.Wrap, Foreground = Brush(Constants.ColorDim), FontSize = 11, LineHeight = 16,
+                TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
             body.Children.Add(MakeCard("👤 Modus", modeSection));
+
+            // ── Design (System / Hell / Dunkel) ─────────────────────────
+            var themeSection = new StackPanel();
+            var themeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            var themeButtons = new System.Collections.Generic.Dictionary<AppThemeMode, Button>();
+            void UpdateThemeButtons()
+            {
+                foreach (var (mode, btn) in themeButtons)
+                {
+                    bool active = mode == ChosenThemeMode;
+                    btn.Background = active ? ThemeColors.Blue : ThemeColors.Card;
+                    btn.Foreground = active ? Brushes.White : ThemeColors.Mid;
+                }
+            }
+            void AddThemeButton(AppThemeMode mode, string label)
+            {
+                var btn = MakeButton(label, ThemeColors.Card, ThemeColors.Mid, 110, 32);
+                btn.Margin = new Thickness(0, 0, 8, 0);
+                btn.Click += (_, _) => { ChosenThemeMode = mode; UpdateThemeButtons(); };
+                themeButtons[mode] = btn;
+                themeRow.Children.Add(btn);
+            }
+            AddThemeButton(AppThemeMode.System, "🌓 System");
+            AddThemeButton(AppThemeMode.Light,  "☀ Hell");
+            AddThemeButton(AppThemeMode.Dark,   "🌙 Dunkel");
+            UpdateThemeButtons();
+            themeSection.Children.Add(themeRow);
+            themeSection.Children.Add(new TextBlock
+            {
+                Text = "\"System\" übernimmt automatisch die aktuelle Windows-Einstellung. Kann später jederzeit " +
+                       "oben rechts im Hauptfenster gewechselt werden — auch live, ohne Neustart.",
+                TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
+            });
+            body.Children.Add(MakeCard("🌓 Design", themeSection));
 
             scroll.Content = body;
             Grid.SetRow(scroll, 1);
@@ -211,13 +245,13 @@ namespace ULM.Views.Dialogs
             var chkDontShowAgain = new CheckBox
             {
                 Content = "Diese Einrichtung beim nächsten Start überspringen (Modus wird gespeichert)",
-                FontSize = 11, Foreground = Brush(Constants.ColorMid),
+                FontSize = 11, Foreground = ThemeColors.Mid,
                 VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
             };
             Grid.SetColumn(chkDontShowAgain, 0);
             footerGrid.Children.Add(chkDontShowAgain);
 
-            var btnApply = MakeButton("✔ Übernehmen", Constants.ColorBlue, "White", 160, 40);
+            var btnApply = MakeButton("✔ Übernehmen", ThemeColors.Blue, Brushes.White, 160, 40);
             btnApply.FontWeight = FontWeights.SemiBold;
             btnApply.HorizontalAlignment = HorizontalAlignment.Right;
             btnApply.Click += (_, _) =>
@@ -245,8 +279,8 @@ namespace ULM.Views.Dialogs
 
             var btnBorder = new Border
             {
-                BorderBrush = Brush(Constants.ColorBorder), BorderThickness = new Thickness(0, 1, 0, 0),
-                Padding = new Thickness(24, 14, 24, 14), Background = Brushes.White,
+                BorderBrush = ThemeColors.Border, BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(24, 14, 24, 14), Background = ThemeColors.White,
                 Child = footerGrid,
             };
             Grid.SetRow(btnBorder, 2);
@@ -260,12 +294,12 @@ namespace ULM.Views.Dialogs
         {
             var card = new Border
             {
-                Background = Brushes.White, BorderBrush = Brush(Constants.ColorBorder), BorderThickness = new Thickness(1),
+                Background = ThemeColors.White, BorderBrush = ThemeColors.Border, BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12), Padding = new Thickness(20, 18, 20, 18), Margin = new Thickness(0, 0, 0, 16),
                 Effect = new DropShadowEffect { Color = Colors.Black, Opacity = 0.06, BlurRadius = 14, ShadowDepth = 3, Direction = 270 },
             };
             var stack = new StackPanel();
-            stack.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brush(Constants.ColorHeader), Margin = new Thickness(0, 0, 0, 12) });
+            stack.Children.Add(new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 12) });
             stack.Children.Add(content);
             card.Child = stack;
             return card;
@@ -275,13 +309,13 @@ namespace ULM.Views.Dialogs
         {
             var lbl = new TextBlock
             {
-                Text = label + ":", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brush(Constants.ColorBlue),
+                Text = label + ":", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Blue,
                 Margin = new Thickness(0, 0, 12, row < 2 ? 6 : 0), VerticalAlignment = VerticalAlignment.Center, Width = 110,
             };
             Grid.SetRow(lbl, row); Grid.SetColumn(lbl, 0);
             grid.Children.Add(lbl);
 
-            valueBlock.Foreground = Brush(Constants.ColorMid);
+            valueBlock.Foreground = ThemeColors.Mid;
             valueBlock.TextWrapping = TextWrapping.Wrap;
             valueBlock.VerticalAlignment = VerticalAlignment.Center;
             valueBlock.Margin = new Thickness(0, 0, 0, row < 2 ? 6 : 0);
@@ -289,14 +323,12 @@ namespace ULM.Views.Dialogs
             grid.Children.Add(valueBlock);
         }
 
-        private static Button MakeButton(string label, string bg, string fg, double width, double height)
+        private static Button MakeButton(string label, Brush bg, Brush fg, double width, double height)
         {
-            var foreground = fg == "White" ? (Brush)Brushes.White : new SolidColorBrush((Color)ColorConverter.ConvertFromString(fg));
             return new Button
             {
                 Content = label, Width = width, Height = height,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(bg)),
-                Foreground = foreground, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand,
+                Background = bg, Foreground = fg, BorderThickness = new Thickness(0), FontSize = 12, Cursor = Cursors.Hand,
                 Template = RoundedButtonTemplate,
             };
         }
@@ -328,7 +360,5 @@ namespace ULM.Views.Dialogs
             template.Triggers.Add(pressed);
             return template;
         }
-
-        private static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
     }
 }

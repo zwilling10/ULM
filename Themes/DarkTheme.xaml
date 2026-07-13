@@ -1,27 +1,38 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- ═══ Farben (Hell) ══════════════════════════════════════════════ -->
-    <Color x:Key="ColBg"        >#F0F4F8</Color>
-    <Color x:Key="ColWhite"     >#FFFFFF</Color>
-    <Color x:Key="ColHeader"    >#0F2540</Color>
-    <!-- ColHeaderBar: fester dunkler Chrome-Streifen (Hauptfenster-Kopfzeile, Setup-Dialog-Banner)
-         — bleibt in BEIDEN Themes gleich dunkel, invertiert NICHT mit dem Farbschema. ColHeader
-         dagegen ist normaler Vordergrundtext und MUSS im Dark Mode hell werden. -->
+    <!-- ═══ Farben (Dunkel) ════════════════════════════════════════════
+         Gleiche Schlüssel wie Themes/AppTheme.xaml (Hell) — nur die Werte
+         unterscheiden sich. Kontrastwerte gegen die jeweiligen Hintergründe
+         wurden rechnerisch geprüft (WCAG-Formel), alle Text-Paarungen
+         liegen bei >= 4.5:1 (normale Textgröße, AA-Konform):
+           ColBg   vs ColHeader  16.0:1   ColBg  vs ColMid   10.8:1
+           ColBg   vs ColDim      7.0:1   ColCard vs ColDim   5.6:1
+           ColBg   vs Green/Amber/Red/Teal/Blue  4.8–8.7:1
+         ColHeaderBar bleibt bewusst UNVERÄNDERT zum Hell-Theme (siehe
+         Kommentar dort) — die Kopfzeile des Hauptfensters soll in beiden
+         Modi gleich dunkel bleiben, nicht invertieren. -->
+    <Color x:Key="ColBg"        >#0B1622</Color>
+    <Color x:Key="ColWhite"     >#132A44</Color>
+    <Color x:Key="ColHeader"    >#EAF1F8</Color>
     <Color x:Key="ColHeaderBar" >#0F2540</Color>
-    <Color x:Key="ColBlue"      >#0075BE</Color>
-    <Color x:Key="ColMid"       >#4A6785</Color>
+    <!-- ColBlue: heller als der Website-Akzent (#1A9AE0), weil dieser Ton hier auch direkt als
+         TEXTFARBE auf dunklen Flächen dient (z.B. "Frei: x GB / y GB"-Anzeige) — #1A9AE0 lag dort
+         mit 4.67:1 nur knapp über der AA-Grenze und wirkte blass. #3AAEEF: 5.9:1 gegen Card-Flächen,
+         7.4:1 gegen den Seitenhintergrund; als Button-Hintergrund mit weißer Schrift unverändert gut lesbar. -->
+    <Color x:Key="ColBlue"      >#3AAEEF</Color>
+    <Color x:Key="ColMid"       >#B8C9DC</Color>
     <Color x:Key="ColDim"       >#8BA3BE</Color>
-    <Color x:Key="ColBorder"    >#C5D5E5</Color>
-    <Color x:Key="ColCard"      >#E4EBF2</Color>
-    <Color x:Key="ColGreen"     >#27AE60</Color>
-    <Color x:Key="ColAmber"     >#E67E22</Color>
-    <Color x:Key="ColRed"       >#C0392B</Color>
+    <Color x:Key="ColBorder"    >#336B9E</Color>
+    <Color x:Key="ColCard"      >#132A44</Color>
+    <Color x:Key="ColGreen"     >#2ECC71</Color>
+    <Color x:Key="ColAmber"     >#F39C12</Color>
+    <Color x:Key="ColRed"       >#E74C3C</Color>
     <Color x:Key="ColTeal"      >#1ABC9C</Color>
-    <Color x:Key="ColLBlue"     >#D6ECFA</Color>
-    <Color x:Key="ColLGreen"    >#E8F8F0</Color>
-    <Color x:Key="ColLRed"      >#FDE8E8</Color>
-    <Color x:Key="ColLAmber"    >#FEF5E7</Color>
+    <Color x:Key="ColLBlue"     >#16324F</Color>
+    <Color x:Key="ColLGreen"    >#123626</Color>
+    <Color x:Key="ColLRed"      >#3B1717</Color>
+    <Color x:Key="ColLAmber"    >#3A2A0E</Color>
 
     <!-- ═══ Brushes ════════════════════════════════════════════════════ -->
     <SolidColorBrush x:Key="BrushBg"        Color="{StaticResource ColBg}"/>
@@ -43,7 +54,7 @@
     <SolidColorBrush x:Key="BrushLAmber"    Color="{StaticResource ColLAmber}"/>
     <SolidColorBrush x:Key="BrushTransparent" Color="Transparent"/>
 
-    <!-- ═══ Schriften ══════════════════════════════════════════════════ -->
+    <!-- ═══ Schriften (identisch zum Hell-Theme) ══════════════════════ -->
     <FontFamily x:Key="FontMain">Segoe UI, Tahoma, Arial</FontFamily>
     <System:Double xmlns:System="clr-namespace:System;assembly=mscorlib"
                    x:Key="FontSizeNormal">12</System:Double>
@@ -139,12 +150,7 @@
         <Setter Property="CaretBrush"       Value="{DynamicResource BrushHeader}"/>
     </Style>
 
-    <!-- ═══ ComboBox ═══════════════════════════════════════════════════
-         Eigenes Template statt der nativen Windows-Chrome: der native
-         Dropdown-Popup hat ein FEST eigenes (meist helles) Hintergrund-
-         Aussehen, das die Background/Foreground-Setter der ComboBox NICHT
-         beeinflussen — im Dark Mode wäre die Auswahlliste sonst weiterhin
-         hell, unabhängig vom gewählten Design. ─────────────────────────── -->
+    <!-- ═══ ComboBox ═══════════════════════════════════════════════════ -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="Padding"     Value="8,6"/>
         <Setter Property="Foreground"  Value="{DynamicResource BrushHeader}"/>
@@ -228,11 +234,7 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
-    <!-- ═══ TabControl / TabItem ═══════════════════════════════════════
-         Eigenes, flaches TabItem-Template statt der nativen Windows-Chrome —
-         die native Tab-Kopfzeile bleibt sonst IMMER hell/weiß, auch im Dark
-         Mode, und wäre dort ein unlesbarer heller Fremdkörper im dunklen
-         Fenster. ────────────────────────────────────────────────────────── -->
+    <!-- ═══ TabControl / TabItem (eigenes flaches Template) ═══════════ -->
     <Style TargetType="TabControl">
         <Setter Property="Background"  Value="{DynamicResource BrushWhite}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}"/>

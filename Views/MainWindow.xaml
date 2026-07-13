@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Universal Linux Manager"
         Width="1160" Height="750" MinWidth="900" MinHeight="580"
-        Background="{StaticResource BrushBg}"
+        Background="{DynamicResource BrushBg}"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
@@ -12,7 +12,7 @@
         <!-- ── Vorlage für eine einzelne Distro-Zeile (mit Spalten) ────── -->
         <DataTemplate x:Key="EntryTemplate">
             <Border Padding="0,5"
-                    BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
+                    BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,0,0,1"
                     Background="Transparent"
                     MouseLeftButtonDown="EntryRow_MouseLeftButtonDown">
                 <!--
@@ -57,15 +57,15 @@
                     </TextBlock>
 
                     <TextBlock Grid.Column="2" Text="{Binding LocalStatus}"
-                               Foreground="{StaticResource BrushMid}"
+                               Foreground="{DynamicResource BrushMid}"
                                FontSize="11.5" VerticalAlignment="Center"/>
 
                     <TextBlock Grid.Column="3" Text="{Binding UsbStatus}"
-                               Foreground="{StaticResource BrushMid}"
+                               Foreground="{DynamicResource BrushMid}"
                                FontSize="11.5" VerticalAlignment="Center"/>
 
                     <TextBlock Grid.Column="4" Text="{Binding VersionStatus}"
-                               Foreground="{StaticResource BrushMid}"
+                               Foreground="{DynamicResource BrushMid}"
                                FontSize="11.5" VerticalAlignment="Center"/>
                 </Grid>
             </Border>
@@ -74,7 +74,7 @@
         <!-- ── Vorlage für eine Kategorie-Gruppe mit Sammel-Checkbox ───── -->
         <DataTemplate x:Key="CategoryTemplate">
             <StackPanel Margin="0,0,0,2">
-                <Border Background="{StaticResource BrushCard}" Padding="14,8" Margin="0,6,0,0">
+                <Border Background="{DynamicResource BrushCard}" Padding="14,8" Margin="0,6,0,0">
                     <StackPanel Orientation="Horizontal">
                         <CheckBox IsChecked="{Binding AllSelected, Mode=TwoWay}"
                                   IsThreeState="True"
@@ -82,7 +82,7 @@
                                   ToolTip="Alle Distros dieser Kategorie an-/abwählen"/>
                         <TextBlock Text="{Binding CategoryLabel}"
                                    FontWeight="Bold" FontSize="13.5"
-                                   Foreground="{StaticResource BrushHeader}"
+                                   Foreground="{DynamicResource BrushHeader}"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
                 </Border>
@@ -102,7 +102,9 @@
         </Grid.RowDefinitions>
 
         <!-- ── Header ─────────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Background="{StaticResource BrushHeader}">
+        <!-- BrushHeaderBar (nicht BrushHeader!): dieser Streifen soll in JEDEM Theme dunkel
+             bleiben, nicht mit dem Farbschema invertieren — siehe Kommentar in AppTheme.xaml. -->
+        <Border Grid.Row="0" Background="{DynamicResource BrushHeaderBar}">
             <Grid Margin="18,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -112,7 +114,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="40" Height="40" CornerRadius="8"
-                            Background="{StaticResource BrushBlue}" Margin="0,0,12,0">
+                            Background="{DynamicResource BrushBlue}" Margin="0,0,12,0">
                         <TextBlock Text="UL" Foreground="White" FontWeight="Bold"
                                    FontSize="14" HorizontalAlignment="Center"
                                    VerticalAlignment="Center"/>
@@ -120,10 +122,10 @@
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Universal Linux Manager"
                                    Foreground="White" FontSize="16" FontWeight="Bold"
-                                   FontFamily="{StaticResource FontMain}"/>
+                                   FontFamily="{DynamicResource FontMain}"/>
                         <TextBlock Text="USB-Stick einrichten · Linux ISOs verwalten · Downloads überwachen"
-                                   Foreground="{StaticResource BrushDim}" FontSize="10"
-                                   FontFamily="{StaticResource FontMain}"/>
+                                   Foreground="{DynamicResource BrushDim}" FontSize="10"
+                                   FontFamily="{DynamicResource FontMain}"/>
                     </StackPanel>
                 </StackPanel>
 
@@ -136,7 +138,7 @@
                         <StackPanel>
                             <DockPanel LastChildFill="False">
                                 <TextBlock DockPanel.Dock="Left" Text="🌐 Online-Scan"
-                                           Foreground="{StaticResource BrushDim}"
+                                           Foreground="{DynamicResource BrushDim}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock DockPanel.Dock="Right"
                                            Text="{Binding OnlineScanPercent, Mode=OneWay, StringFormat={}{0}%}"
@@ -153,7 +155,7 @@
                             Padding="10,6" Margin="0,0,10,0" MinWidth="130">
                         <StackPanel>
                             <TextBlock Text="💾 Stick-Scan"
-                                       Foreground="{StaticResource BrushDim}"
+                                       Foreground="{DynamicResource BrushDim}"
                                        FontSize="9" FontWeight="SemiBold"/>
                             <ProgressBar IsIndeterminate="True" Height="5" Margin="0,4,0,0"
                                          Background="#1A3355" Foreground="#27AE60" BorderThickness="0"/>
@@ -166,7 +168,7 @@
                         <StackPanel>
                             <DockPanel LastChildFill="False">
                                 <TextBlock DockPanel.Dock="Left" Text="🩺 Gesundheitscheck"
-                                           Foreground="{StaticResource BrushDim}"
+                                           Foreground="{DynamicResource BrushDim}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock DockPanel.Dock="Right"
                                            Text="{Binding HealthCheckPercent, Mode=OneWay, StringFormat={}{0}%}"
@@ -197,12 +199,17 @@
                         </Border.Style>
                     </Border>
 
-                    <Button x:Name="BtnModeToggle" Style="{StaticResource BtnGhost}"
+                    <Button x:Name="BtnModeToggle" Style="{DynamicResource BtnGhost}"
                             Foreground="White" BorderBrush="#4A6785"
                             Click="BtnModeToggle_Click" Width="160" Margin="0,0,8,0"/>
 
+                    <Button x:Name="BtnThemeToggle" Style="{DynamicResource BtnGhost}"
+                            Foreground="White" BorderBrush="#4A6785"
+                            ToolTip="Erscheinungsbild umschalten: System / Hell / Dunkel"
+                            Click="BtnThemeToggle_Click" Width="130" Margin="0,0,8,0"/>
+
                     <Button x:Name="BtnHelp" Content="❓ Hilfe"
-                            Style="{StaticResource BtnGhost}"
+                            Style="{DynamicResource BtnGhost}"
                             Foreground="White" BorderBrush="#4A6785"
                             Click="BtnHelp_Click" Width="80"/>
                 </StackPanel>
@@ -210,8 +217,8 @@
         </Border>
 
         <!-- ── Toolbar: Laufwerk / Ventoy ─────────────────────────────── -->
-        <Border Grid.Row="1" Background="{StaticResource BrushWhite}"
-                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+        <Border Grid.Row="1" Background="{DynamicResource BrushWhite}"
+                BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,0,0,1">
             <Grid Margin="18,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -224,7 +231,7 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0" Text="ZIEL-USB-LAUFWERK"
-                           FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushDim}"
+                           FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushDim}"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
 
                 <ComboBox Grid.Column="1" x:Name="DriveCombo"
@@ -233,14 +240,14 @@
                           DisplayMemberPath="DisplayName"/>
 
                 <Button Grid.Column="2" x:Name="BtnRefreshDrives"
-                        Content="↻" Style="{StaticResource BtnGhost}"
+                        Content="↻" Style="{DynamicResource BtnGhost}"
                         Width="32" Height="32" FontSize="16"
                         ToolTip="Laufwerke neu einlesen"
                         Click="BtnRefreshDrives_Click"/>
 
                 <Button Grid.Column="3" x:Name="BtnVentoy"
                         Content="⚡ Ventoy installieren"
-                        Style="{StaticResource BtnSuccess}"
+                        Style="{DynamicResource BtnSuccess}"
                         Margin="10,0,0,0" Click="BtnVentoy_Click"/>
 
                 <CheckBox Grid.Column="4" x:Name="ChkSecureBoot"
@@ -251,7 +258,7 @@
 
                 <TextBlock Grid.Column="6" x:Name="DriveInfoTxt"
                            Text="{Binding DriveInfoText}"
-                           Foreground="{StaticResource BrushBlue}"
+                           Foreground="{DynamicResource BrushBlue}"
                            FontWeight="SemiBold" FontSize="12"
                            VerticalAlignment="Center" HorizontalAlignment="Right"/>
             </Grid>
@@ -267,8 +274,8 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Border Grid.Row="0" Background="{StaticResource BrushCard}"
-                            BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1"
+                    <Border Grid.Row="0" Background="{DynamicResource BrushCard}"
+                            BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,0,0,1"
                             Padding="0,7">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -279,18 +286,18 @@
                                 <ColumnDefinition Width="150"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="1" Text="Linux-Distribution  (Haken = Download)"
-                                       FontWeight="Bold" FontSize="11" Foreground="{StaticResource BrushMid}"/>
+                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                             <TextBlock Grid.Column="2" Text="Lokal"
-                                       FontWeight="Bold" FontSize="11" Foreground="{StaticResource BrushMid}"/>
+                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                             <TextBlock Grid.Column="3" Text="Auf dem Stick"
-                                       FontWeight="Bold" FontSize="11" Foreground="{StaticResource BrushMid}"/>
+                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                             <TextBlock Grid.Column="4" Text="Aktuell"
-                                       FontWeight="Bold" FontSize="11" Foreground="{StaticResource BrushMid}"/>
+                                       FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                         </Grid>
                     </Border>
 
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                                  Background="{StaticResource BrushWhite}">
+                                  Background="{DynamicResource BrushWhite}">
                         <ItemsControl ItemsSource="{Binding Categories}"
                                       ItemTemplate="{StaticResource CategoryTemplate}"
                                       Margin="4,2,4,12"/>
@@ -310,9 +317,9 @@
                              HorizontalScrollBarVisibility="Auto"
                              FontFamily="Consolas, Courier New"
                              FontSize="11" BorderThickness="0"
-                             Background="{StaticResource BrushWhite}"/>
+                             Background="{DynamicResource BrushWhite}"/>
                     <Button Grid.Row="1" Content="Protokoll leeren"
-                            Style="{StaticResource BtnGhost}"
+                            Style="{DynamicResource BtnGhost}"
                             HorizontalAlignment="Right" Margin="8"
                             Click="BtnClearLog_Click"/>
                 </Grid>
@@ -321,8 +328,8 @@
         </TabControl>
 
         <!-- ── Aktions-Leiste ──────────────────────────────────────────── -->
-        <Border Grid.Row="3" Background="{StaticResource BrushWhite}"
-                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="3" Background="{DynamicResource BrushWhite}"
+                BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,1,0,0">
             <Grid Margin="12,8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -332,39 +339,39 @@
 
                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
                     <Button x:Name="BtnDownload" Content="⬇  Herunterladen"
-                            Style="{StaticResource BtnPrimary}" Width="180"
+                            Style="{DynamicResource BtnPrimary}" Width="180"
                             Click="BtnDownload_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnUpdates" Content="↻  Updates prüfen"
-                            Style="{StaticResource BtnWarning}" Width="150"
+                            Style="{DynamicResource BtnWarning}" Width="150"
                             Click="BtnUpdates_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCancel" Content="✕  Stopp"
-                            Style="{StaticResource BtnDanger}" Width="100"
+                            Style="{DynamicResource BtnDanger}" Width="100"
                             Visibility="Collapsed" Click="BtnCancel_Click" Margin="0,0,8,0"/>
                     <TextBlock x:Name="SpeedLbl" VerticalAlignment="Center"
-                               Foreground="{StaticResource BrushBlue}"
+                               Foreground="{DynamicResource BrushBlue}"
                                FontSize="11.5" Margin="8,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Row="1" x:Name="ExpertBar"
                             Orientation="Horizontal" Margin="0,0,0,6">
                     <Button x:Name="BtnCheckUrls" Content="🌐  URLs prüfen"
-                            Style="{StaticResource BtnGhost}" Width="130"
+                            Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnCheckUrls_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnSearch" Content="🔍  ISO suchen"
-                            Style="{StaticResource BtnGhost}" Width="130"
+                            Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnSearch_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnEditDb" Content="🗃  Datenbank"
-                            Style="{StaticResource BtnGhost}" Width="130"
+                            Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnEditDb_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnHealthCheck" Content="🩺  DB-Gesundheitscheck"
-                            Style="{StaticResource BtnGhost}" Width="170"
+                            Style="{DynamicResource BtnGhost}" Width="170"
                             ToolTip="Prüft für alle Distros in der Datenbank, ob sie aktuell online erreichbar und ladbar sind."
                             Click="BtnHealthCheck_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCopyUsb" Content="📋  Auf Stick kopieren"
-                            Style="{StaticResource BtnGhost}" Width="160"
+                            Style="{DynamicResource BtnGhost}" Width="160"
                             Click="BtnCopyUsb_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnGitHubToken" Content="🔑  GitHub-Token"
-                            Style="{StaticResource BtnGhost}" Width="130"
+                            Style="{DynamicResource BtnGhost}" Width="130"
                             ToolTip="Optional: hebt das API-Limit für GitHub-basierte Distros von 60 auf 5000 Anfragen/Std an."
                             Click="BtnGitHubToken_Click"/>
                 </StackPanel>
@@ -378,7 +385,7 @@
                                  Height="5" Maximum="100" Value="{Binding ProgressPercent, Mode=OneWay}"
                                  VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" x:Name="FooterLbl"
-                               Foreground="{StaticResource BrushDim}"
+                               Foreground="{DynamicResource BrushDim}"
                                FontSize="10.5" VerticalAlignment="Center"
                                Margin="12,0,0,0"/>
                 </Grid>
@@ -386,8 +393,8 @@
         </Border>
 
         <!-- ── Statusleiste ────────────────────────────────────────────── -->
-        <Border Grid.Row="4" Background="{StaticResource BrushCard}"
-                BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
+        <Border Grid.Row="4" Background="{DynamicResource BrushCard}"
+                BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,1,0,0">
             <Grid Margin="12,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -396,7 +403,7 @@
                 <TextBlock Grid.Column="0" x:Name="StatusLbl"
                            Text="{Binding StatusText}"
                            VerticalAlignment="Center"
-                           FontSize="11" Foreground="{StaticResource BrushMid}"/>
+                           FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                 <CheckBox Grid.Column="1" x:Name="ChkShowInfo"
                           Content="Info-Fenster (Mouseover) anzeigen"
                           IsChecked="True" FontSize="10.5"

@@ -509,7 +509,7 @@ namespace ULM.Views.Dialogs
                     {
                         Text = $"{fn}   (v{ver})", FontSize = 11,
                         FontWeight = newer ? FontWeights.SemiBold : FontWeights.Normal,
-                        Foreground = newer ? new SolidColorBrush(Color.FromRgb(0x00, 0x75, 0xBE)) : (Brush)Application.Current.Resources["BrushMid"],
+                        Foreground = newer ? (Brush)Application.Current.Resources["BrushBlue"] : (Brush)Application.Current.Resources["BrushMid"],
                         TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, ToolTip = fn,
                     };
                     Grid.SetRow(v, row); Grid.SetColumn(v, 1); vg.Children.Add(v);

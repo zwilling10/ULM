@@ -40,8 +40,14 @@ namespace ULM.Views
             // bereits dynamisch aus der Assembly, das galt aber nur für den HelpDialog-Titel, nicht
             // für das Hauptfenster selbst.
             Title = Constants.AppFullTitle;
+            UpdateThemeButtonLabel();
             _vm = new MainViewModel(Dispatcher);
             DataContext = _vm;
+            ThemeService.ThemeChanged += () =>
+            {
+                UpdateThemeButtonLabel();
+                _vm.RefreshAllEntries();
+            };
             _vm.LogMessage += AppendLog;
             _vm.ShowMessageBox += (msg, isErr) => MessageBox.Show(msg, Constants.AppTitle, MessageBoxButton.OK, isErr ? MessageBoxImage.Warning : MessageBoxImage.Information);
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
@@ -228,6 +234,33 @@ namespace ULM.Views
         }
 
         private void BtnModeToggle_Click(object sender, RoutedEventArgs e) { _vm.ExpertMode = !_vm.ExpertMode; UpdateUiMode(); }
+
+        // ── Design (Hell/Dunkel) ────────────────────────────────────────────
+        // Schaltet live um (kein Neustart nötig): ThemeService tauscht die gemergte
+        // ResourceDictionary aus, DynamicResource-Bindungen in dieser XAML sowie implizite
+        // Styles (TextBox, ComboBox, TabItem, …) reagieren automatisch. Die Zeilenfarben in der
+        // Distro-Liste sind dagegen normale C#-Properties (ForegroundBrush) — die werden erst
+        // durch den expliziten RefreshAllEntries()-Aufruf im ThemeChanged-Handler neu ausgelesen.
+        private void UpdateThemeButtonLabel()
+        {
+            BtnThemeToggle.Content = ThemeService.CurrentMode switch
+            {
+                AppThemeMode.Light => "☀ Design: Hell",
+                AppThemeMode.Dark  => "🌙 Design: Dunkel",
+                _                  => "🌓 Design: System",
+            };
+        }
+
+        private void BtnThemeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            AppThemeMode next = ThemeService.CurrentMode switch
+            {
+                AppThemeMode.System => AppThemeMode.Light,
+                AppThemeMode.Light  => AppThemeMode.Dark,
+                _                   => AppThemeMode.System,
+            };
+            ThemeService.SetMode(next);
+        }
 
         // ── Hilfe-Dialog ──────────────────────────────────────────────────
         // Öffnet den vollständigen HelpDialog mit allen Programm-Erklärungen.
