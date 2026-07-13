@@ -10,7 +10,11 @@ Portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-Live-ISOs. 
 - **Ventoy-Integration** — kopiert Downloads direkt auf den Stick, aktualisiert das Bootmenü automatisch
 - **Gesundheitscheck & Duplikat-Schutz** — läuft automatisch nach jedem Download oder Scan
 - **Datenmüll-Schutz** — Online-Größenprüfung erkennt unvollständige Downloads zuverlässig
-- **Selbstlernende Erkennung** — auch manuell hinzugefügte oder importierte Distros werden automatisch einer passenden Quelle zugeordnet und dauerhaft gemerkt
+- **Selbstlernende Erkennung** — für JEDE unbekannte/importierte Distro löst ULM die Quelle automatisch auf (dedizierte Erkenner → DistroWatch-Suche → SourceForge → Websuche) und merkt sie sich dauerhaft
+- **Download-Fortschritt mit ETA** — Geschwindigkeit, verbleibende Zeit und übertragene Menge in Echtzeit
+- **Freispeicher-Check** — prüft vor Download/Kopieren, ob genug Platz am Ziel vorhanden ist
+- **Selbst-Update-Check** — meldet im Protokoll, wenn eine neuere ULM-Version verfügbar ist, inkl. „Was ist neu?“-Dialog nach einem Update
+- **Log-Rotation** — die Protokolldatei wird ab 5 MB automatisch rotiert statt unbegrenzt zu wachsen
 - **Komplett portabel** — eine einzige .exe, self-contained, kein Installer, keine .NET-Installation auf dem Zielsystem nötig
 
 ## Download
@@ -35,6 +39,14 @@ Oder direkt mit `dotnet publish`:
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
+
+## Tests
+
+```bash
+dotnet test ULM.Tests/ULM.Tests.csproj
+```
+
+Läuft bei jedem Push automatisch per GitHub Actions CI.
 
 ## Architektur
 

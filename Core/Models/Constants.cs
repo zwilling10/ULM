@@ -1,15 +1,31 @@
 // Core/Models/Constants.cs
+using System.Reflection;
+
 namespace ULM.Core.Models
 {
     public static class Constants
     {
         public const string AppTitle        = "Universal Linux Manager";
-        public const string AppVersion      = "2.27";
-        public const string AppFullTitle    = $"{AppTitle} v{AppVersion}";
+
+        // Einzige Quelle der Wahrheit ist <Version>/<AssemblyVersion> in der .csproj — wird beim
+        // Build automatisch in die Assembly geschrieben. Vorher stand die Versionsnummer zusätzlich
+        // hartkodiert im HelpDialog-Titel (und hier als eigener const string) und musste bei jedem
+        // Release manuell an mehreren Stellen synchron gehalten werden — das lief bereits einmal
+        // auseinander (Constants.AppVersion "2.27" vs. tatsächlich ausgelieferte 2.27.1).
+        public static readonly string AppVersion   = ReadVersion();
+        public static string AppFullTitle => $"{AppTitle} v{AppVersion}";
+
+        private static string ReadVersion()
+        {
+            var v = Assembly.GetExecutingAssembly().GetName().Version;
+            if (v is null) return "0.0.0";
+            return v.Build > 0 ? $"{v.Major}.{v.Minor}.{v.Build}" : $"{v.Major}.{v.Minor}";
+        }
 
         public const long MinIsoSizeBytes   = 314_572_800L; // 300 MB
         public const int  MaxParallelSlots  = 6;
         public const int  AutoCheckIntervalDays = 3;
+        public const long MaxLogSizeBytes   = 5 * 1024 * 1024; // 5 MB — ab hier wird ulm_log.txt rotiert
 
         public static readonly string[] Categories =
         {

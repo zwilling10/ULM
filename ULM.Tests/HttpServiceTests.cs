@@ -1,0 +1,83 @@
+using ULM.Core.Services;
+using Xunit;
+
+namespace ULM.Tests;
+
+public class HttpServiceExtractVersionTests
+{
+    [Theory]
+    [InlineData("ubuntu-26.04-desktop-amd64.iso", "26.04")]
+    [InlineData("tails-amd64-7.9.1.iso", "7.9.1")]
+    [InlineData("linuxmint-22.3-cinnamon-64bit.iso", "22.3")]
+    [InlineData("Zorin-OS-18-Core-64-bit-r1.iso", "18")]
+    [InlineData("HBCD_PE_x64.iso", "")]
+    public void ExtractVersion_ReturnsExpectedVersion(string filename, string expected)
+        => Assert.Equal(expected, HttpService.ExtractVersion(filename));
+
+    [Fact]
+    public void ExtractVersion_FedoraStyle_PrefersReleaseNumberOverSubBuild()
+    {
+        // Regression: "1.7" (Sub-Build) wurde früher fälschlich vor "44" (echte Release-Nummer)
+        // erkannt — siehe Kommentar in ExtractVersion zu genau diesem Fall.
+        string v = HttpService.ExtractVersion("Fedora-Workstation-Live-44-1.7.x86_64.iso");
+        Assert.Equal("44", v);
+    }
+
+    [Fact]
+    public void ExtractVersion_ManjaroStyle_BuildSuffixIncluded()
+    {
+        // Manjaro-Dateinamen enthalten Version + Build-Nummer zusammen (26.0.4-260327) — beide
+        // gehören laut VersionComparer zur vergleichbaren Versionskennung, werden also bewusst
+        // gemeinsam erfasst statt nur "26.0.4".
+        string v = HttpService.ExtractVersion("manjaro-kde-26.0.4-260327-linux618.iso");
+        Assert.Equal("26.0.4-260327", v);
+    }
+}
+
+public class HttpServiceIsVersionNewerTests
+{
+    [Theory]
+    [InlineData("18", "17", true)]
+    [InlineData("17", "18", false)]
+    [InlineData("26.04", "26.04", false)]
+    [InlineData("26.0.4", "26.0.4-260327", false)] // gleiche Version, fehlendes Build-Suffix ist NICHT neuer
+    [InlineData("26.0.4-260327", "26.0.4", true)]  // Build-Suffix vorhanden vs. fehlend: das mit Suffix gewinnt
+    [InlineData("7.9.1", "7.9", true)]
+    public void IsVersionNewer_ComparesNumerically(string candidate, string current, bool expected)
+        => Assert.Equal(expected, HttpService.IsVersionNewer(candidate, current));
+
+    [Theory]
+    [InlineData("", "1.0")]
+    [InlineData("1.0", "")]
+    [InlineData("", "")]
+    public void IsVersionNewer_EmptyInput_ReturnsFalse(string candidate, string current)
+        => Assert.False(HttpService.IsVersionNewer(candidate, current));
+}
+
+public class HttpServiceNormalizeForMatchTests
+{
+    [Theory]
+    // Regression: "Pop!_OS 24.04 LTS NVIDIA" (Katalog) und "pop os 24.04 amd64 nvidia 12"
+    // (vom Stick importiert, aus dem Dateinamen abgeleitet) müssen auf denselben normalisierten
+    // Kern-Präfix abbilden, sonst greift der dedizierte Pop!_OS-Resolver für importierte
+    // Einträge nicht (genau der Bug, der reale Health-Check-Fehlschläge verursacht hat).
+    [InlineData("Pop!_OS 24.04 LTS NVIDIA", "popos2404ltsnvidia")]
+    [InlineData("pop os 24.04 amd64 nvidia 12", "popos2404amd64nvidia12")]
+    [InlineData("MX Linux 25.2 XFCE", "mxlinux252xfce")]
+    [InlineData("Dr.Web LiveDisk 9.0.1", "drweblivedisk901")]
+    public void NormalizeForMatch_StripsPunctuationAndLowercases(string input, string expected)
+        => Assert.Equal(expected, HttpService.NormalizeForMatch(input));
+
+    [Fact]
+    public void NormalizeForMatch_PopOsVariants_AllContainSameKeyword()
+    {
+        string[] variants =
+        {
+            "Pop!_OS 24.04 LTS NVIDIA",
+            "pop-os_24.04_amd64_nvidia_12.iso",
+            "pop os 24.04 amd64 nvidia 12",
+        };
+        foreach (string v in variants)
+            Assert.Contains("popos", HttpService.NormalizeForMatch(v));
+    }
+}

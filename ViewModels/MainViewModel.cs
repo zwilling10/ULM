@@ -77,6 +77,16 @@ namespace ULM.ViewModels
         private bool _showInfoPopup = true;
         public  bool ShowInfoPopup { get => _showInfoPopup; set => SetField(ref _showInfoPopup, value); }
 
+        private string _gitHubToken = string.Empty;
+        // Optional — hebt nur das API-Limit für GitHub-basierte Resolver/Ventoy-Update-Check von
+        // 60 auf 5000 Anfragen/Std an (siehe HttpService.GitHubToken). Ohne Token funktioniert alles
+        // wie bisher. _http.GitHubToken wird bei jeder Änderung sofort mit aktualisiert.
+        public string GitHubToken
+        {
+            get => _gitHubToken;
+            set { if (SetField(ref _gitHubToken, value)) { IniService.Write(_paths.SettingsIni, "App", "GitHubToken", value); _http.GitHubToken = value; } }
+        }
+
         public RelayCommand DownloadCommand      { get; }
         public RelayCommand CopyToUsbCommand     { get; }
         public RelayCommand CheckUpdatesCommand  { get; }
@@ -115,6 +125,8 @@ namespace ULM.ViewModels
             RefreshDrivesCommand = new RelayCommand(RefreshDrives);
             _expertMode = IniService.Read(_paths.SettingsIni, "App", "ExpertMode", "0") == "1";
             _secureBoot = IniService.Read(_paths.SettingsIni, "App", "SecureBoot", "1") != "0";
+            _gitHubToken = IniService.Read(_paths.SettingsIni, "App", "GitHubToken", string.Empty);
+            _http.GitHubToken = _gitHubToken;
         }
 
         public void Initialize()
@@ -196,7 +208,7 @@ namespace ULM.ViewModels
             if (changed) _db.Save();
         }
 
-        private static bool AreSameDistro(IsoEntry a, IsoEntry b)
+        internal static bool AreSameDistro(IsoEntry a, IsoEntry b)
         {
             bool aHas = !string.IsNullOrWhiteSpace(a.Filename); bool bHas = !string.IsNullOrWhiteSpace(b.Filename);
             if (aHas && bHas) return IsSameDistroDifferentVersion(a.Filename, b.Filename);
@@ -361,7 +373,7 @@ namespace ULM.ViewModels
             return result;
         }
 
-        private static bool IsVersionNewer(string c, string d)
+        internal static bool IsVersionNewer(string c, string d)
         {
             if (string.IsNullOrWhiteSpace(c) || string.IsNullOrWhiteSpace(d) || string.Equals(c, d, StringComparison.OrdinalIgnoreCase)) return false;
             int[] cP = ParseVersionParts(c), dP = ParseVersionParts(d);
@@ -391,14 +403,14 @@ namespace ULM.ViewModels
             }
         }
 
-        private static bool IsSameDistroDifferentVersion(string a, string b)
+        internal static bool IsSameDistroDifferentVersion(string a, string b)
         {
             if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
             if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return false;
             return NormalizeForDistroComparison(a) == NormalizeForDistroComparison(b);
         }
 
-        private static string NormalizeForDistroComparison(string filename)
+        internal static string NormalizeForDistroComparison(string filename)
         {
             string s = Regex.Replace(filename.ToLowerInvariant(), @"[\d.]+", string.Empty);
             foreach (string cn in _platformCodenames)
@@ -406,7 +418,7 @@ namespace ULM.ViewModels
             return s;
         }
 
-        private static bool IsLikelySameDistroByName(string dbEntryName, string stickFilename)
+        internal static bool IsLikelySameDistroByName(string dbEntryName, string stickFilename)
         {
             if (string.IsNullOrWhiteSpace(dbEntryName) || string.IsNullOrWhiteSpace(stickFilename)) return false;
             string nameLower = dbEntryName.ToLowerInvariant();
@@ -463,7 +475,12 @@ namespace ULM.ViewModels
                             if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log($"   ✏ {on} → {e.Name}"); }
                         }
                     }
+                    // BUGFIX: auch speichern, wenn KEIN Versions-Update vorliegt, aber für einen
+                    // zuvor URL-losen Eintrag (Import/manuell hinzugefügt) gerade erstmals eine
+                    // Quelle gefunden wurde — sonst geht die im Speicher gefundene URL beim nächsten
+                    // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
+                    else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
                     OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
                     StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
                                : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
@@ -582,8 +599,23 @@ namespace ULM.ViewModels
                 string targetDir = Path.Combine(UsbService.DriveRoot(drive), entry.NormalizedCategory);
                 Directory.CreateDirectory(targetDir);
                 string targetPath = Path.Combine(targetDir, entry.Filename);
-                long   copied = 0L; var sw = Stopwatch.StartNew(); long lastMark = 0L; double lastEl = 0.0;
                 string entryName = entry.Name;
+
+                // Freispeicher-Check vor dem Kopieren dieser einzelnen Datei — im Pipeline-Modus
+                // lohnt sich pro Datei zu prüfen statt vorab für die gesamte Warteschlange, da
+                // Downloads laufend eintreffen und der Speicherplatz sich zwischen ihnen ändert.
+                try
+                {
+                    var drv = new DriveInfo(Path.GetPathRoot(targetDir) ?? UsbService.DriveRoot(drive));
+                    if (drv.IsReady && drv.AvailableFreeSpace < fileSize)
+                    {
+                        _ui.Invoke(() => Log($"   ❌ {entryName}: nicht genug Speicherplatz auf {drive} (benötigt {fileSize / 1_073_741_824.0:F2} GB, frei {drv.AvailableFreeSpace / 1_073_741_824.0:F2} GB)."));
+                        continue;
+                    }
+                }
+                catch { /* Freispeicher-Check ist best-effort */ }
+
+                long copied = 0L; var sw = Stopwatch.StartNew(); long lastMark = 0L; double lastEl = 0.0;
                 _ui.Invoke(() =>
                 {
                     CopyItemProgress?.Invoke(entryName, 0, "Kopiere auf Stick …");
@@ -674,9 +706,19 @@ namespace ULM.ViewModels
             var worker = new CopyToUsbWorker(toCopy, drive, false, _paths.DownloadDir); _activeWorker = worker;
             worker.FileProgress += (name, pct, detail) => _ui.Invoke(() => CopyItemProgress?.Invoke(name, pct, detail));
             worker.Progress     += (pct, detail)       => _ui.Invoke(() => { ProgressPercent = pct; StatusText = detail; });
-            worker.Completed    += (_, count, bytes, _) => _ui.Invoke(() =>
+            worker.Completed    += (ok, count, bytes, message) => _ui.Invoke(() =>
             {
                 SetBusy(false); RefreshAllEntries();
+                // BUGFIX: 'ok' und 'message' wurden bisher verworfen (Discard "_") — ein
+                // Abbruchgrund (z.B. der neue Freispeicher-Check unten) wäre nie im Protokoll
+                // sichtbar gewesen, stattdessen fälschlich "0 ISO(s) kopiert" ohne Erklärung.
+                if (!ok && !string.IsNullOrWhiteSpace(message))
+                {
+                    Log($"❌ Kopiervorgang abgebrochen: {message}");
+                    StatusText = "❌ " + message; ProgressPercent = 0;
+                    ShowMessageBox?.Invoke(message, true);
+                    return;
+                }
                 Log($"📋 Kopiervorgang fertig: {count} ISO(s), {bytes / (1024.0 * 1024 * 1024):F2} GB auf {drive}.");
                 StatusText = count > 0 ? $"{count} ISO(s) auf {drive} kopiert." : "Nichts zu kopieren.";
                 ProgressPercent = 100; CopyBatchCompleted?.Invoke(count);
@@ -721,7 +763,9 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
-                SetBusy(false); if (updates.Count > 0) _db.Save(); RefreshAllEntries();
+                // BUGFIX: siehe TriggerAutoVersionCheck — auch ohne echtes Update speichern, wenn
+                // eine zuvor fehlende Download-Quelle neu gefunden wurde.
+                SetBusy(false); if (updates.Count > 0 || worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries();
                 StatusText = updates.Count > 0 ? $"🆕 {updates.Count} Update(s)."
                            : resolved > 0      ? "Alles aktuell." : "Keine lokalen ISOs.";
                 ProgressPercent = 100; Log($"🔄 {StatusText}");
@@ -779,7 +823,13 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
-                if (updates.Count > 0) _db.Save(); RefreshAllEntries();
+                // BUGFIX: siehe TriggerAutoVersionCheck — genau hier lief der Gesundheitscheck bei
+                // frisch importierten Distros ohne URL zwar erfolgreich auf, ohne dass die
+                // gefundene Quelle je gespeichert wurde (kein "Update" im Sinne der bisherigen
+                // Bedingung, da Version = Version). Der nächste Start musste die komplette,
+                // fehleranfällige Auflösungskette (Websuche/DistroWatch/SourceForge) jedes Mal neu
+                // durchlaufen, statt die einmal gefundene URL wiederzuverwenden.
+                if (updates.Count > 0 || worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries();
                 int failed = results.Count(r => !r.Resolved);
                 HealthCheckActive = false; HealthCheckPercent = 100;
                 StatusText = failed == 0 ? $"🩺 Alle {results.Count} Distros online erreichbar." : $"🩺 {failed}/{results.Count} nicht erreichbar.";

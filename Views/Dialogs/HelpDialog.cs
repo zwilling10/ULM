@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;   // Ellipse
+using ULM.Core.Models;
 
 namespace ULM.Views.Dialogs
 {
@@ -85,7 +86,7 @@ namespace ULM.Views.Dialogs
                 tocPanel.Children.Add(MakeNavLink(navLabel, scroll, section));
             }
 
-            content.Children.Add(MakeTitle("Universal Linux Manager v2.27.1"));
+            content.Children.Add(MakeTitle(Constants.AppFullTitle));
             content.Children.Add(MakeSub("Bootfähige USB-Sticks mit Linux-ISOs einfach erstellen und verwalten."));
             content.Children.Add(Spacer(16));
 
@@ -122,6 +123,16 @@ namespace ULM.Views.Dialogs
                 "mit der tatsächlichen Original-Größe beim Anbieter (Online-HEAD-Request). Erkennt so " +
                 "unvollständige und abgebrochene Downloads zuverlässiger als eine feste Mindestgröße. " +
                 "Bietet an, gefundenen Datenmüll zu löschen."));
+            content.Children.Add(MakeItem("ULM-Update-Check",
+                "Prüft im Hintergrund, ob auf GitHub eine neuere ULM-Version verfügbar ist. Läuft rein " +
+                "informativ mit — kein Dialog, keine Unterbrechung. Ist eine neue Version verfügbar, " +
+                "erscheint nur eine Zeile im Protokoll:\n" +
+                "  🆕 Neue ULM-Version verfügbar: v2.28.0 (aktuell installiert: v2.27.1)\n" +
+                "gefolgt vom Link zur Release-Seite."));
+            content.Children.Add(MakeItem("„Was ist neu?“-Dialog",
+                "Erscheint automatisch beim ersten Start NACH einem Update auf eine neue ULM-Version " +
+                "(nicht beim allerersten Programmstart) und listet alle Änderungen seit der zuletzt " +
+                "gesehenen Version auf. Einmal quittiert, erscheint er erst beim nächsten Versionswechsel wieder."));
             content.Children.Add(Spacer());
 
             // ── Hauptliste ─────────────────────────────────────────────────
@@ -251,6 +262,15 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("Mirror-Fallback (5 Mirror)",
                 "Wenn ein Download-Server nicht erreichbar ist, werden automatisch " +
                 "bis zu 5 alternative Mirror-URLs versucht:\n  ⬇ Mirror 2: cdn.beispiel.org …"));
+            content.Children.Add(MakeItem("Verbleibende Zeit (ETA)",
+                "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe jetzt auch die geschätzte " +
+                "Restzeit an, z.B.:\n  12.4 MB/s  ·  noch 2m 14s  ·  1.2 GB / 3.5 GB\n" +
+                "Die Schätzung passt sich laufend an die aktuelle Download-Geschwindigkeit an."));
+            content.Children.Add(MakeItem("Freispeicher-Check",
+                "Vor jedem Download und jedem Kopiervorgang auf den Stick prüft ULM, ob genug freier " +
+                "Speicherplatz am Ziel vorhanden ist. Reicht er nicht, wird der Vorgang gar nicht erst " +
+                "gestartet — im Protokoll erscheint stattdessen z.B.:\n" +
+                "  ❌ Nicht genug Speicherplatz auf E:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
             content.Children.Add(Spacer());
 
             // ── USB-Stick ──────────────────────────────────────────────────
@@ -320,10 +340,21 @@ namespace ULM.Views.Dialogs
                 "automatische Versionscheck beim Start prüft sie mit, und auch der manuelle " +
                 "'Nach Updates suchen'-Button berücksichtigt sie jetzt — sobald sie lokal ODER auf dem " +
                 "Stick vorhanden sind. Auch ohne hinterlegte URL versucht ULM automatisch, die richtige " +
-                "Quelle zu finden: zuerst über einen von >20 dedizierten Distro-Erkennern (unabhängig " +
-                "von Schreibweise/Sonderzeichen im importierten Namen), sonst über eine automatische " +
-                "Websuche. Eine so gefundene Quelle wird dauerhaft gespeichert — künftige Prüfungen " +
-                "starten direkt darüber, statt jedes Mal neu zu suchen."));
+                "Quelle zu finden — eine mehrstufige Kette, die für JEDE Distro gilt, nicht nur bekannte:\n" +
+                "  1. Einer von >20 dedizierten Distro-Erkennern (unabhängig von Schreibweise/Sonderzeichen)\n" +
+                "  2. Automatische Suche über DistroWatch.com — findet die offizielle Homepage der Distro " +
+                "und darüber die Download-Seite, ganz ohne distro-spezifischen Code\n" +
+                "  3. SourceForge-Projektsuche, falls die Distro dort gehostet wird\n" +
+                "  4. Allgemeine Websuche als letzter Rückfall\n" +
+                "Eine so gefundene Quelle wird dauerhaft in der Datenbank gespeichert — künftige " +
+                "Prüfungen starten direkt darüber, statt jedes Mal neu zu suchen. Kurz aufeinanderfolgende " +
+                "Erreichbarkeits-Checks werden zusätzlich einige Minuten zwischengespeichert, damit " +
+                "wiederholte Anfragen an denselben Server nicht fälschlich als Bot-Verhalten eingestuft " +
+                "und blockiert werden.\n" +
+                "Hinweis: eine externe Bot-/Anti-Scraping-Erkennung (z.B. bei Suchanfragen oder auf " +
+                "manchen Download-Servern) lässt sich nicht zu 100% ausschließen — in seltenen Fällen " +
+                "kann ein Check trotz eigentlich erreichbarer Quelle vorübergehend fehlschlagen. Ein " +
+                "erneuter Gesundheitscheck später behebt das in aller Regel."));
             content.Children.Add(Spacer());
 
             // ── Expert-Modus ───────────────────────────────────────────────
@@ -350,6 +381,12 @@ namespace ULM.Views.Dialogs
                 "Einträge übernimmt der Online-Versionscheck (Start + alle paar Tage). Eigene " +
                 "Fortschrittsanzeige oben rechts, genauso wie beim Online-Scan (🩺 Gesundheitscheck). " +
                 "Vor jedem Lauf werden doppelte Datenbank-Einträge automatisch erkannt und bereinigt."));
+            content.Children.Add(MakeItem("🔑 GitHub-Token",
+                "Optional. GitHub-basierte Resolver (z.B. CachyOS, EndeavourOS) und der Ventoy-" +
+                "Update-Check nutzen ohne Token ein gemeinsames Limit von 60 Anfragen/Stunde für " +
+                "das ganze Netzwerk (nicht nur ULM) — bei intensiver Nutzung kann das knapp werden. " +
+                "Ein kostenloses GitHub Personal Access Token OHNE jeden Berechtigungs-Scope hebt " +
+                "das Limit auf 5000/Stunde an. Wird lokal in ulm_settings.ini gespeichert."));
             content.Children.Add(Spacer());
 
             // ── Protokoll ──────────────────────────────────────────────────
@@ -361,6 +398,10 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("Protokoll-Datei",
                 "Alle Ereignisse werden dauerhaft im Arbeitsordner des Programms gespeichert " +
                 "(Datei 'ulm.log'). Nützlich für die Fehlersuche auf verschiedenen Systemen."));
+            content.Children.Add(MakeItem("Log-Rotation",
+                "Überschreitet 'ulm_log.txt' 5 MB, wird sie automatisch einmal zu 'ulm_log.txt.old' " +
+                "verschoben und danach neu und leer begonnen — wächst also nicht mehr unbegrenzt bei " +
+                "Dauerbetrieb. Die vorherige Sicherung bleibt als '.old'-Datei erhalten."));
 
             scroll.Content = content;
 

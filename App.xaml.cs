@@ -97,34 +97,41 @@ namespace ULM
             }
 
             // STEP 2+3: Einrichtungsfenster — fasst Arbeitsordner-Wahl (nur beim allerersten
-            // Start), Willkommenstext (überspringbar) und Modus-Wahl (immer) in EINEM Fenster
-            // mit Checkboxen und einem "Übernehmen"-Button zusammen (statt bis zu drei
-            // getrennten Dialogen nacheinander).
-            // "SkipWelcome" ist ein von "BaseDirectory" unabhängiger Ini-Wert — ohne die
-            // isFirstRun-Sonderbehandlung könnte ein Erststart (kein gültiges BaseDirectory)
-            // mit einem aus einer früheren Sitzung übrig gebliebenen SkipWelcome=1 zusammentreffen
-            // und den Willkommens-Abschnitt fälschlich unterdrücken. Bei einem echten Erststart
-            // wurde der Text nie gezeigt, muss also immer erscheinen.
-            bool skipWelcome  = !isFirstRun && IniService.Read(paths.SettingsIni, "App", "SkipWelcome", "0") == "1";
-            bool lastExpert   = IniService.Read(paths.SettingsIni, "App", "ExpertMode", "0") == "1";
-            var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: !skipWelcome, currentExpertMode: lastExpert)
-            { WindowStartupLocation = WindowStartupLocation.CenterScreen };
-            if (setupDlg.ShowDialog() != true) { Shutdown(); return; }
+            // Start), Willkommenstext (nur beim allerersten Start) und Modus-Wahl in EINEM
+            // Fenster zusammen.
+            //
+            // BUGFIX: "SkipWelcome" schaltete bisher NUR den Willkommenstext ab — das Fenster
+            // selbst (samt Modus-Auswahl) erschien trotzdem bei JEDEM Start erneut, egal ob die
+            // Checkbox gesetzt war. Das widersprach der Erwartung "Häkchen gesetzt → nächstes Mal
+            // sofort starten". "SkipSetupDialog" steuert jetzt das GESAMTE Fenster: ist es gesetzt,
+            // wird gar kein Dialog mehr konstruiert — der zuletzt gespeicherte Modus (ExpertMode)
+            // wird direkt übernommen. Ist die App noch nie eingerichtet worden (isFirstRun) oder hat
+            // der Nutzer die Checkbox nie gesetzt, erscheint das Fenster weiterhin wie gewohnt.
+            bool skipSetupDialog = !isFirstRun && IniService.Read(paths.SettingsIni, "App", "SkipSetupDialog", "0") == "1";
+            bool lastExpert      = IniService.Read(paths.SettingsIni, "App", "ExpertMode", "0") == "1";
 
-            if (isFirstRun)
+            if (!skipSetupDialog)
             {
-                paths.Apply(setupDlg.ChosenDirectory);
-                IniService.Write(paths.SettingsIni, "App", "BaseDirectory", setupDlg.ChosenDirectory);
+                var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert)
+                { WindowStartupLocation = WindowStartupLocation.CenterScreen };
+                if (setupDlg.ShowDialog() != true) { Shutdown(); return; }
+
+                if (isFirstRun)
+                {
+                    paths.Apply(setupDlg.ChosenDirectory);
+                    IniService.Write(paths.SettingsIni, "App", "BaseDirectory", setupDlg.ChosenDirectory);
+                }
+                if (setupDlg.DontShowAgain)
+                    IniService.Write(paths.SettingsIni, "App", "SkipSetupDialog", "1");
+                lastExpert = setupDlg.ExpertModeChosen;
             }
-            if (setupDlg.DontShowWelcomeAgain)
-                IniService.Write(paths.SettingsIni, "App", "SkipWelcome", "1");
 
             // STEP 4: Hauptfenster
             try
             {
                 var mainWindow = new MainWindow();
                 MainWindow = mainWindow;
-                mainWindow.SetInitialMode(setupDlg.ExpertModeChosen);
+                mainWindow.SetInitialMode(lastExpert);
                 mainWindow.Show();
             }
             catch (Exception ex)

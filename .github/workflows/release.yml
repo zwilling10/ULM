@@ -1,0 +1,38 @@
+name: Release
+
+# Läuft nur bei einem Tag-Push nach Schema "v*" (z.B. v2.27.2) — baut die portable EXE über das
+# bestehende build-release.sh und hängt sie automatisch als GitHub-Release-Asset an, statt das
+# manuell lokal auszuführen und hochzuladen.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # nötig, damit gh release create mit dem automatischen GITHUB_TOKEN funktioniert
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET 8 SDK einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Portable EXE bauen
+        shell: bash
+        run: ./build-release.sh --zip
+
+      - name: GitHub Release erstellen und EXE anhängen
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release create "$TAG" release/*.exe release/*.zip \
+            --title "Universal Linux Manager $TAG" \
+            --generate-notes

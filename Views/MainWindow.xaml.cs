@@ -150,6 +150,7 @@ namespace ULM.Views
         {
             Loaded -= OnLoaded;
             LoadSettings(); _vm.Initialize();
+            ShowChangelogIfUpdated();
             _lastDriveSignatureUi = string.Join(";", _vm.Drives.Select(d => d.Letter));
             FooterLbl.Text = $"ISO-Ordner: {AppPaths.Instance.DownloadDir}";
             _driveTimer.Start();
@@ -157,6 +158,21 @@ namespace ULM.Views
             await Task.Delay(1000);
             AppendLog("🌐 Automatischer Online-Versionscheck wird gestartet …");
             _vm.TriggerAutoVersionCheck();
+            _ = CheckUlmUpdateAsync();
+        }
+
+        /// <summary>
+        /// Rein informativer Hinweis, falls eine neuere ULM-Version auf GitHub verfügbar ist —
+        /// läuft unabhängig im Hintergrund (fire-and-forget), blockiert nichts und unterbricht den
+        /// Nutzer nicht mit einem Dialog. Ergebnis erscheint nur als Protokollzeile, analog zu den
+        /// "🆕 neue Version gefunden"-Meldungen der Distro-Versionschecks.
+        /// </summary>
+        private async Task CheckUlmUpdateAsync()
+        {
+            var (hasUpdate, latest, url) = await HttpService.Instance.CheckForUlmUpdateAsync(Constants.AppVersion).ConfigureAwait(true);
+            if (!hasUpdate) return;
+            AppendLog($"🆕 Neue ULM-Version verfügbar: v{latest} (aktuell installiert: v{Constants.AppVersion})");
+            if (!string.IsNullOrWhiteSpace(url)) AppendLog($"   {url}");
         }
 
         // Wird alle 30 Minuten geprüft: löst TriggerAutoVersionCheck() erneut aus, sobald seit
@@ -182,6 +198,21 @@ namespace ULM.Views
             _vm.SecureBoot = IniService.Read(paths.SettingsIni, "App", "SecureBoot", "1") != "0";
             ChkSecureBoot.IsChecked = _vm.SecureBoot;
             UpdateUiMode();
+        }
+
+        /// <summary>
+        /// Zeigt den "Was ist neu?"-Dialog genau einmal pro neuer Version. Leeres LastSeenVersion
+        /// (echter Erststart) zeigt NICHTS — der SetupDialog deckt das Onboarding bereits ab, ein
+        /// Changelog vergangener Bugfixes wäre für einen brandneuen Nutzer irrelevant. Erst ab dem
+        /// zweiten Start mit einer geänderten Version erscheint der Dialog.
+        /// </summary>
+        private void ShowChangelogIfUpdated()
+        {
+            AppPaths paths = AppPaths.Instance;
+            string lastSeen = IniService.Read(paths.SettingsIni, "App", "LastSeenVersion", string.Empty);
+            if (!string.IsNullOrEmpty(lastSeen) && lastSeen != Constants.AppVersion)
+                new ChangelogDialog(lastSeen, Constants.AppVersion) { Owner = this }.ShowDialog();
+            IniService.Write(paths.SettingsIni, "App", "LastSeenVersion", Constants.AppVersion);
         }
 
         private void UpdateUiMode()
@@ -414,6 +445,14 @@ namespace ULM.Views
             if (dlg.AnyEntryAdded) _vm.RunHealthCheck();
         }
 
+        private void BtnGitHubToken_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new GitHubTokenDialog(_vm.GitHubToken) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            _vm.GitHubToken = dlg.Token;
+            AppendLog(string.IsNullOrEmpty(dlg.Token) ? "🔑 GitHub-Token entfernt." : "🔑 GitHub-Token gespeichert.");
+        }
+
         private void BtnCopyUsb_Click(object sender, RoutedEventArgs e)
         {
             if (_vm.IsBusy) return;
@@ -441,9 +480,30 @@ namespace ULM.Views
             {
                 LogBox.AppendText($"[{DateTime.Now:HH:mm:ss}]  {msg}\n");
                 LogBox.ScrollToEnd();
-                try { File.AppendAllText(AppPaths.Instance.LogFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {msg}\n", System.Text.Encoding.UTF8); }
+                try
+                {
+                    RotateLogIfTooLarge(AppPaths.Instance.LogFile);
+                    File.AppendAllText(AppPaths.Instance.LogFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {msg}\n", System.Text.Encoding.UTF8);
+                }
                 catch { }
             });
+        }
+
+        /// <summary>
+        /// ulm_log.txt wuchs bisher unbegrenzt bei Dauerbetrieb. Überschreitet die Datei
+        /// Constants.MaxLogSizeBytes, wird sie einmal zu "ulm_log.txt.old" verschoben (eine
+        /// vorherige .old-Datei wird dabei überschrieben) — File.AppendAllText erzeugt danach
+        /// automatisch eine neue, leere Datei. Behält so maximal ~2× die Grenzgröße an
+        /// Protokoll-Historie, statt die Datei ins Unendliche wachsen zu lassen.
+        /// </summary>
+        private static void RotateLogIfTooLarge(string logFile)
+        {
+            if (!File.Exists(logFile)) return;
+            var info = new FileInfo(logFile);
+            if (info.Length < Constants.MaxLogSizeBytes) return;
+            string oldFile = logFile + ".old";
+            try { if (File.Exists(oldFile)) File.Delete(oldFile); File.Move(logFile, oldFile); }
+            catch { /* Rotation ist best-effort — ein fehlgeschlagener Versuch darf das Loggen selbst nicht verhindern */ }
         }
 
         private static string RelativePath(string baseDir, string fullPath)

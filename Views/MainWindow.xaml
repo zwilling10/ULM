@@ -362,7 +362,11 @@
                             Click="BtnHealthCheck_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnCopyUsb" Content="📋  Auf Stick kopieren"
                             Style="{StaticResource BtnGhost}" Width="160"
-                            Click="BtnCopyUsb_Click"/>
+                            Click="BtnCopyUsb_Click" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnGitHubToken" Content="🔑  GitHub-Token"
+                            Style="{StaticResource BtnGhost}" Width="130"
+                            ToolTip="Optional: hebt das API-Limit für GitHub-basierte Distros von 60 auf 5000 Anfragen/Std an."
+                            Click="BtnGitHubToken_Click"/>
                 </StackPanel>
 
                 <Grid Grid.Row="2">

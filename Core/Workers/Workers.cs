@@ -178,7 +178,26 @@ namespace ULM.Core.Workers
         private static async Task<string> FetchLatestVentoyUrlAsync()
         {
             const string Fallback = "https://github.com/ventoy/Ventoy/releases/download/v1.0.97/ventoy-1.0.97-windows.zip";
-            try { using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(12) }; client.DefaultRequestHeaders.UserAgent.ParseAdd("ULM/2.27"); string json = await client.GetStringAsync("https://api.github.com/repos/ventoy/Ventoy/releases/latest").ConfigureAwait(false); using var doc = JsonDocument.Parse(json); foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray()) { string n = a.GetProperty("name").GetString() ?? ""; string u = a.GetProperty("browser_download_url").GetString() ?? ""; if (!string.IsNullOrEmpty(u) && n.Contains("windows", StringComparison.OrdinalIgnoreCase) && n.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return u; } } catch { }
+            // Nutzt HttpService.Instance.GitHubToken, falls vom Nutzer hinterlegt (siehe
+            // HttpService.AddGitHubAuthHeader) — hebt das API-Limit von 60 auf 5000 Anfragen/Std.
+            try
+            {
+                using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "https://api.github.com/repos/ventoy/Ventoy/releases/latest");
+                req.Headers.UserAgent.ParseAdd("ULM/2.27");
+                string? token = HttpService.Instance.GitHubToken;
+                if (!string.IsNullOrWhiteSpace(token)) req.Headers.TryAddWithoutValidation("Authorization", $"Bearer {token}");
+                using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(12) };
+                using var resp = await client.SendAsync(req).ConfigureAwait(false);
+                string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                foreach (var a in doc.RootElement.GetProperty("assets").EnumerateArray())
+                {
+                    string n = a.GetProperty("name").GetString() ?? "";
+                    string u = a.GetProperty("browser_download_url").GetString() ?? "";
+                    if (!string.IsNullOrEmpty(u) && n.Contains("windows", StringComparison.OrdinalIgnoreCase) && n.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return u;
+                }
+            }
+            catch { }
             return Fallback;
         }
     }
@@ -332,6 +351,20 @@ namespace ULM.Core.Workers
                 int total = valid.Count;
                 if (total == 0) { Completed?.Invoke(true, 0, 0L, "Keine Dateien."); return; }
                 long totalBytes = valid.Sum(e => e.LocalFileSize(_downloadDir));
+
+                // Freispeicher-Check vor dem Kopieren: lieber jetzt klar abbrechen als nach der
+                // Hälfte der Dateien mit einem vollen USB-Stick mittendrin zu scheitern.
+                try
+                {
+                    var drive = new DriveInfo(root);
+                    if (drive.IsReady && drive.AvailableFreeSpace < totalBytes)
+                    {
+                        Completed?.Invoke(false, 0, 0L, $"Nicht genug Speicherplatz auf {_letter} (benötigt {TransferFormat.FormatBytes(totalBytes)}, frei {TransferFormat.FormatBytes(drive.AvailableFreeSpace)}).");
+                        return;
+                    }
+                }
+                catch { /* Freispeicher-Check ist best-effort */ }
+
                 byte[] buf = new byte[BufferSize];
                 foreach (var e in valid)
                 {
@@ -439,6 +472,7 @@ namespace ULM.Core.Workers
         public event Action<int, List<int>>?          Completed;
         public event Action<int, int>?                Progress;
         public event Action<VersionCheckEntryResult>? EntryChecked;
+        public bool AnyUrlDiscovered => _internalWorker.AnyUrlDiscovered;
         public AutoVersionCheckWorker(IReadOnlyList<IsoEntry> entries, string downloadDir = "")
         {
             _internalWorker = new UpdateScanWorker(entries, string.IsNullOrEmpty(downloadDir) ? AppPaths.Instance.DownloadDir : downloadDir, checkAllEntries: true);
@@ -459,6 +493,20 @@ namespace ULM.Core.Workers
         public event Action<int, int>?                Progress;
         public event Action<int, List<int>>?           Completed;
         public event Action<VersionCheckEntryResult>?  EntryChecked;
+
+        // BUGFIX: HttpService.ResolveLatestAsync setzt bei einer neu entdeckten Quelle für einen
+        // zuvor URL-losen Eintrag (typischerweise importiert/manuell hinzugefügt) entry.Url direkt
+        // im Speicher (siehe "selbstlernende" Persistenz dort) — das allein reicht aber nicht, wenn
+        // niemand danach _db.Save() aufruft. Bisher lösten Aufrufer das Speichern nur bei einem
+        // ECHTEN Versions-Update aus (updates.Count > 0); eine neu gefundene URL für eine bereits
+        // aktuelle ISO ist aber KEIN "Update" (gleiche Version wie vorhanden) und wurde dadurch nie
+        // gespeichert. Ergebnis: die im Speicher gefundene URL ging bei jedem Neustart verloren,
+        // und die aufwändige, netzwerklastige Auflösungskette (Websuche/DistroWatch/SourceForge)
+        // musste jedes Mal komplett neu durchlaufen werden — mit entsprechend höherer Fehlerquote
+        // bei jedem einzelnen Lauf. Dieses Flag macht "wurde etwas Dauerhaftes neu entdeckt" als
+        // eigenes, von "gibt es ein Versions-Update" unabhängiges Signal sichtbar.
+        public bool AnyUrlDiscovered { get; private set; }
+
         public UpdateScanWorker(IReadOnlyList<IsoEntry> entries, string downloadDir, bool checkAllEntries = false)
         { _entries = entries; _downloadDir = downloadDir; _checkAllEntries = checkAllEntries; }
         public void Cancel() => _cts.Cancel();
@@ -470,6 +518,7 @@ namespace ULM.Core.Workers
                 if (_cts.IsCancellationRequested) break;
                 var e = _entries[i]; string localFn = e.Filename ?? string.Empty;
                 if (!_checkAllEntries && !e.IsAvailableAnywhere(_downloadDir)) { Progress?.Invoke(++processed, count); continue; }
+                bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
                 var (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false);
                 Progress?.Invoke(++processed, count);
                 bool res = !string.IsNullOrWhiteSpace(remoteVer) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(fname);
@@ -487,6 +536,7 @@ namespace ULM.Core.Workers
                         : HttpService.IsVersionNewer(remoteVer, localVer);
                     e.UpdateAvailable = hasUpdate;
                     if (hasUpdate) lock (updates) updates.Add(i);
+                    if (urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;
                 }
                 EntryChecked?.Invoke(new VersionCheckEntryResult
                 {
@@ -496,6 +546,15 @@ namespace ULM.Core.Workers
                     HasUpdate     = hasUpdate,
                     Resolved      = res
                 });
+                // BUGFIX: ohne Pause feuert der Scan alle Anfragen (HEAD/GET an Origin-Server,
+                // Suchanfragen an DuckDuckGo für unbekannte Distros) im Sekundentakt hintereinander
+                // ab. Genau dieses Muster – viele automatisierte Anfragen kurz hintereinander an
+                // denselben Dienst – ist es, was Bot-/Anti-Scraping-Schutz (Cloudflare-Tarpitting,
+                // DuckDuckGo-Anomalieerkennung) triggert und dann fälschlich als "nicht erreichbar"
+                // zurückkommt, obwohl die Quelle bei isolierter Prüfung erreichbar ist. Eine kleine,
+                // gleichmäßige Pause zwischen Einträgen entschärft das generisch für JEDE Distro,
+                // ohne distro-spezifisches Sonderverhalten.
+                if (i < count - 1) await Task.Delay(300).ConfigureAwait(false);
             }
             Completed?.Invoke(resolved, updates);
         });

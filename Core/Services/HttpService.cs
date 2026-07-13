@@ -24,6 +24,20 @@ namespace ULM.Core.Services
         private readonly Dictionary<string, (string Value, DateTimeOffset Expiry)> _cache = new();
         private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
+        /// <summary>
+        /// Optionales GitHub-Personal-Access-Token (nur "public_repo"/keine Rechte nötig — dient
+        /// ausschließlich dazu, das unauthentifizierte API-Limit von 60 auf 5000 Anfragen/Stunde
+        /// anzuheben). Wird von MainViewModel aus ulm_settings.ini geladen. Ohne Token funktioniert
+        /// alles wie bisher — nur eben mit dem niedrigeren Limit.
+        /// </summary>
+        public string? GitHubToken { get; set; }
+
+        private void AddGitHubAuthHeader(HttpRequestMessage req)
+        {
+            if (!string.IsNullOrWhiteSpace(GitHubToken))
+                req.Headers.TryAddWithoutValidation("Authorization", $"Bearer {GitHubToken}");
+        }
+
         private HttpService()
         {
             var handler = new SocketsHttpHandler
@@ -56,21 +70,40 @@ namespace ULM.Core.Services
             finally { _cacheLock.Release(); }
         }
 
+        // BUGFIX: Erreichbarkeits-Checks wurden bisher NIE zwischengespeichert — jeder Gesundheits-/
+        // Versionscheck prüfte JEDE URL frisch, egal wie kurz der vorherige Check zurücklag. Bei
+        // mehreren Checks kurz hintereinander (z.B. zwei Gesundheitschecks nur 20 Sekunden
+        // auseinander, wie real beobachtet) verdoppelt das die Anfragen an denselben Origin-Server
+        // in kurzer Zeit — und genau solche schnellen Wiederholungsanfragen lösen bei
+        // Bot-/Anti-Scraping-Schutz (Cloudflare u.ä.) Tarpitting/Drosselung aus, die dann als
+        // "nicht erreichbar" ankommt, obwohl die Datei tatsächlich verfügbar ist (mit curl isoliert
+        // geprüft: funktioniert; 5x schnell hintereinander: hängt/blockiert). Ein kurzes Caching
+        // (dieselbe 5-Minuten-TTL wie GetStringAsync) entschärft genau dieses Muster, ohne echte
+        // Nichterreichbarkeit zu verschleiern.
         public async Task<bool> IsReachableAsync(string url, int timeoutSeconds = 6)
         {
             if (string.IsNullOrWhiteSpace(url)) return false;
+            string cacheKey = "reach:" + url;
+            string? cached = await GetCachedAsync(cacheKey).ConfigureAwait(false);
+            if (cached is not null) return cached == "1";
+            bool ok;
             try
             {
                 using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
                 using var head = new HttpRequestMessage(HttpMethod.Head, url);
                 using var hr   = await _client.SendAsync(head, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
-                if ((int)hr.StatusCode < 400) return true;
-                using var get = new HttpRequestMessage(HttpMethod.Get, url);
-                get.Headers.TryAddWithoutValidation("Range", "bytes=0-0");
-                using var gr  = await _client.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
-                return (int)gr.StatusCode < 400;
+                if ((int)hr.StatusCode < 400) ok = true;
+                else
+                {
+                    using var get = new HttpRequestMessage(HttpMethod.Get, url);
+                    get.Headers.TryAddWithoutValidation("Range", "bytes=0-0");
+                    using var gr = await _client.SendAsync(get, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
+                    ok = (int)gr.StatusCode < 400;
+                }
             }
-            catch { return false; }
+            catch { ok = false; }
+            await SetCachedAsync(cacheKey, ok ? "1" : "0").ConfigureAwait(false);
+            return ok;
         }
 
         public async Task<long> GetRemoteContentLengthAsync(string url, int timeoutSeconds = 8)
@@ -165,6 +198,7 @@ namespace ULM.Core.Services
                 using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/releases/latest");
                 req.Headers.TryAddWithoutValidation("Accept",     "application/vnd.github.v3+json");
                 req.Headers.TryAddWithoutValidation("User-Agent", "ULM/2.27");
+                AddGitHubAuthHeader(req);
                 using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(15));
                 using var resp = await _client.SendAsync(req, cts.Token).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) return string.Empty;
@@ -184,6 +218,33 @@ namespace ULM.Core.Services
             }
             catch (Exception ex) { Debug.WriteLine($"[GitHub] {repo}: {ex.Message}"); }
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Prüft, ob eine neuere ULM-Version als GitHub-Release verfügbar ist — analog zu den
+        /// Distro-Versionschecks, nur für ULM selbst. Rein informativ: löst nichts automatisch aus,
+        /// der Aufrufer entscheidet, wie/ob der Hinweis angezeigt wird.
+        /// </summary>
+        public async Task<(bool HasUpdate, string LatestVersion, string ReleaseUrl)> CheckForUlmUpdateAsync(string currentVersion, string repo = "zwilling10/ULM")
+        {
+            try
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repo}/releases/latest");
+                req.Headers.TryAddWithoutValidation("Accept",     "application/vnd.github.v3+json");
+                req.Headers.TryAddWithoutValidation("User-Agent", $"ULM/{currentVersion}");
+                AddGitHubAuthHeader(req);
+                using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var resp = await _client.SendAsync(req, cts.Token).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode) return (false, string.Empty, string.Empty);
+                string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                string tag = doc.RootElement.TryGetProperty("tag_name", out var t) ? t.GetString() ?? string.Empty : string.Empty;
+                string url = doc.RootElement.TryGetProperty("html_url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
+                string latest = tag.TrimStart('v', 'V');
+                if (string.IsNullOrWhiteSpace(latest)) return (false, string.Empty, string.Empty);
+                return (IsVersionNewer(latest, currentVersion), latest, url);
+            }
+            catch (Exception ex) { Debug.WriteLine($"[UlmUpdateCheck] {ex.Message}"); return (false, string.Empty, string.Empty); }
         }
 
         public static string ExtractVersion(string text)
@@ -232,7 +293,7 @@ namespace ULM.Core.Services
         /// solche Einträge fielen dann auf den langsameren/unzuverlässigeren Websuche-Fallback zurück,
         /// obwohl ein dedizierter Resolver für sie existiert.
         /// </summary>
-        private static string NormalizeForMatch(string s) =>
+        internal static string NormalizeForMatch(string s) =>
             Regex.Replace((s ?? string.Empty).ToLowerInvariant(), "[^a-z0-9]+", string.Empty);
 
         public async Task<(string Version, string Url, string Filename)> ResolveLatestAsync(IsoEntry entry)
@@ -316,15 +377,8 @@ namespace ULM.Core.Services
                 {
                     var sfm = Regex.Match(baseUrl, @"(?:sourceforge\.net|dl\.sourceforge\.net)/(?:project|projects)/([^/?#]+)", RegexOptions.IgnoreCase);
                     if (!sfm.Success) continue;
-                    string project = sfm.Groups[1].Value;
-                    string? rss = await GetStringAsync($"https://sourceforge.net/projects/{project}/rss?path=/").ConfigureAwait(false);
-                    if (rss is null) continue;
-                    var paths = Regex.Matches(rss, @"<title><!\[CDATA\[(/[^\]]*\.iso)\]\]></title>").Cast<Match>().Select(m => m.Groups[1].Value.Trim()).ToList();
-                    string best = FindBestIsoMatch(paths, entry.Filename);
-                    if (string.IsNullOrEmpty(best)) continue;
-                    string fname = best.Split('/').Last();
-                    string dlUrl = $"https://master.dl.sourceforge.net/project/{project}{best}?viasf=1";
-                    if (await IsReachableAsync(dlUrl, 12).ConfigureAwait(false)) return (ExtractVersion(fname), dlUrl, fname);
+                    var sfResult = await TryResolveSourceForgeProjectAsync(sfm.Groups[1].Value, entry.Filename).ConfigureAwait(false);
+                    if (sfResult != Empty) return sfResult;
                 }
                 if (!string.IsNullOrWhiteSpace(entry.Filename))
                     foreach (string baseUrl in allUrls)
@@ -334,11 +388,152 @@ namespace ULM.Core.Services
                         return (ExtractVersion(entry.Filename), url, entry.Filename);
             }
 
+            // Generischer Automatismus für UNBEKANNTE Distros (importiert/manuell hinzugefügt, kein
+            // dedizierter Resolver, keine konfigurierte Url): über DistroWatch die offizielle
+            // Projekt-Homepage finden statt einen Einzelfall-Resolver pro Distro zu schreiben —
+            // DistroWatch listet praktisch jede existierende Linux-Distribution mit einem
+            // verlässlichen, strukturierten Homepage-Link. Deutlich präziser als die reine
+            // Websuche unten, da sie zuerst die tatsächliche Projektseite findet statt zu hoffen,
+            // dass irgendein Suchtreffer zufällig einen .iso-Link enthält.
+            var dw = await ResolveViaDistroWatchAsync(entry).ConfigureAwait(false);
+            if (dw != Empty) return dw;
+
             // Allerletzter Fallback — nur wenn ALLE oben genannten, schnelleren und präziseren
             // Strategien nichts gefunden haben: eine echte Websuche, wie sie ein Mensch machen
             // würde. Läuft bewusst auch dann, wenn gar keine URL konfiguriert ist (allUrls leer)
             // — genau dort hatte die automatische Auflösung bisher NULL Chancen.
             return await ResolveViaWebSearchAsync(entry).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Generischer Automatismus für JEDE unbekannte Distro (kein Einzelfall-Code pro Distro):
+        /// 1. Über eine gezielte Suche ("site:distrowatch.com") die DistroWatch-Seite dieser Distro
+        ///    finden — funktioniert unabhängig davon, wie unsauber/importiert der Name ist, da
+        ///    DuckDuckGo (nicht DistroWatchs eigene, kriterienbasierte Suche) die Fuzzy-Zuordnung
+        ///    übernimmt.
+        /// 2. Von dort das strukturierte "Home Page"-Feld extrahieren (bei DistroWatch für nahezu
+        ///    jede gelistete Distro vorhanden).
+        /// 3. Die echte Projekt-Homepage nach .iso-Links durchsuchen; findet sich dort keiner,
+        ///    einen Link mit "download" im Text/href eine Ebene tiefer verfolgen — der Klickpfad,
+        ///    den auch ein Mensch nehmen würde.
+        /// </summary>
+        private async Task<(string, string, string)> ResolveViaDistroWatchAsync(IsoEntry entry)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name)) return Empty;
+            try
+            {
+                string query = Uri.EscapeDataString($"{FirstKeyword(entry.Name)} site:distrowatch.com");
+                string? searchHtml = await GetStringAsync($"https://html.duckduckgo.com/html/?q={query}", 15).ConfigureAwait(false);
+                if (searchHtml is null) return Empty;
+
+                var dwCandidates = Regex.Matches(searchHtml, @"class=""result__a""[^>]*href=""([^""]+)""", RegexOptions.IgnoreCase)
+                    .Cast<Match>().Select(m => ResolveDuckDuckGoRedirect(m.Groups[1].Value))
+                    .Where(u => u.Contains("distrowatch.com", StringComparison.OrdinalIgnoreCase))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
+                if (dwCandidates.Count == 0) return Empty;
+
+                string? homepage = null;
+                foreach (string dwUrl in dwCandidates)
+                {
+                    string? dwHtml = await GetStringAsync(dwUrl, 12).ConfigureAwait(false);
+                    if (dwHtml is null) continue;
+                    // Verifiziertes Muster (DistroWatchs Distro-Detailtabelle nutzt <th>/<td>-Paare,
+                    // NICHT zwei <td>-Zellen): <th class="Info">Home Page</th><td class="Info">
+                    // <a href="...">...</a></td> — gegen eine echte Seite (garuda) geprüft.
+                    var m = Regex.Match(dwHtml, @"Home\s*Page</th>\s*<td[^>]*>\s*<a\s+href=""([^""]+)""", RegexOptions.IgnoreCase);
+                    if (m.Success) { homepage = WebUtility.HtmlDecode(m.Groups[1].Value); break; }
+                }
+                if (string.IsNullOrWhiteSpace(homepage)) return Empty;
+
+                string? homeHtml = await GetStringAsync(homepage, 12).ConfigureAwait(false);
+                if (homeHtml is null) return Empty;
+
+                // SourceForge zuerst versuchen (direkt auf der Homepage) — präziser als rohes Link-
+                // Scraping, siehe TryResolveSourceForgeProjectAsync.
+                string? sfSlug = TryFindSourceForgeProjectSlug(homeHtml);
+                if (sfSlug != null)
+                {
+                    var sfResult = await TryResolveSourceForgeProjectAsync(sfSlug, entry.Filename).ConfigureAwait(false);
+                    if (sfResult != Empty) return sfResult;
+                }
+
+                var (links, pageForLinks, pageHtml) = await FindIsoLinksFollowingDownloadLinkAsync(homepage, homeHtml).ConfigureAwait(false);
+                if (links.Count == 0)
+                {
+                    // Der Download-Link-Sprung landete auf einer neuen Seite (z.B. Q4OS: Homepage →
+                    // "Download" → Unterseite, die erst DORT auf SourceForge verlinkt) — auch diese
+                    // noch auf SourceForge prüfen, bevor endgültig aufgegeben wird.
+                    if (pageForLinks != homepage)
+                    {
+                        string? sfSlug2 = TryFindSourceForgeProjectSlug(pageHtml);
+                        if (sfSlug2 != null)
+                        {
+                            var sfResult2 = await TryResolveSourceForgeProjectAsync(sfSlug2, entry.Filename).ConfigureAwait(false);
+                            if (sfResult2 != Empty) return sfResult2;
+                        }
+                    }
+                    return Empty;
+                }
+
+                string best = !string.IsNullOrWhiteSpace(entry.Filename)
+                    ? FindBestIsoMatch(links, entry.Filename)
+                    : links.FirstOrDefault(l => l.Contains(FirstKeyword(entry.Name), StringComparison.OrdinalIgnoreCase)) ?? links[0];
+                if (string.IsNullOrEmpty(best)) return Empty;
+
+                string bestFname = Path.GetFileName(best.TrimEnd('/'));
+                string url = best.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? best
+                    : Uri.TryCreate(new Uri(pageForLinks), best, out var abs) ? abs.ToString() : pageForLinks.TrimEnd('/') + "/" + best.TrimStart('/');
+                return await IsReachableAsync(url, 8).ConfigureAwait(false) ? (ExtractVersion(bestFname), url, bestFname) : Empty;
+            }
+            catch (Exception ex) { Debug.WriteLine($"[DistroWatch] {entry.Name}: {ex.Message}"); return Empty; }
+        }
+
+        /// <summary>
+        /// Sucht auf einer Seite nach direkten .iso-Links; findet sich keiner, wird ein Link mit
+        /// "download" im sichtbaren Text eine Ebene tiefer verfolgt und dort erneut gesucht — viele
+        /// Projekt-Homepages zeigen die ISO nicht direkt an, sondern erst auf einer eigenen
+        /// Download-Unterseite. Gemeinsam genutzt von ResolveViaDistroWatchAsync und
+        /// ResolveViaWebSearchAsync, damit beide Automatismen gleich robust sind.
+        /// </summary>
+        private async Task<(List<string> Links, string PageUrl, string PageHtml)> FindIsoLinksFollowingDownloadLinkAsync(string pageUrl, string pageHtml)
+        {
+            var links = ExtractIsoLinks(pageHtml);
+            if (links.Count > 0) return (links, pageUrl, pageHtml);
+
+            var dlMatch = Regex.Match(pageHtml, @"<a\s+[^>]*href=""([^""]+)""[^>]*>\s*(?:[^<]{0,40}?(?:download|herunterladen))", RegexOptions.IgnoreCase);
+            if (!dlMatch.Success) return (links, pageUrl, pageHtml);
+            string dlHref = WebUtility.HtmlDecode(dlMatch.Groups[1].Value);
+            string dlUrl = Uri.TryCreate(new Uri(pageUrl), dlHref, out var abs) ? abs.ToString() : dlHref;
+            if (string.Equals(dlUrl, pageUrl, StringComparison.OrdinalIgnoreCase)) return (links, pageUrl, pageHtml);
+
+            string? dlHtml = await GetStringAsync(dlUrl, 12).ConfigureAwait(false);
+            return dlHtml is null ? (links, pageUrl, pageHtml) : (ExtractIsoLinks(dlHtml), dlUrl, dlHtml);
+        }
+
+        /// <summary>
+        /// SourceForge ist ein sehr verbreitetes Hosting für kleinere Community-Distros (siehe die
+        /// dedizierten Resolver für Rescuezilla/GParted/Clonezilla/SystemRescue/Ubuntu-GamePack).
+        /// Wird auf einer gecrawlten Seite ein Link zu einem SourceForge-Projekt gefunden, liefert
+        /// diese bereits bewährte RSS-Feed-Auflösung präzisere und zuverlässigere Ergebnisse als
+        /// reines .iso-Link-Scraping (SourceForges eigene Download-Seiten sind oft JS-lastig).
+        /// </summary>
+        private async Task<(string, string, string)> TryResolveSourceForgeProjectAsync(string project, string? currentFilename)
+        {
+            string? rss = await GetStringAsync($"https://sourceforge.net/projects/{project}/rss?path=/").ConfigureAwait(false);
+            if (rss is null) return Empty;
+            var paths = Regex.Matches(rss, @"<title><!\[CDATA\[(/[^\]]*\.iso)\]\]></title>").Cast<Match>().Select(m => m.Groups[1].Value.Trim()).ToList();
+            if (paths.Count == 0) return Empty;
+            string best = string.IsNullOrWhiteSpace(currentFilename) ? paths[0] : FindBestIsoMatch(paths, currentFilename);
+            if (string.IsNullOrEmpty(best)) best = paths[0];
+            string fname = best.Split('/').Last();
+            string dlUrl = $"https://master.dl.sourceforge.net/project/{project}{best}?viasf=1";
+            return await IsReachableAsync(dlUrl, 12).ConfigureAwait(false) ? (ExtractVersion(fname), dlUrl, fname) : Empty;
+        }
+
+        private static string? TryFindSourceForgeProjectSlug(string html)
+        {
+            var m = Regex.Match(html, @"sourceforge\.net/(?:project|projects)/([^/""'?#]+)", RegexOptions.IgnoreCase);
+            return m.Success ? m.Groups[1].Value : null;
         }
 
         private async Task<(string, string, string)> TryDiscoverNewerVersionAsync(string isoUrl, string currentFilename)
@@ -478,7 +673,11 @@ namespace ULM.Core.Services
 
                     string? pageHtml = await GetStringAsync(candidate, 12).ConfigureAwait(false);
                     if (pageHtml is null) continue;
-                    foreach (string link in ExtractIsoLinks(pageHtml)) pool.Add((link, candidate));
+                    // Folgt bei Bedarf einem "Download"-Link eine Ebene tiefer (siehe
+                    // FindIsoLinksFollowingDownloadLinkAsync) — viele Trefferseiten sind die
+                    // Projekt-Homepage, nicht die eigentliche Download-Unterseite.
+                    var (foundLinks, foundOn, _) = await FindIsoLinksFollowingDownloadLinkAsync(candidate, pageHtml).ConfigureAwait(false);
+                    foreach (string link in foundLinks) pool.Add((link, foundOn));
                 }
                 if (pool.Count == 0) return Empty;
 
@@ -846,6 +1045,29 @@ namespace ULM.Core.Services
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0L;
+
+                // Freispeicher-Check: sobald die Content-Length bekannt ist (praktisch immer bei
+                // ISO-/Ventoy-Downloads), lieber jetzt klar abbrechen als nach halbem Download mitten
+                // im Schreiben zu scheitern. Best-effort — ein Fehler bei der Prüfung selbst (z.B.
+                // Pfad ergibt keine gültige Laufwerkswurzel) darf den Download nicht verhindern.
+                if (total > 0)
+                {
+                    try
+                    {
+                        string? root = Path.GetPathRoot(Path.GetFullPath(destinationPath));
+                        if (!string.IsNullOrEmpty(root))
+                        {
+                            var drive = new DriveInfo(root);
+                            if (drive.IsReady && drive.AvailableFreeSpace < total)
+                            {
+                                progress?.Report((0, $"❌ Nicht genug Speicherplatz auf {root} (benötigt {FormatBytes(total)}, frei {FormatBytes(drive.AvailableFreeSpace)})"));
+                                return false;
+                            }
+                        }
+                    }
+                    catch (Exception ex) { Debug.WriteLine($"[DownloadAsync] Freispeicher-Check übersprungen: {ex.Message}"); }
+                }
+
                 long lastBase = 0L; DateTime tick = DateTime.UtcNow;
                 {
                     await using var stream = await resp.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -861,8 +1083,12 @@ namespace ULM.Core.Services
                             double bps = (written - lastBase) / Math.Max(0.001, (now - tick).TotalSeconds);
                             lastBase = written; tick = now;
                             int pct = total > 0 ? (int)(written * 100L / total) : 0;
+                            // War bisher nur "geschrieben / gesamt  geschwindigkeit" — beim Kopieren
+                            // auf den Stick (TransferFormat.BuildDetail) gibt es die geschätzte
+                            // Restzeit schon lange, beim eigentlichen Download fehlte sie bisher.
                             string spd = bps > 0 ? FormatBytes(bps) + "/s" : string.Empty;
-                            progress?.Report((pct, $"{FormatBytes(written)} / {FormatBytes(total)}" + (string.IsNullOrEmpty(spd) ? string.Empty : $"  {spd}")));
+                            string eta = total > 0 && bps > 0.01 ? $"  ·  noch {FormatEta((total - written) / bps)}" : string.Empty;
+                            progress?.Report((pct, $"{FormatBytes(written)} / {FormatBytes(total)}" + (string.IsNullOrEmpty(spd) ? string.Empty : $"  {spd}") + eta));
                         }
                     }
                     await file.FlushAsync(cancellationToken).ConfigureAwait(false);
@@ -891,6 +1117,19 @@ namespace ULM.Core.Services
 
         private static string FormatBytes(double bytes)
         { string[] u={"B","KB","MB","GB"}; double v=bytes; int i=0; while(v>=1024&&i<u.Length-1){v/=1024;i++;} return i==0?$"{(long)v} B":$"{v:F1} {u[i]}"; }
+
+        // Spiegelt Core.Workers.TransferFormat.FormatEta — bewusst lokal dupliziert statt eine
+        // Abhängigkeit von Services auf Workers einzuführen (Workers hängt bereits von Services ab,
+        // nicht umgekehrt).
+        private static string FormatEta(double seconds)
+        {
+            if (double.IsNaN(seconds) || double.IsInfinity(seconds) || seconds < 0) return "—";
+            if (seconds < 1) return "<1s";
+            var ts = TimeSpan.FromSeconds(seconds);
+            if (ts.TotalHours   >= 1) return $"{(int)ts.TotalHours}h {ts.Minutes}m";
+            if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}m {ts.Seconds}s";
+            return $"{ts.Seconds}s";
+        }
 
         private static void TryDelete(string path)
         { try{if(File.Exists(path))File.Delete(path);}catch{} }

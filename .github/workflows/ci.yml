@@ -1,0 +1,33 @@
+name: Build & Test
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    # WPF-Projekt (net8.0-windows) — muss auf einem Windows-Runner gebaut werden.
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET 8 SDK einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Hauptprojekt bauen
+        run: dotnet build UniversalLinuxManager.csproj -c Release
+
+      - name: Tests ausführen
+        run: dotnet test ULM.Tests/ULM.Tests.csproj -c Release --logger "trx;LogFileName=test-results.trx"
+
+      - name: Testergebnisse als Artefakt hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ULM.Tests/**/TestResults/test-results.trx

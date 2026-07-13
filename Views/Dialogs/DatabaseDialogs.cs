@@ -661,4 +661,50 @@ namespace ULM.Views.Dialogs
             Content = root;
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // GitHubTokenDialog — optionales Personal Access Token, hebt nur das
+    // unauthentifizierte API-Limit (60/Std) auf 5000/Std an. Keinerlei
+    // Berechtigungs-Scope nötig, ein "leeres"/Classic-Token ohne
+    // angehakte Scopes reicht für öffentliche Repos.
+    // ═══════════════════════════════════════════════════════════════════
+    public sealed class GitHubTokenDialog : Window
+    {
+        public string Token { get; private set; } = string.Empty;
+
+        public GitHubTokenDialog(string currentToken)
+        {
+            Title = "GitHub-Token";
+            Width = 480; Height = 240;
+            ResizeMode = ResizeMode.NoResize;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            Background = AppRes.Brush("BrushBg");
+
+            var root = new StackPanel { Margin = new Thickness(20) };
+            root.Children.Add(new TextBlock
+            {
+                Text = "Optionales GitHub Personal Access Token — hebt nur das API-Limit für " +
+                       "GitHub-basierte Distros (z.B. CachyOS, EndeavourOS) von 60 auf 5000 " +
+                       "Anfragen/Stunde an. Kein Scope/Berechtigung nötig, ein Token ohne " +
+                       "angehakte Rechte reicht für öffentliche Repos. Leer lassen deaktiviert es.",
+                TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Margin = new Thickness(0, 0, 0, 14),
+                Foreground = AppRes.Brush("BrushMid"),
+            });
+            var tb = new TextBox
+            {
+                Text = currentToken, Margin = new Thickness(0, 0, 0, 16),
+                Padding = new Thickness(8, 6, 8, 6), FontFamily = new FontFamily("Consolas, Courier New"),
+            };
+            root.Children.Add(tb);
+
+            var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var ok = new Button { Content = "✔ Speichern", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
+            ok.Click += (_, _) => { Token = tb.Text.Trim(); DialogResult = true; };
+            var cancel = new Button { Content = "Abbrechen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(8, 0, 0, 0) };
+            cancel.Click += (_, _) => DialogResult = false;
+            btns.Children.Add(ok); btns.Children.Add(cancel);
+            root.Children.Add(btns);
+            Content = root;
+        }
+    }
 }

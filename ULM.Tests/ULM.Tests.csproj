@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- net8.0-windows (statt net8.0) vermeidet NuGet-Plattform-Kompatibilitätswarnungen beim
+         Referenzieren des WPF-Hauptprojekts — die getesteten Methoden selbst sind reine
+         Text-/Logikfunktionen ohne WPF-Abhängigkeit, aber die ProjectReference muss zur
+         TargetFramework-Plattform des referenzierten Projekts passen. -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UniversalLinuxManager.csproj" />
+  </ItemGroup>
+
+</Project>
