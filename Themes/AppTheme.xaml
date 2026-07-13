@@ -228,6 +228,14 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <!-- ═══ RadioButton ════════════════════════════════════════════════ -->
+    <Style TargetType="RadioButton">
+        <Setter Property="FontFamily"     Value="{StaticResource FontMain}"/>
+        <Setter Property="FontSize"       Value="12"/>
+        <Setter Property="Foreground"     Value="{DynamicResource BrushHeader}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
     <!-- ═══ TabControl / TabItem ═══════════════════════════════════════
          Eigenes, flaches TabItem-Template statt der nativen Windows-Chrome —
          die native Tab-Kopfzeile bleibt sonst IMMER hell/weiß, auch im Dark

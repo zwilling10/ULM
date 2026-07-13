@@ -483,7 +483,30 @@ namespace ULM.Core.Services
                 string bestFname = Path.GetFileName(best.TrimEnd('/'));
                 string url = best.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? best
                     : Uri.TryCreate(new Uri(pageForLinks), best, out var abs) ? abs.ToString() : pageForLinks.TrimEnd('/') + "/" + best.TrimStart('/');
-                return await IsReachableAsync(url, 8).ConfigureAwait(false) ? (ExtractVersion(bestFname), url, bestFname) : Empty;
+                if (!await IsReachableAsync(url, 8).ConfigureAwait(false)) return Empty;
+
+                // BUGFIX: Distros ohne konfigurierte Mirror1-5 (z.B. über "ISO suchen" neu
+                // hinzugefügte, noch komplett unbekannte Einträge) hatten bisher NIE eine zweite
+                // Quelle zum Ausweichen — landet die Homepage zufällig auf einem lahmen CDN
+                // (beobachtet: <1 MB/s, mehrere Stunden ETA), gibt es keinen Fallback UND kein
+                // Mirror-Race (DownloadWorker vergleicht nur, wenn es >1 URL gibt). Findet die
+                // Homepage mehrere .iso-Links (z.B. mehrere CDN-Spiegel oder Architekturen), werden
+                // bis zu 2 weitere hier dauerhaft als Mirror1/2 gemerkt (nur wenn dort noch nichts
+                // Nutzerdefiniertes steht) — dieselbe Persistenz-Logik wie schon für entry.Url oben
+                // im Aufrufer (ResolveLatestAsync). Reachability wird hier NICHT geprüft (teuer,
+                // mehrere zusätzliche Requests) — das übernimmt ohnehin das bestehende Mirror-Race
+                // vor dem eigentlichen Download.
+                if (links.Count > 1)
+                {
+                    var extras = links.Where(l => l != best)
+                        .Select(l => l.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? l
+                            : Uri.TryCreate(new Uri(pageForLinks), l, out var eabs) ? eabs.ToString() : pageForLinks.TrimEnd('/') + "/" + l.TrimStart('/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(2).ToList();
+                    if (extras.Count > 0 && string.IsNullOrWhiteSpace(entry.Mirror1)) entry.Mirror1 = extras[0];
+                    if (extras.Count > 1 && string.IsNullOrWhiteSpace(entry.Mirror2)) entry.Mirror2 = extras[1];
+                }
+                return (ExtractVersion(bestFname), url, bestFname);
             }
             catch (Exception ex) { Debug.WriteLine($"[DistroWatch] {entry.Name}: {ex.Message}"); return Empty; }
         }
@@ -1019,6 +1042,60 @@ namespace ULM.Core.Services
 
         private Task<(string, string, string)> ResolveUbuntuGamepackAsync() =>
             ResolveSourceForgeAsync("ualinux", "/Ubuntu Pack/GamePack", @"ubuntu_game_pack-[\d.]+-amd64\.iso");
+
+        /// <summary>
+        /// Testet mehrere Mirror-URLs PARALLEL für eine feste Zeitspanne (statt einer festen
+        /// Byte-Anzahl) und gibt sie absteigend nach gemessener Geschwindigkeit sortiert zurück —
+        /// Grundlage für die Mirror-Auswahl in DownloadWorker, BEVOR der eigentliche Download eines
+        /// Distros startet. Läuft bei ≤1 URL gar nicht erst (nichts zu vergleichen).
+        ///
+        /// ACHTUNG: Manche CDNs/Mirrors drosseln die ersten ein bis zwei Sekunden einer Verbindung
+        /// und liefern erst danach die volle Geschwindigkeit — ein einfacher Gesamtdurchschnitt über
+        /// das Testfenster würde solche Mirrors systematisch benachteiligen. Deshalb wird die
+        /// Geschwindigkeit in ~400ms-Fenstern gemessen und das SCHNELLSTE beobachtete Fenster
+        /// gewertet, nicht der Durchschnitt über die gesamte Testdauer.
+        /// </summary>
+        public async Task<List<(string Url, double Bps)>> RaceMirrorsAsync(IReadOnlyList<string> urls, TimeSpan sampleDuration, CancellationToken ct)
+        {
+            if (urls.Count <= 1) return urls.Select(u => (u, 0.0)).ToList();
+            var speeds = await Task.WhenAll(urls.Select(u => ProbeMirrorSpeedAsync(u, sampleDuration, ct))).ConfigureAwait(false);
+            return urls.Zip(speeds, (u, bps) => (Url: u, Bps: bps))
+                // OrderByDescending ist stabil — bei gleicher (z.B. 0=nicht erreichbarer) Geschwindigkeit
+                // bleibt die ursprüngliche Priorität (aufgelöste URL → primäre URL → Mirror1-5) erhalten.
+                .OrderByDescending(x => x.Bps)
+                .ToList();
+        }
+
+        private async Task<double> ProbeMirrorSpeedAsync(string url, TimeSpan duration, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return 0;
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(duration + TimeSpan.FromSeconds(3)); // Puffer für Verbindungsaufbau/DNS
+                using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode) return 0;
+                using var stream = await resp.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+
+                byte[] buf = new byte[65_536];
+                var sw = Stopwatch.StartNew();
+                long total = 0, windowStart = 0; double windowStartT = 0, bestBps = 0; int read;
+                while (sw.Elapsed < duration && (read = await stream.ReadAsync(buf, cts.Token).ConfigureAwait(false)) > 0)
+                {
+                    total += read;
+                    double now = sw.Elapsed.TotalSeconds;
+                    if (now - windowStartT >= 0.4)
+                    {
+                        double bps = (total - windowStart) / (now - windowStartT);
+                        if (bps > bestBps) bestBps = bps;
+                        windowStart = total; windowStartT = now;
+                    }
+                }
+                return bestBps;
+            }
+            catch (Exception ex) { Debug.WriteLine($"[MirrorRace] {url}: {ex.Message}"); return 0; }
+        }
 
         // SICHERHEIT: Verifiziert nur die BYTEGRÖSSE (siehe unten: written < MinIsoSizeBytes,
         // total > 0 && written < total), NICHT die Integrität des Inhalts — es gibt keine

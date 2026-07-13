@@ -1,12 +1,14 @@
 // Core/Workers/Workers.cs
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using ULM.Core.Models;
@@ -220,10 +222,40 @@ namespace ULM.Core.Workers
         public event Action<IsoEntry, bool>?    ItemCompleted;
         public event Action<int, int, int>?     Completed;
         public event Action<string>?            LogMessage;
+
+        /// <summary>
+        /// Wird aufgerufen, wenn alle Mirror-Versuche für eine Distro ausgeschöpft sind, aber
+        /// mindestens einer davon NICHT wegen eines echten Fehlers, sondern nur wegen dauerhafter
+        /// Langsamkeit abgebrochen wurde (Geschwindigkeits-Wächter) — d.h. es GIBT eine erreichbare
+        /// Quelle, nur eben eine sehr langsame. (EntryName, Host) → true = trotzdem mit dieser
+        /// Quelle fortfahren. Synchron, da DownloadWorker in einem Hintergrund-Task läuft und hier
+        /// auf die Anwender-Antwort wartet, bevor es weitergeht (blockiert nur DIESEN Download-Slot,
+        /// nicht die anderen parallelen). Der Aufrufer (MainViewModel) übernimmt via Dispatcher.Invoke
+        /// synchron auf den UI-Thread zu wechseln.
+        /// </summary>
+        public Func<string, string, bool>? ConfirmSlowDownloadAnyway;
         public DownloadWorker(List<IsoEntry> entries, int maxConcurrent, string downloadDir,
             IsoDatabaseService? db, string drive, bool copyAfter, bool deleteAfter)
         { _entries = entries; _downloadDir = downloadDir; _maxConcurrent = maxConcurrent > 0 ? maxConcurrent : 1; }
         public void Cancel() => _cts.Cancel();
+
+        // ── Geschwindigkeits-Wächter-Konstanten ─────────────────────────────
+        // Anlaufzeit, bevor überhaupt gewertet wird (manche CDNs brauchen ein paar Sekunden bis
+        // zur vollen Geschwindigkeit), plus die Zeit, die die Übertragung DANACH ununterbrochen
+        // unter der Schwelle bleiben muss, bevor abgebrochen wird.
+        private static readonly TimeSpan WarmupGrace         = TimeSpan.FromSeconds(20);
+        private static readonly TimeSpan SlowSustainedWindow = TimeSpan.FromSeconds(20);
+        private const double SlowSpeedThresholdBytesPerSec   = 1_048_576; // ~1 MB/s
+
+        /// <summary>Extrahiert die aktuelle Übertragungsrate aus dem von DownloadAsync gelieferten
+        /// Detail-Text (Format "... 12.4 MB/s ..."); -1 wenn (noch) keine Rate im Text steht.</summary>
+        private static double ParseSpeedBytesPerSec(string detail)
+        {
+            var m = Regex.Match(detail, @"([\d.,]+)\s*(B|KB|MB|GB)/s");
+            if (!m.Success) return -1;
+            if (!double.TryParse(m.Groups[1].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) return -1;
+            return m.Groups[2].Value switch { "GB" => v * 1_073_741_824, "MB" => v * 1_048_576, "KB" => v * 1024, _ => v };
+        }
 
         public Task RunAsync() => Task.Run(async () =>
         {
@@ -269,8 +301,22 @@ namespace ULM.Core.Workers
                         string destPath = Path.Combine(_downloadDir, fname);
                         var urlsToTry = entry.AllDownloadUrls(resolvedUrl).Take(6).ToList();
 
+                        // ── Mirror-Race: bevor der eigentliche Download beginnt, alle Kandidaten
+                        // parallel für ~3s antesten und den schnellsten zuerst versuchen (siehe
+                        // HttpService.RaceMirrorsAsync — misst in Zeitfenstern statt fixer Byte-Zahl,
+                        // damit spät hochfahrende CDNs nicht fälschlich als langsam gelten).
+                        if (urlsToTry.Count > 1)
+                        {
+                            sa.Status = $"🔎 Teste {urlsToTry.Count} Mirror(s) …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            var raced = await HttpService.Instance.RaceMirrorsAsync(urlsToTry, TimeSpan.FromSeconds(3), _cts.Token).ConfigureAwait(false);
+                            urlsToTry = raced.Select(r => r.Url).ToList();
+                            LogMessage?.Invoke($"   🔎 {entry.Name}: Mirror-Test — " +
+                                string.Join(", ", raced.Select(r => $"{TryGetHost(r.Url)} {(r.Bps > 0 ? $"{r.Bps * 8 / 1_000_000:F1} Mbit/s" : "nicht erreichbar")}")));
+                        }
+
                         string usedUrl = resolvedUrl;
                         int mirrorIdx  = 0;
+                        string? slowAbortedUrl = null, slowAbortedHost = null;
 
                         foreach (string tryUrl in urlsToTry)
                         {
@@ -280,16 +326,70 @@ namespace ULM.Core.Workers
                             sa.Status = $"{label} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
 
+                            // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
+                            // manche CDNs drosseln die ersten Sekunden, siehe Mirror-Race oben) längere
+                            // Zeit unter der Schwelle, lohnt sich ein Abbruch + Wechsel zum nächsten
+                            // Mirror mehr als stundenlang auf einer lahmen Quelle zu warten (real
+                            // beobachtet: 325-517 KB/s bei mehreren GB → 4+ Stunden ETA). Eigener
+                            // linked Token statt _cts direkt — der Abbruch soll nur DIESEN Versuch
+                            // treffen, nicht den ganzen Batch.
+                            using var mirrorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                            var attemptSw = Stopwatch.StartNew();
+                            var lastFastEnough = attemptSw.Elapsed;
+                            bool abortedForSlowness = false;
+
                             ok = await HttpService.Instance.DownloadFileAsync(
-                                tryUrl, destPath, _cts.Token,
-                                (p, d) => { sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                tryUrl, destPath, mirrorCts.Token,
+                                (p, d) =>
+                                {
+                                    sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
+                                    double bps = ParseSpeedBytesPerSec(d);
+                                    if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
+                                    else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                                    {
+                                        abortedForSlowness = true;
+                                        LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
+                                            (mirrorIdx < urlsToTry.Count ? " und versuche nächste Quelle …" : "."));
+                                        mirrorCts.Cancel();
+                                    }
+                                })
                                 .ConfigureAwait(false);
 
                             if (ok) { usedUrl = tryUrl; break; }
 
-                            // Download fehlgeschlagen — nächsten Mirror versuchen
-                            LogMessage?.Invoke($"   ⚠ {entry.Name}: {host} fehlgeschlagen{(mirrorIdx < urlsToTry.Count ? " — versuche nächsten Mirror …" : ".")}");
+                            // Nur den ERSTEN Langsamkeits-Abbruch merken — dank Mirror-Race sind die
+                            // Kandidaten schon nach gemessener Geschwindigkeit sortiert, der erste
+                            // langsam-abgebrochene ist also die beste bekannte (wenn auch lahme) Quelle.
+                            if (abortedForSlowness) { slowAbortedUrl ??= tryUrl; slowAbortedHost ??= host; }
+                            // Download fehlgeschlagen — nächsten Mirror versuchen (Slowness-Abbruch
+                            // hat seine eigene Meldung oben schon geloggt, keine doppelte Meldung)
+                            else
+                                LogMessage?.Invoke($"   ⚠ {entry.Name}: {host} fehlgeschlagen{(mirrorIdx < urlsToTry.Count ? " — versuche nächsten Mirror …" : ".")}");
                             if (_cts.IsCancellationRequested) break;
+                        }
+
+                        // Alle Mirror ausgeschöpft, keiner erfolgreich — aber mindestens einer war
+                        // erreichbar und nur zu langsam (kein echter Fehler). Statt endgültig
+                        // aufzugeben: Anwender/Experte fragen, ob trotzdem mit dieser einzig bekannten
+                        // (aber langsamen) Quelle fortgefahren werden soll — diesmal OHNE
+                        // Geschwindigkeits-Wächter, der Abbruch würde sonst sofort wieder greifen.
+                        if (!ok && slowAbortedUrl != null && !_cts.IsCancellationRequested)
+                        {
+                            bool proceed = ConfirmSlowDownloadAnyway?.Invoke(entry.Name, slowAbortedHost!) ?? false;
+                            if (proceed)
+                            {
+                                LogMessage?.Invoke($"   ▶ {entry.Name}: Fährt trotz Langsamkeit mit {slowAbortedHost} fort …");
+                                string slowLabel = $"⬇ {slowAbortedHost} (langsam)";
+                                sa.Status = $"{slowLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    slowAbortedUrl, destPath, _cts.Token,
+                                    (p, d) => { sa.Status = $"{slowLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                    .ConfigureAwait(false);
+                                if (ok) usedUrl = slowAbortedUrl;
+                                else LogMessage?.Invoke($"   ❌ {entry.Name}: {slowAbortedHost} letztlich doch fehlgeschlagen.");
+                            }
+                            else
+                                LogMessage?.Invoke($"   ⏭ {entry.Name}: Übersprungen — Anwender hat den langsamen Download abgelehnt.");
                         }
 
                         if (ok)

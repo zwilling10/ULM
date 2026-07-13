@@ -234,6 +234,14 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <!-- ═══ RadioButton ════════════════════════════════════════════════ -->
+    <Style TargetType="RadioButton">
+        <Setter Property="FontFamily"     Value="{StaticResource FontMain}"/>
+        <Setter Property="FontSize"       Value="12"/>
+        <Setter Property="Foreground"     Value="{DynamicResource BrushHeader}"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
     <!-- ═══ TabControl / TabItem (eigenes flaches Template) ═══════════ -->
     <Style TargetType="TabControl">
         <Setter Property="Background"  Value="{DynamicResource BrushWhite}"/>

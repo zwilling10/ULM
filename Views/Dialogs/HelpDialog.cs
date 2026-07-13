@@ -275,6 +275,33 @@ namespace ULM.Views.Dialogs
                 "  ⛔  Vorgang abgebrochen"));
             content.Children.Add(Spacer());
 
+            // ── ISO suchen (Online-Entdeckung) ────────────────────────────
+            AddSection("🔍 ISO suchen — neue Distros entdecken", "ISO suchen");
+            content.Children.Add(MakeText(
+                "Der Knopf '🔍 ISO suchen' zeigt zwei Online-Listen von DistroWatch.com — eine " +
+                "Möglichkeit, gezielt neue Distros zu entdecken, statt nur die feste Standard-Datenbank " +
+                "durchzugehen. Für die bereits bekannte Datenbank gibt es weiterhin '🗃 Datenbank'."));
+            content.Children.Add(MakeItem("🆕 Aktuellste",
+                "Die zuletzt neu zu DistroWatch hinzugefügten Distributionen (Top 10)."));
+            content.Children.Add(MakeItem("🔥 Beliebteste",
+                "DistroWatchs Page-Hit-Ranking (Top 10) — die aktuell meistbesuchten Distro-Profile."));
+            content.Children.Add(MakeItem("Nur Live-Medium",
+                "Beide Listen zeigen AUSSCHLIESSLICH Distros mit dem DistroWatch-Kategorie-Tag " +
+                "'Live Medium' — reine Installations- oder Server-Images ohne Live-Boot-Modus werden " +
+                "automatisch aussortiert. Jeder Vorschlag ist also garantiert per USB-Stick bootfähig."));
+            content.Children.Add(MakeItem("Bereits vorhanden",
+                "Distros, die schon in der eigenen Datenbank stehen, werden blau hervorgehoben und " +
+                "können nicht erneut übernommen werden. Bei neuen Distros zeigt ein Mouseover-Tooltip " +
+                "Rang/Datum, vorgeschlagene Kategorie und den DistroWatch-Link."));
+            content.Children.Add(MakeItem("Übernehmen + Direkt herunterladen",
+                "Ausgewählte Distros per '✔ Übernehmen' in die Datenbank aufnehmen (Kategorie vorher " +
+                "per Dropdown anpassbar). Ist zusätzlich 'Direkt herunterladen' angehakt, startet nach " +
+                "dem Schließen des Fensters sofort der reguläre Download-Ablauf für diese Einträge."));
+            content.Children.Add(MakeItem("Aktualisieren / Cache",
+                "Beide Listen werden 24 Stunden lokal zwischengespeichert (kein Netzwerk-Roundtrip bei " +
+                "jedem Öffnen). Der Knopf '⟳ Aktualisieren' erzwingt eine frische Abfrage."));
+            content.Children.Add(Spacer());
+
             // ── Download ───────────────────────────────────────────────────
             AddSection("⬇ Download — Wie und Wohin?", "Download");
             content.Children.Add(MakeItem("Speicherort",
@@ -286,17 +313,33 @@ namespace ULM.Views.Dialogs
                 "auf den Stick kopiert werden. Die lokale Datei wird danach gelöscht. " +
                 "Downloads und Kopieren laufen parallel. Im Fortschritts-Dialog wechselt die Zeile " +
                 "einer ISO von 'Kopiere auf Stick' zu 'Fertig', sobald sie vollständig kopiert ist."));
-            content.Children.Add(MakeItem("Mirror-Fallback (5 Mirror)",
-                "Wenn ein Download-Server nicht erreichbar ist, werden automatisch " +
-                "bis zu 5 alternative Mirror-URLs versucht:\n  ⬇ Mirror 2: cdn.beispiel.org …"));
+            content.Children.Add(MakeItem("Mirror-Race (bis zu 5 Quellen)",
+                "Bevor der eigentliche Download beginnt, testet ULM alle konfigurierten Mirror-URLs " +
+                "einer Distro parallel für ca. 3 Sekunden und startet dann mit der schnellsten Quelle " +
+                "— nicht einfach mit der ersten. Gemessen wird in kurzen Zeitfenstern statt eines " +
+                "einzigen Durchschnittswerts, damit CDNs, die erst nach ein bis zwei Sekunden auf volle " +
+                "Geschwindigkeit hochfahren, nicht fälschlich als langsam eingestuft werden. Ergebnis " +
+                "erscheint im Protokoll:\n  🔎 Distro: Mirror-Test — cdn1.beispiel.org 42,3 Mbit/s, …"));
+            content.Children.Add(MakeItem("Geschwindigkeits-Wächter",
+                "Bleibt eine laufende Übertragung (nach ca. 20 Sekunden Anlaufzeit) für weitere 20 " +
+                "Sekunden ununterbrochen unter ca. 1 MB/s, bricht ULM automatisch ab und versucht die " +
+                "nächste Mirror-Quelle — statt stundenlang auf einer extrem langsamen Verbindung zu " +
+                "warten. Gibt es keine schnellere Quelle mehr und alle Versuche waren nur an der " +
+                "Geschwindigkeit gescheitert (nicht an einem echten Fehler), fragt ULM aktiv nach:\n" +
+                "  ⚠ Kein schnellerer Mirror gefunden — trotzdem mit dieser Quelle fortfahren?\n" +
+                "Bestätigt man das, läuft der Download ohne weitere Geschwindigkeitsprüfung zu Ende."));
             content.Children.Add(MakeItem("Verbleibende Zeit (ETA)",
-                "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe jetzt auch die geschätzte " +
+                "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe auch die geschätzte " +
                 "Restzeit an, z.B.:\n  12.4 MB/s  ·  noch 2m 14s  ·  1.2 GB / 3.5 GB\n" +
                 "Die Schätzung passt sich laufend an die aktuelle Download-Geschwindigkeit an."));
             content.Children.Add(MakeItem("Freispeicher-Check",
-                "Vor jedem Download und jedem Kopiervorgang auf den Stick prüft ULM, ob genug freier " +
-                "Speicherplatz am Ziel vorhanden ist. Reicht er nicht, wird der Vorgang gar nicht erst " +
-                "gestartet — im Protokoll erscheint stattdessen z.B.:\n" +
+                "Zweistufig: BEVOR der Download überhaupt startet, summiert ULM die online " +
+                "ermittelbare Größe ALLER markierten Distros und vergleicht sie mit dem freien " +
+                "Speicher im Arbeitsordner UND — falls direkt auf einen Stick kopiert werden soll — " +
+                "zusätzlich mit dem freien Speicher dort. Reicht der Platz nicht, warnt ULM VOR " +
+                "Beginn mit einer Ja/Nein-Rückfrage, statt erst mittendrin auf mehreren parallelen " +
+                "Downloads zugleich zu scheitern. Zusätzlich prüft ein zweiter, feingranularer Check " +
+                "unmittelbar vor jeder einzelnen Datei erneut den dann noch verfügbaren Platz:\n" +
                 "  ❌ Nicht genug Speicherplatz auf E:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
             content.Children.Add(Spacer());
 

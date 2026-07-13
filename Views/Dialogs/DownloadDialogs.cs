@@ -52,6 +52,7 @@ namespace ULM.Views.Dialogs
                 Text = $"Du hast {queueCount} ISO(s) zum Download ausgewählt.",
                 FontWeight = FontWeights.Bold, FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 14), TextWrapping = TextWrapping.Wrap,
+                Foreground = AppRes.Brush("BrushHeader"),
             });
 
             _statusText = new TextBlock { Text = "🔄 Teste Verbindungsgeschwindigkeit ...", FontSize = 12.5, Foreground = AppRes.Brush("BrushMid"), Margin = new Thickness(0, 0, 0, 8) };
@@ -60,14 +61,14 @@ namespace ULM.Views.Dialogs
             _resultText = new TextBlock { Text = string.Empty, FontSize = 12, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 18), TextWrapping = TextWrapping.Wrap, Foreground = AppRes.Brush("BrushBlue") };
             root.Children.Add(_resultText);
 
-            root.Children.Add(new TextBlock { Text = "Parallele Downloads:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+            root.Children.Add(new TextBlock { Text = "Parallele Downloads:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6), Foreground = AppRes.Brush("BrushHeader") });
 
             var slRow = new Grid();
             slRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             slRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _slider = new Slider { Minimum = 1, Maximum = _maxSlots, Value = 1, TickFrequency = 1, IsSnapToTickEnabled = true, IsEnabled = false, VerticalAlignment = VerticalAlignment.Center };
-            _sliderValueText = new TextBlock { Text = "1", FontWeight = FontWeights.Bold, Width = 28, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) };
+            _sliderValueText = new TextBlock { Text = "1", FontWeight = FontWeights.Bold, Width = 28, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushHeader") };
             _slider.ValueChanged += (_, _) => _sliderValueText!.Text = ((int)_slider.Value).ToString();
 
             Grid.SetColumn(_slider, 0); slRow.Children.Add(_slider);
@@ -140,7 +141,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _summaryText = new TextBlock { Text = "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14) };
+            _summaryText = new TextBlock { Text = "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14), Foreground = AppRes.Brush("BrushHeader") };
             Grid.SetRow(_summaryText, 0); root.Children.Add(_summaryText);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -169,7 +170,7 @@ namespace ULM.Views.Dialogs
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var nameText = new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis };
+            var nameText = new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = AppRes.Brush("BrushHeader") };
             Grid.SetColumn(nameText, 0); hRow.Children.Add(nameText);
             var pctText  = new TextBlock { Text = "0%", FontSize = 11, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushBlue") };
             Grid.SetColumn(pctText, 1); hRow.Children.Add(pctText);
@@ -225,7 +226,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(new TextBlock { Text = $"Beim letzten Mal wurden {files.Count} {itemLabel} gefunden.\nDiese können bedenkenlos gelöscht werden:", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5 });
+            root.Children.Add(new TextBlock { Text = $"Beim letzten Mal wurden {files.Count} {itemLabel} gefunden.\nDiese können bedenkenlos gelöscht werden:", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5, Foreground = AppRes.Brush("BrushHeader") });
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var list   = new StackPanel();
@@ -291,6 +292,7 @@ namespace ULM.Views.Dialogs
                 TextWrapping = TextWrapping.Wrap,
                 FontSize     = 12.5,
                 Margin       = new Thickness(0, 0, 0, 18),
+                Foreground   = AppRes.Brush("BrushHeader"),
             });
 
             _combo = new ComboBox

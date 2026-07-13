@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -207,7 +208,7 @@ namespace ULM.Views.Dialogs
 
         private static TextBox AddField(StackPanel root, string label, string value, bool multiLine = false)
         {
-            root.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2) });
+            root.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = (Brush)Application.Current.Resources["BrushHeader"] });
             var tb = new TextBox
             {
                 Text = value, Margin = new Thickness(0, 0, 0, 10),
@@ -221,7 +222,7 @@ namespace ULM.Views.Dialogs
 
         private ComboBox AddCategoryCombo(StackPanel root, string selected)
         {
-            root.Children.Add(new TextBlock { Text = "Kategorie *", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2) });
+            root.Children.Add(new TextBlock { Text = "Kategorie *", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = (Brush)Application.Current.Resources["BrushHeader"] });
             var cb = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
             foreach (string cat in Constants.Categories) cb.Items.Add(cat);
             cb.SelectedItem = Constants.Categories.Contains(selected) ? selected : "Einsteiger";
@@ -242,61 +243,200 @@ namespace ULM.Views.Dialogs
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // IsoSearchDialog
+    // IsoSearchDialog — 2 Reiter, beides Online-Abfragen gegen DistroWatch
+    // ("Aktuellste"/"Beliebteste", nur Live-Medium-Distros — siehe DiscoveryService).
+    // Die frühere lokale Textsuche entfällt hier bewusst (dafür gibt es "🗃 Datenbank" /
+    // IsoListDialog). Neu übernommene Distros landen in AddedEntries (der Aufrufer fügt sie
+    // zur DB hinzu); ist ToDownload nicht leer, sollen genau diese zusätzlich sofort
+    // heruntergeladen werden.
     // ═══════════════════════════════════════════════════════════════════
     public sealed class IsoSearchDialog : Window
     {
-        private readonly IsoDatabaseService _db;
-        private readonly TextBox            _searchBox;
-        private readonly ListBox            _results;
+        public List<IsoEntry> AddedEntries { get; } = new();
+        public HashSet<IsoEntry> ToDownload { get; } = new();
 
-        public IsoSearchDialog(IsoDatabaseService db)
+        private sealed class DiscoveryRow
         {
-            _db = db;
-            Title = "ISO suchen"; Width = 500; Height = 400;
+            public required Grid             Row;
+            public required CheckBox         Chk;
+            public required ComboBox         CatCb;
+            public required TextBlock        NameTb;
+            public required DiscoveredDistro Distro;
+        }
+
+        private sealed class DiscoveryTab
+        {
+            public required StackPanel RowsPanel;
+            public required TextBlock  StatusTb;
+            public required CheckBox   AlsoDownloadChk;
+            public readonly List<DiscoveryRow> Rows = new();
+            public bool Loaded;
+        }
+
+        private readonly DiscoveryTab _latestTab  = MakeTabState();
+        private readonly DiscoveryTab _popularTab = MakeTabState();
+
+        private static DiscoveryTab MakeTabState() => new()
+        {
+            RowsPanel       = new StackPanel(),
+            StatusTb        = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
+            AlsoDownloadChk = new CheckBox { Content = "Direkt herunterladen", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrushHeader"] },
+        };
+
+        public IsoSearchDialog()
+        {
+            Title = "ISO suchen"; Width = 640; Height = 580;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = (Brush)Application.Current.Resources["BrushBg"];
 
             var root = new Grid { Margin = new Thickness(16) };
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var tabs = new TabControl { Background = (Brush)Application.Current.Resources["BrushTransparent"], BorderThickness = new Thickness(0) };
+            tabs.Items.Add(BuildDiscoveryTab("🆕 Aktuellste", _latestTab, forceRefresh => DiscoveryService.Instance.GetLatestAdditionsAsync(forceRefresh)));
+            tabs.Items.Add(BuildDiscoveryTab("🔥 Beliebteste", _popularTab, forceRefresh => DiscoveryService.Instance.GetMostPopularAsync(forceRefresh)));
+            Grid.SetRow(tabs, 0);
+
+            var closeBtn = new Button { Content = "Schließen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+            closeBtn.Click += (_, _) => { DialogResult = true; Close(); };
+            Grid.SetRow(closeBtn, 1);
+
+            root.Children.Add(tabs); root.Children.Add(closeBtn);
+            Content = root;
+
+            // Erster Reiter lädt sofort beim Öffnen, der zweite erst bei seinem ersten Anklicken
+            // (SelectionChanged) — kein unnötiger Netzwerk-Roundtrip, falls der Nutzer nur eine der
+            // beiden Listen braucht.
+            Loaded += async (_, _) => { if (!_latestTab.Loaded) await LoadDiscoveryTabAsync(_latestTab, forceRefresh: false, DiscoveryService.Instance.GetLatestAdditionsAsync); };
+            tabs.SelectionChanged += async (_, _) =>
+            {
+                if (tabs.SelectedIndex == 1 && !_popularTab.Loaded) await LoadDiscoveryTabAsync(_popularTab, forceRefresh: false, DiscoveryService.Instance.GetMostPopularAsync);
+            };
+        }
+
+        // ── Online-Abfrage (DistroWatch, nur Live-Medium-Distros) ───────────
+        private TabItem BuildDiscoveryTab(string header, DiscoveryTab tab, Func<bool, Task<DiscoveryService.DiscoveryResult>> fetch)
+        {
+            var root = new Grid { Margin = new Thickness(12) };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _searchBox = new TextBox { Padding = new Thickness(8, 6, 8, 6), FontSize = 13, Margin = new Thickness(0, 0, 0, 8) };
-            _searchBox.TextChanged += (_, _) => Search();
-            Grid.SetRow(_searchBox, 0);
+            var headerRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var refreshBtn = new Button { Content = "⟳ Aktualisieren", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 130 };
+            DockPanel.SetDock(refreshBtn, Dock.Right);
+            headerRow.Children.Add(refreshBtn);
+            headerRow.Children.Add(tab.StatusTb);
+            Grid.SetRow(headerRow, 0);
 
-            _results = new ListBox { BorderBrush = (Brush)Application.Current.Resources["BrushBorder"], BorderThickness = new Thickness(1), Background = (Brush)Application.Current.Resources["BrushWhite"] };
-            Grid.SetRow(_results, 1);
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            scroll.Content = tab.RowsPanel;
+            Grid.SetRow(scroll, 1);
 
-            var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            var markBtn = new Button { Content = "✔ Zum Download markieren", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 190 };
-            markBtn.Click += MarkBtn_Click;
-            var closeBtn = new Button { Content = "Schließen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 90, Margin = new Thickness(8, 0, 0, 0) };
-            closeBtn.Click += (_, _) => Close();
-            btns.Children.Add(markBtn); btns.Children.Add(closeBtn);
-            Grid.SetRow(btns, 2);
-            root.Children.Add(_searchBox); root.Children.Add(_results); root.Children.Add(btns);
-            Content = root;
-            Loaded += (_, _) => { _searchBox.Focus(); Search(); };
+            var footer = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
+            var takeBtn = new Button { Content = "✔ Übernehmen", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 140 };
+            DockPanel.SetDock(takeBtn, Dock.Right);
+            takeBtn.Click += (_, _) => TakeSelected(tab);
+            footer.Children.Add(takeBtn);
+            footer.Children.Add(tab.AlsoDownloadChk);
+            Grid.SetRow(footer, 2);
+
+            refreshBtn.Click += async (_, _) => await LoadDiscoveryTabAsync(tab, forceRefresh: true, fetch);
+
+            root.Children.Add(headerRow); root.Children.Add(scroll); root.Children.Add(footer);
+            return new TabItem { Header = header, Content = root };
         }
 
-        private void Search()
+        private async Task LoadDiscoveryTabAsync(DiscoveryTab tab, bool forceRefresh, Func<bool, Task<DiscoveryService.DiscoveryResult>> fetch)
         {
-            string q = _searchBox.Text.Trim().ToLowerInvariant();
-            _results.Items.Clear();
-            foreach (IsoEntry e in _db.Entries)
-                if (string.IsNullOrEmpty(q) || e.Name.ToLowerInvariant().Contains(q) ||
-                    e.Category.ToLowerInvariant().Contains(q) || e.Tip.ToLowerInvariant().Contains(q))
-                    _results.Items.Add(new ListBoxItem { Content = $"[{e.Category}]  {e.Name}", Tag = e });
+            tab.StatusTb.Text = "⏳ Lade …";
+            tab.RowsPanel.Children.Clear(); tab.Rows.Clear();
+            try
+            {
+                var result = await fetch(forceRefresh).ConfigureAwait(true);
+                tab.Loaded = true;
+                if (result.Items.Count == 0)
+                {
+                    tab.StatusTb.Text = "⚠ Keine Live-Medium-Distros gefunden (offline oder DistroWatch nicht erreichbar).";
+                    return;
+                }
+                tab.StatusTb.Text = $"{(result.FromCache ? "Aus Cache" : "Aktuell geladen")} — Stand: {result.FetchedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}";
+                foreach (var d in result.Items)
+                {
+                    var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    ApplyRowHighlight(row, d);
+
+                    var chk = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 4, 4, 4), IsEnabled = !d.AlreadyInDb };
+                    Grid.SetColumn(chk, 0); row.Children.Add(chk);
+
+                    var nameTb = new TextBlock
+                    {
+                        Text = d.AlreadyInDb ? $"{d.Name}  (bereits vorhanden)" : d.Name,
+                        VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Margin = new Thickness(0, 4, 0, 4),
+                        Foreground = (Brush)Application.Current.Resources[d.AlreadyInDb ? "BrushDim" : "BrushHeader"],
+                        ToolTip = d.AlreadyInDb ? null : BuildInfoTooltip(d),
+                    };
+                    Grid.SetColumn(nameTb, 1); row.Children.Add(nameTb);
+
+                    var catCb = new ComboBox { Margin = new Thickness(6, 2, 6, 2), IsEnabled = !d.AlreadyInDb };
+                    foreach (string cat in Constants.Categories) catCb.Items.Add(cat);
+                    catCb.SelectedItem = Constants.Categories.Contains(d.SuggestedCategory) ? d.SuggestedCategory : "Einsteiger";
+                    Grid.SetColumn(catCb, 2); row.Children.Add(catCb);
+
+                    var infoTb = new TextBlock { Text = d.Info, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 4, 4), Foreground = (Brush)Application.Current.Resources["BrushDim"] };
+                    Grid.SetColumn(infoTb, 3); row.Children.Add(infoTb);
+
+                    tab.RowsPanel.Children.Add(row);
+                    tab.Rows.Add(new DiscoveryRow { Row = row, Chk = chk, CatCb = catCb, NameTb = nameTb, Distro = d });
+                }
+            }
+            catch (Exception ex)
+            {
+                tab.StatusTb.Text = $"⚠ Fehler: {ex.Message}";
+            }
         }
 
-        private void MarkBtn_Click(object sender, RoutedEventArgs e)
+        private void TakeSelected(DiscoveryTab tab)
         {
-            foreach (ListBoxItem item in _results.SelectedItems)
-                if (item.Tag is IsoEntry entry) entry.IsSelected = true;
-            Close();
+            bool alsoDownload = tab.AlsoDownloadChk.IsChecked == true;
+            int taken = 0;
+            foreach (var row in tab.Rows)
+            {
+                if (row.Distro.AlreadyInDb || row.Chk.IsChecked != true) continue;
+                string category = row.CatCb.SelectedItem as string ?? "Einsteiger";
+                var entry = new IsoEntry { Name = row.Distro.Name, Category = category };
+                AddedEntries.Add(entry);
+                if (alsoDownload) ToDownload.Add(entry);
+
+                row.Distro.AlreadyInDb = true;
+                row.Chk.IsChecked = false; row.Chk.IsEnabled = false; row.CatCb.IsEnabled = false;
+                row.NameTb.Text = $"{row.Distro.Name}  (bereits vorhanden)";
+                row.NameTb.Foreground = (Brush)Application.Current.Resources["BrushDim"];
+                row.NameTb.ToolTip = null;
+                ApplyRowHighlight(row.Row, row.Distro);
+                taken++;
+            }
+            if (taken > 0) tab.StatusTb.Text = $"✔ {taken} übernommen — {tab.StatusTb.Text}";
+        }
+
+        // Bereits in der DB vorhandene Distros werden farblich hervorgehoben (dezenter Blauton,
+        // wie bei anderen "informativen" — weder Erfolgs- noch Fehler- — Zuständen im restlichen
+        // Programm), statt sich nur über den gedimmten Namenstext zu erschließen.
+        private static void ApplyRowHighlight(Grid row, DiscoveredDistro d) =>
+            row.Background = d.AlreadyInDb ? (Brush)Application.Current.Resources["BrushLBlue"] : (Brush)Application.Current.Resources["BrushTransparent"];
+
+        private static string BuildInfoTooltip(DiscoveredDistro d)
+        {
+            var lines = new List<string> { d.Name, d.Info, $"Vorgeschlagene Kategorie: {Constants.CategoryLabel(d.SuggestedCategory)}" };
+            if (d.Tags.Count > 0) lines.Add($"DistroWatch-Tags: {string.Join(", ", d.Tags)}");
+            lines.Add($"distrowatch.com/{d.Slug}");
+            return string.Join("\n", lines);
         }
     }
 
@@ -334,6 +474,7 @@ namespace ULM.Views.Dialogs
             root.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5,
+                Foreground = (Brush)Application.Current.Resources["BrushHeader"],
                 Text = $"Der Stick enthält {unknownIsos.Count} ISO-Datei(en), die noch nicht in der Datenbank stehen.\n" +
                        "Name und Kategorie vergeben, optional eine Quelle-URL für den Online-Update-Check hinterlegen, dann importieren.",
             });
@@ -464,6 +605,7 @@ namespace ULM.Views.Dialogs
             root.Children.Add(new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5,
+                Foreground = (Brush)Application.Current.Resources["BrushHeader"],
                 Text = $"Auf dem Stick wurden {matches.Count} ISO-Datei(en) gefunden, " +
                        "die NEUER sind als der jeweilige Datenbank-Eintrag.\n\n" +
                        "Bitte für jeden Eintrag wählen, wie die Datenbank aktualisiert werden soll. " +
@@ -493,6 +635,7 @@ namespace ULM.Views.Dialogs
                 {
                     Text = $"[{dbEntry.Category}]  {dbEntry.Name}",
                     FontWeight = FontWeights.Bold, FontSize = 13, Margin = new Thickness(0, 0, 0, 10),
+                    Foreground = (Brush)Application.Current.Resources["BrushHeader"],
                 });
 
                 // Versions-Gegenüberstellung
@@ -563,6 +706,7 @@ namespace ULM.Views.Dialogs
                     Text         = text,
                     TextWrapping = TextWrapping.Wrap,
                     FontSize     = 11.5,
+                    Foreground   = (Brush)Application.Current.Resources["BrushHeader"],
                 },
                 GroupName = groupName,
                 IsChecked = isChecked,
@@ -626,12 +770,16 @@ namespace ULM.Views.Dialogs
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 row.Children.Add(new TextBlock { Text = r.Resolved ? "✅" : "❌", FontSize = 12 });
-                var nameTb = new TextBlock { Text = r.Name, FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                var nameTb = new TextBlock
+                {
+                    Text = r.Name, FontSize = 11.5, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                    Foreground = (Brush)Application.Current.Resources["BrushHeader"],
+                };
                 Grid.SetColumn(nameTb, 1); row.Children.Add(nameTb);
                 var infoTb = new TextBlock
                 {
                     Text = r.Resolved ? $"v{r.RemoteVersion}" : "nicht erreichbar",
-                    FontSize = 10.5, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                    FontSize = 10.5, Margin = new Thickness(10, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
                     Foreground = (Brush)Application.Current.Resources[r.Resolved ? "BrushDim" : "BrushRed"],
                 };
                 Grid.SetColumn(infoTb, 2); row.Children.Add(infoTb);

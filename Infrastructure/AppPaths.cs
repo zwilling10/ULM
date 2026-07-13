@@ -63,10 +63,11 @@ namespace ULM.Infrastructure
         public string SettingsIni     { get; }
 
         // ── Variable Pfade (abhängig vom gewählten Basispfad) ──────────
-        public string BaseDirectory { get; private set; } = string.Empty;
-        public string DownloadDir   { get; private set; } = string.Empty;
-        public string DatabaseIni   { get; private set; } = string.Empty;
-        public string LogFile       { get; private set; } = string.Empty;
+        public string BaseDirectory     { get; private set; } = string.Empty;
+        public string DownloadDir       { get; private set; } = string.Empty;
+        public string DatabaseIni       { get; private set; } = string.Empty;
+        public string LogFile           { get; private set; } = string.Empty;
+        public string DiscoveryCacheIni { get; private set; } = string.Empty;
 
         // ── Temp-Pfade (system-weit, kein Portabilitätsproblem) ────────
         public string TempDownloadDir { get; } =
@@ -96,10 +97,11 @@ namespace ULM.Infrastructure
         /// </summary>
         public void SetPaths(string baseDirectory)
         {
-            BaseDirectory = baseDirectory;
-            DownloadDir   = Path.Combine(baseDirectory, "ISOs");
-            DatabaseIni   = Path.Combine(baseDirectory, "ulm_isos.ini");
-            LogFile       = Path.Combine(baseDirectory, "ulm_log.txt");
+            BaseDirectory     = baseDirectory;
+            DownloadDir       = Path.Combine(baseDirectory, "ISOs");
+            DatabaseIni       = Path.Combine(baseDirectory, "ulm_isos.ini");
+            LogFile           = Path.Combine(baseDirectory, "ulm_log.txt");
+            DiscoveryCacheIni = Path.Combine(baseDirectory, "ulm_discovery_cache.ini");
         }
 
         /// <summary>

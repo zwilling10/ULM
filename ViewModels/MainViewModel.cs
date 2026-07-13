@@ -112,6 +112,16 @@ namespace ULM.ViewModels
         public event Action?                      AutoVersionCheckCompleted;
         public event Action?                      RefreshTree;
 
+        /// <summary>
+        /// Wird vom DownloadWorker aufgerufen, wenn alle Mirror einer Distro ausgeschöpft sind, aber
+        /// mindestens einer davon nur wegen dauerhafter Langsamkeit (nicht wegen eines echten
+        /// Fehlers) abgebrochen wurde — (EntryName, Host) → true = trotzdem fortfahren. Ein Func statt
+        /// eines Events, da hier (anders als bei den übrigen View-Benachrichtigungen oben) eine
+        /// Antwort vom Anwender zurück in den wartenden Hintergrund-Task fließen muss. Von
+        /// MainWindow gesetzt (zeigt die eigentliche MessageBox).
+        /// </summary>
+        public Func<string, string, bool>? ConfirmSlowDownload;
+
         public MainViewModel(Dispatcher ui)
         {
             _ui = ui;
@@ -523,6 +533,10 @@ namespace ULM.ViewModels
             var worker = new DownloadWorker(queue, slots, _paths.DownloadDir, _db, drive, copyAfter, deleteAfter);
             _workerCts = new CancellationTokenSource(); _activeWorker = worker; ProgressPercent = 0;
             worker.LogMessage += msg => _ui.Invoke(() => Log(msg));
+            // _ui.Invoke blockiert synchron bis zur Anwender-Antwort — das betrifft nur DIESEN
+            // Download-Slot (läuft in seinem eigenen Hintergrund-Task), die anderen parallelen
+            // Slots laufen unbeeinflusst weiter.
+            worker.ConfirmSlowDownloadAnyway = (name, host) => _ui.Invoke(() => ConfirmSlowDownload?.Invoke(name, host) ?? false);
             Channel<IsoEntry>? pipelineChannel = null; Task? pipelineTask = null;
             if (copyAfter && !string.IsNullOrEmpty(drive))
             {

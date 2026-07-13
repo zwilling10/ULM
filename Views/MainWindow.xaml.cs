@@ -50,6 +50,10 @@ namespace ULM.Views
             };
             _vm.LogMessage += AppendLog;
             _vm.ShowMessageBox += (msg, isErr) => MessageBox.Show(msg, Constants.AppTitle, MessageBoxButton.OK, isErr ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            _vm.ConfirmSlowDownload = (name, host) => MessageBox.Show(
+                $"{name}: Es wurde kein schnellerer Mirror gefunden — {host} überträgt weiterhin nur sehr langsam.\n\n" +
+                "Trotzdem mit dieser Quelle fortfahren? (Das kann sehr lange dauern.)",
+                "⚠ Langsamer Download", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
 
             _vm.NewerVersionsOnStickDetected += (matches, drive) =>
@@ -431,7 +435,7 @@ namespace ULM.Views
 
         private void ChkSecureBoot_Changed(object sender, RoutedEventArgs e) => _vm.SecureBoot = ChkSecureBoot.IsChecked == true;
 
-        private void BtnDownload_Click(object sender, RoutedEventArgs e)
+        private async void BtnDownload_Click(object sender, RoutedEventArgs e)
         {
             if (_vm.IsBusy) return;
             List<IsoEntry> queue = _vm.GetSelectedEntries();
@@ -446,9 +450,57 @@ namespace ULM.Views
             }
             else if (MessageBox.Show($"Kein USB-Stick.\n\nISOs gespeichert in:\n{AppPaths.Instance.DownloadDir}\n\nFortfahren?", "Kein Stick erkannt", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
 
+            if (!await ConfirmEnoughFreeSpaceAsync(queue, copy ? drive : null)) return;
+
             int slots = 1;
             if (queue.Count > 1) { var sd = new DownloadSlotsDialog(queue.Count, Constants.MaxParallelSlots) { Owner = this }; if (sd.ShowDialog() != true) return; slots = sd.ChosenSlots; }
             StartDownloadWithProgressDialog(queue, drive, copy, del, slots);
+        }
+
+        /// <summary>
+        /// Summiert die online ermittelbare Größe ALLER markierten Distros (parallel, via
+        /// HttpService.GetExpectedSizeAsync — dieselbe Quelle wie der bestehende Freispeicher-Check
+        /// in HttpService.DownloadAsync) und vergleicht sie VOR Start des Downloads gegen den
+        /// freien Speicher am Ziel. Der bestehende Check dort greift nur PRO DATEI, kurz bevor sie
+        /// geschrieben wird — bei mehreren parallelen Slots kann das dazu führen, dass mehrere große
+        /// Downloads gleichzeitig starten, weil jeder einzeln (noch) genug Platz sieht, obwohl die
+        /// Summe aller ausgewählten Distros den Stick/die Platte gar nicht erst füllt. Best-effort:
+        /// Größen, die sich online nicht ermitteln lassen (-1), fließen nicht in die Summe ein, statt
+        /// den Download deswegen zu blockieren — die Warnung weist in diesem Fall explizit auf die
+        /// verbleibende Unsicherheit hin.
+        /// </summary>
+        private async Task<bool> ConfirmEnoughFreeSpaceAsync(List<IsoEntry> queue, string? stickDrive)
+        {
+            SetBusyUi(true); AppendLog("🔍 Prüfe benötigten Speicherplatz …");
+            long[] sizes;
+            try { sizes = await Task.WhenAll(queue.Select(e => HttpService.Instance.GetExpectedSizeAsync(e))); }
+            finally { SetBusyUi(false); }
+
+            long totalBytes  = sizes.Where(s => s > 0).Sum();
+            int  unknownCount = sizes.Count(s => s <= 0);
+            if (totalBytes == 0) return true; // keine einzige Größe ermittelbar — nichts zu warnen, Best-effort endet hier
+
+            static string Gb(long b) => (b / 1_073_741_824.0).ToString("F2") + " GB";
+            static string GbMb(double mb) => (mb / 1024.0).ToString("F2") + " GB";
+
+            bool WarnIfTooSmall(string label, string root)
+            {
+                double freeMb;
+                try { var d = new DriveInfo(root); if (!d.IsReady) return true; freeMb = d.AvailableFreeSpace / 1_048_576.0; }
+                catch { return true; }
+                if (totalBytes <= freeMb * 1_048_576.0) return true;
+
+                string msg = $"Die {queue.Count} ausgewählten Distros benötigen zusammen ca. {Gb(totalBytes)}" +
+                             (unknownCount > 0 ? $" (bei {unknownCount} Distro(s) war die Größe online nicht ermittelbar — evtl. mehr)" : "") +
+                             $",\naber auf {label} sind nur {GbMb(freeMb)} frei.\n\nTrotzdem fortfahren?";
+                return MessageBox.Show(msg, "⚠ Nicht genug Speicherplatz", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+            }
+
+            if (!WarnIfTooSmall($"dem Arbeitsordner ({AppPaths.Instance.DownloadDir})", Path.GetPathRoot(AppPaths.Instance.DownloadDir) ?? AppPaths.Instance.DownloadDir))
+                return false;
+            if (!string.IsNullOrEmpty(stickDrive) && !WarnIfTooSmall($"dem Stick {stickDrive}", UsbService.DriveRoot(stickDrive)))
+                return false;
+            return true;
         }
 
         private async void StartDownloadWithProgressDialog(List<IsoEntry> queue, string drive, bool copyAfter, bool deleteAfter, int slots)
@@ -471,7 +523,24 @@ namespace ULM.Views
         private async void BtnUpdates_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy) return; SetBusyUi(true); await Task.Run(() => _vm.CheckUpdatesCommand.Execute(null)); SetBusyUi(false); }
         private async void BtnCheckUrls_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy) return; SetBusyUi(true); await Task.Run(() => _vm.CheckUrlsCommand.Execute(null)); SetBusyUi(false); }
         private async void BtnHealthCheck_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy || _vm.HealthCheckActive) return; SetBusyUi(true); await Task.Run(() => _vm.HealthCheckCommand.Execute(null)); SetBusyUi(false); }
-        private void BtnSearch_Click(object sender, RoutedEventArgs e) => new IsoSearchDialog(IsoDatabaseService.Instance) { Owner = this }.ShowDialog();
+        private void BtnSearch_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new IsoSearchDialog { Owner = this };
+            dlg.ShowDialog();
+            if (dlg.AddedEntries.Count == 0) return;
+
+            foreach (var entry in dlg.AddedEntries) IsoDatabaseService.Instance.Add(entry);
+            IsoDatabaseService.Instance.Save();
+            _vm.RebuildTree();
+            AppendLog($"✅ {dlg.AddedEntries.Count} ISO(s) aus der Online-Suche zur Datenbank hinzugefügt.");
+            // Frisch aus der Online-Suche übernommene Einträge haben nie eine geprüfte Url — wie bei
+            // Stick-Importen lohnt sich hier der volle Gesundheitscheck sofort.
+            _vm.RunHealthCheck();
+
+            if (dlg.ToDownload.Count == 0) return;
+            foreach (var entry in dlg.ToDownload) entry.IsSelected = true;
+            BtnDownload_Click(sender, e);
+        }
         private void BtnEditDb_Click(object sender, RoutedEventArgs e)
         {
             if (_vm.IsBusy) { MessageBox.Show("Bitte warten …"); return; }

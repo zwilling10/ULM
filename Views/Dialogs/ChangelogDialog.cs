@@ -18,6 +18,15 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.30.0", new[]
+            {
+                "Neu: „🔍 ISO suchen“ zeigt jetzt zwei Online-Listen von DistroWatch — „🆕 Aktuellste“ (neu hinzugefügte Distros) und „🔥 Beliebteste“ (Popularitäts-Ranking), beide gefiltert auf garantiert per USB-Stick bootfähige Live-Medium-Distros, mit Kategorie-Vorschlag, Tooltip und optionalem Direkt-Download. Die frühere reine Textsuche entfällt (dafür: „🗃 Datenbank“)",
+                "Neu: Mirror-Race — vor jedem Download werden alle konfigurierten Mirror-Quellen kurz parallel getestet und automatisch mit der schnellsten begonnen, statt einfach der ersten",
+                "Neu: Geschwindigkeits-Wächter bricht dauerhaft extrem langsame Downloads automatisch ab und wechselt zur nächsten Quelle; bleibt nur eine langsame Quelle übrig, fragt ULM aktiv nach, ob trotzdem fortgefahren werden soll",
+                "Neu: Freispeicher-Vorabprüfung — summiert vor Beginn eines Downloads die Größe ALLER markierten Distros und warnt, wenn der Speicherplatz im Arbeitsordner oder auf dem Stick nicht reicht, statt erst mittendrin zu scheitern",
+                "DB-Gesundheitscheck-Fenster: Versions-/Status-Text saß ohne Abstand an der rechten Fensterkante — jetzt mit sichtbarem Rand",
+                "Diverse Dialoge (DB-Gesundheitscheck, ISO-Editor, Stick-Import, Download-Fenster) im Dark Mode: mehrere Texte hatten keine explizite Vorder-/Hintergrundfarbe und blieben dadurch teils unlesbar hell",
+            }),
             ("2.29.1", new[]
             {
                 "Einrichtungsfenster passte sich bisher nicht an kleine Bildschirme an — auf 800x600 ragte es über den Bildschirm hinaus und der 'Übernehmen'-Button war unsichtbar. Größe richtet sich jetzt nach dem tatsächlichen Bildschirm-Arbeitsbereich, Kopf- und Fußzeile bleiben immer sichtbar.",
