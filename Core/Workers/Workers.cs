@@ -247,6 +247,14 @@ namespace ULM.Core.Workers
         private static readonly TimeSpan SlowSustainedWindow = TimeSpan.FromSeconds(20);
         private const double SlowSpeedThresholdBytesPerSec   = 1_048_576; // ~1 MB/s
 
+        // SourceForges eigener Auto-Redirector (master.dl.sourceforge.net) wählt den Ziel-Mirror
+        // serverseitig — eine erneute, FRISCHE Anfrage kann einen anderen (schnelleren) Server
+        // zuteilen als der vorherige Versuch (beobachtet: über den Browser 10 Mbit/s, über ULMs
+        // ersten Versuch < 1 MB/s dauerhaft). Bei Distros mit nur EINER konfigurierten URL (der
+        // Regelfall für SourceForge-only-Distros) bringt ein reiner Mirror-Wechsel nichts, deshalb
+        // wird bei dieser URL-Art vor dem endgültigen Aufgeben mehrfach frisch neu angefragt.
+        private const int SourceForgeRerollAttempts = 2;
+
         /// <summary>Extrahiert die aktuelle Übertragungsrate aus dem von DownloadAsync gelieferten
         /// Detail-Text (Format "... 12.4 MB/s ..."); -1 wenn (noch) keine Rate im Text steht.</summary>
         private static double ParseSpeedBytesPerSec(string detail)
@@ -323,37 +331,53 @@ namespace ULM.Core.Workers
                             mirrorIdx++;
                             string host = TryGetHost(tryUrl);
                             string label = mirrorIdx == 1 ? $"⬇ {host}" : $"⬇ Mirror {mirrorIdx}: {host}";
-                            sa.Status = $"{label} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
-                            LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
 
-                            // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
-                            // manche CDNs drosseln die ersten Sekunden, siehe Mirror-Race oben) längere
-                            // Zeit unter der Schwelle, lohnt sich ein Abbruch + Wechsel zum nächsten
-                            // Mirror mehr als stundenlang auf einer lahmen Quelle zu warten (real
-                            // beobachtet: 325-517 KB/s bei mehreren GB → 4+ Stunden ETA). Eigener
-                            // linked Token statt _cts direkt — der Abbruch soll nur DIESEN Versuch
-                            // treffen, nicht den ganzen Batch.
-                            using var mirrorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
-                            var attemptSw = Stopwatch.StartNew();
-                            var lastFastEnough = attemptSw.Elapsed;
+                            // Nur beim Auto-Redirector selbst neu anfragen (siehe Konstanten-Kommentar
+                            // oben) — bei einem fest benannten Mirror/GitHub-Asset/etc. würde eine
+                            // erneute Anfrage exakt denselben (langsamen) Server treffen, das wäre
+                            // reine Zeitverschwendung.
+                            bool isSourceForgeAutoMirror = host.Equals("master.dl.sourceforge.net", StringComparison.OrdinalIgnoreCase);
+                            int attemptsForThisUrl = isSourceForgeAutoMirror ? 1 + SourceForgeRerollAttempts : 1;
                             bool abortedForSlowness = false;
 
-                            ok = await HttpService.Instance.DownloadFileAsync(
-                                tryUrl, destPath, mirrorCts.Token,
-                                (p, d) =>
-                                {
-                                    sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
-                                    double bps = ParseSpeedBytesPerSec(d);
-                                    if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
-                                    else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                            for (int attempt = 1; attempt <= attemptsForThisUrl; attempt++)
+                            {
+                                sa.Status = $"{label} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}" +
+                                    (attempt > 1 ? $" (erneute Anfrage {attempt}/{attemptsForThisUrl} — SourceForge kann einen anderen Mirror wählen)" : ""));
+
+                                // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
+                                // manche CDNs drosseln die ersten Sekunden, siehe Mirror-Race oben) längere
+                                // Zeit unter der Schwelle, lohnt sich ein Abbruch + Wechsel zum nächsten
+                                // Mirror mehr als stundenlang auf einer lahmen Quelle zu warten (real
+                                // beobachtet: 325-517 KB/s bei mehreren GB → 4+ Stunden ETA). Eigener
+                                // linked Token statt _cts direkt — der Abbruch soll nur DIESEN Versuch
+                                // treffen, nicht den ganzen Batch.
+                                using var mirrorCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
+                                var attemptSw = Stopwatch.StartNew();
+                                var lastFastEnough = attemptSw.Elapsed;
+                                abortedForSlowness = false;
+
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    tryUrl, destPath, mirrorCts.Token,
+                                    (p, d) =>
                                     {
-                                        abortedForSlowness = true;
-                                        LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
-                                            (mirrorIdx < urlsToTry.Count ? " und versuche nächste Quelle …" : "."));
-                                        mirrorCts.Cancel();
-                                    }
-                                })
-                                .ConfigureAwait(false);
+                                        sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
+                                        double bps = ParseSpeedBytesPerSec(d);
+                                        if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
+                                        else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                                        {
+                                            abortedForSlowness = true;
+                                            LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
+                                                (attempt < attemptsForThisUrl ? " und frage SourceForge erneut an …"
+                                                 : mirrorIdx < urlsToTry.Count ? " und versuche nächste Quelle …" : "."));
+                                            mirrorCts.Cancel();
+                                        }
+                                    })
+                                    .ConfigureAwait(false);
+
+                                if (ok || !abortedForSlowness || _cts.IsCancellationRequested) break;
+                            }
 
                             if (ok) { usedUrl = tryUrl; break; }
 
