@@ -650,12 +650,13 @@ namespace ULM.Core.Workers
                     resolved++; e.RemoteVersion = remoteVer; e.RemoteUrl = url; e.RemoteFilename = fname;
                     // WICHTIG: ein anderer Dateiname bedeutet NICHT automatisch eine neuere Version
                     // (Mirror-spezifische Benennung, Groß-/Kleinschreibung, Build-Suffixe …) — nur
-                    // ein echter Versionsvergleich verhindert falsche "Update verfügbar"-Meldungen
-                    // für ISOs, die bereits aktuell sind.
-                    string localVer = HttpService.ExtractVersion(string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn);
-                    hasUpdate = string.IsNullOrWhiteSpace(localFn)
-                        ? !string.IsNullOrWhiteSpace(fname)
-                        : HttpService.IsVersionNewer(remoteVer, localVer);
+                    // ein echter Versionsvergleich verhindert falsche "Update verfügbar"-Meldungen für
+                    // ISOs, die bereits aktuell sind. Die vom Eintrag repräsentierte Version wird aus
+                    // dem Dateinamen ODER (falls leer, z.B. per „ISO suchen“ hinzugefügt) aus dem Namen
+                    // abgeleitet — so gilt "Foo 7.9.1" ohne Dateiname NICHT blind als Update, sobald
+                    // online 7.9.1 gefunden wird (siehe HttpService.IsUpdateAvailable-Tests).
+                    hasUpdate = HttpService.IsUpdateAvailable(
+                        string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn, remoteVer, !string.IsNullOrWhiteSpace(fname));
                     e.UpdateAvailable = hasUpdate;
                     if (hasUpdate) lock (updates) updates.Add(i);
                     if (urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;

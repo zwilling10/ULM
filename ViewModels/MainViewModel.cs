@@ -498,6 +498,11 @@ namespace ULM.ViewModels
                         string newVer = string.IsNullOrEmpty(e.RemoteVersion)
                             ? HttpService.ExtractVersion(e.RemoteFilename) : e.RemoteVersion;
                         e.Url = e.RemoteUrl; e.Filename = e.RemoteFilename;
+                        // Der Eintrag repräsentiert nach der Übernahme selbst die neueste Version →
+                        // es gibt kein ausstehendes Update mehr. Ohne dieses Zurücksetzen bliebe das
+                        // (vor der Übernahme korrekt gesetzte) Flag veraltet auf true und die
+                        // "Aktuell"-Spalte zeigte fälschlich "Update vX" statt "Aktuell (vX)".
+                        e.UpdateAvailable = false;
                         if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
                         {
                             int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);

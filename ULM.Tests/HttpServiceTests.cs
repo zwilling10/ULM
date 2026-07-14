@@ -54,6 +54,30 @@ public class HttpServiceIsVersionNewerTests
         => Assert.False(HttpService.IsVersionNewer(candidate, current));
 }
 
+public class HttpServiceIsUpdateAvailableTests
+{
+    [Theory]
+    // Bug-Regression: der Eintrag repräsentiert bereits die aktuellste Version (aus Dateiname ODER
+    // Name) — es darf KEIN Update angezeigt werden, weder mit Dateiname noch nur mit Namensversion.
+    [InlineData("tails-amd64-7.9.1.iso", "7.9.1", true, false)]
+    [InlineData("Tails 7.9.1", "7.9.1", true, false)]              // nur Name trägt die Version
+    [InlineData("Parrot-security-7.3_amd64.iso", "7.3", true, false)]
+    // Echtes Update: online ist neuer als die repräsentierte Version.
+    [InlineData("tails-amd64-7.7.1.iso", "7.9.1", true, true)]
+    [InlineData("Tails 7.7.1", "7.9.1", true, true)]
+    // Katalog ist NEUER als der Online-Fund → kein (Downgrade-)Update, kein blindes "true".
+    [InlineData("Foo 5.0", "4.0", true, false)]
+    // Völlig unbekannt (keine Version aus Name/Dateiname ableitbar): jede gefundene Datei = Erstbezug.
+    [InlineData("HBCD_PE_x64.iso", "", true, true)]
+    [InlineData("", "3.2", true, true)]
+    // Nichts gefunden: kein Update.
+    [InlineData("HBCD_PE_x64.iso", "", false, false)]
+    [InlineData("", "", false, false)]
+    public void IsUpdateAvailable_OnlyWhenRemoteIsNewerOrTrulyUnknown(
+        string localFilenameOrName, string remoteVersion, bool remoteFileFound, bool expected)
+        => Assert.Equal(expected, HttpService.IsUpdateAvailable(localFilenameOrName, remoteVersion, remoteFileFound));
+}
+
 public class HttpServiceNormalizeForMatchTests
 {
     [Theory]

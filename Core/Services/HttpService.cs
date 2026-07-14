@@ -302,6 +302,25 @@ namespace ULM.Core.Services
             return VersionComparer.Instance.Compare(candidate, current) > 0;
         }
 
+        /// <summary>
+        /// Entscheidet, ob für einen Katalog-Eintrag ein Update ANGEZEIGT werden soll: die online
+        /// gefundene Version (<paramref name="remoteVersion"/>) ist ECHT neuer als die vom Eintrag
+        /// aktuell repräsentierte Version — abgeleitet aus dem Dateinamen, ersatzweise aus dem Namen
+        /// (<paramref name="localFilenameOrName"/>). Lässt sich daraus KEINE Version bestimmen (völlig
+        /// unbekannter Eintrag, z.B. per „ISO suchen“ neu hinzugefügt und noch nie aufgelöst), gilt
+        /// jede online gefundene Datei (<paramref name="remoteFileFound"/>) als anzubietender Erstbezug.
+        ///
+        /// WICHTIG: Trägt der Eintrag bereits die aktuellste Version (Dateiname ODER Name), liefert
+        /// diese Methode false — auch wenn online dieselbe Version gefunden wird. Genau das verhindert
+        /// die früher fälschlich in der „Aktuell“-Spalte angezeigten „Update vX“ für bereits aktuelle
+        /// Distros. Ist der Katalog sogar NEUER als der Online-Fund, ebenfalls false (kein Downgrade).
+        /// </summary>
+        public static bool IsUpdateAvailable(string? localFilenameOrName, string remoteVersion, bool remoteFileFound)
+        {
+            string localVer = ExtractVersion(localFilenameOrName ?? string.Empty);
+            return string.IsNullOrWhiteSpace(localVer) ? remoteFileFound : IsVersionNewer(remoteVersion, localVer);
+        }
+
         private static readonly (string, string, string) Empty = (string.Empty, string.Empty, string.Empty);
 
         /// <summary>
