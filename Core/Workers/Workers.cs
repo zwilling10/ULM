@@ -372,6 +372,11 @@ namespace ULM.Core.Workers
                         string usedUrl = resolvedUrl;
                         int mirrorIdx  = 0;
                         string? slowAbortedUrl = null, slowAbortedHost = null;
+                        // Der ERSTE Mirror, von dem der Anwender per "(schneller)" manuell weggewechselt
+                        // ist — kein Fehlschlag, die Quelle war nachweislich erreichbar und lud die ISO
+                        // (nur eben nicht schnell genug für den Anwender). Dient als stiller Rückfall,
+                        // falls die anschließende Suche keinen schnelleren Mirror findet.
+                        string? manualSkipFallbackUrl = null, manualSkipFallbackHost = null;
 
                         foreach (string tryUrl in urlsToTry)
                         {
@@ -431,6 +436,9 @@ namespace ULM.Core.Workers
                             if (active.ManualSkipRequested)
                             {
                                 LogMessage?.Invoke($"   ⚡ {entry.Name}: Nutzer fordert schnelleren Mirror an — wechsle von {host} …");
+                                // Nur den ERSTEN merken — das war der von Mirror-Race/Wächter am besten
+                                // bewertete erreichbare Server, also der sinnvollste Rückfall.
+                                manualSkipFallbackUrl ??= tryUrl; manualSkipFallbackHost ??= host;
                                 if (_cts.IsCancellationRequested) break;
                                 continue;
                             }
@@ -449,6 +457,29 @@ namespace ULM.Core.Workers
                         // sinnvoll (siehe Schleife oben) — in jeder Folgephase (Nachfrage-Dialog,
                         // Abschluss) ausblenden.
                         sa.CanRequestFasterMirror = false;
+
+                        // Die manuelle "(schneller)"-Suche hat keinen besseren Mirror gefunden — kein
+                        // Fehlschlag, stiller Rückfall auf den ursprünglich erreichbaren Server (siehe
+                        // manualSkipFallbackUrl oben). KEINE Rückfrage nötig (der Anwender hat den
+                        // Wechsel selbst angestoßen) — nur ein kurzer Hinweis, dann Fortsetzung.
+                        if (!ok && manualSkipFallbackUrl != null && !_cts.IsCancellationRequested)
+                        {
+                            sa.Status = "⚡ Kein schnellerer Server gefunden — Download wird fortgesetzt …";
+                            sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            LogMessage?.Invoke($"   ↩ {entry.Name}: Kein schnellerer Mirror gefunden — setze mit {manualSkipFallbackHost} fort.");
+                            try { await Task.Delay(3000, _cts.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
+                            if (!_cts.IsCancellationRequested)
+                            {
+                                string fallbackLabel = $"⬇ {manualSkipFallbackHost} (fortgesetzt)";
+                                sa.Status = $"{fallbackLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    manualSkipFallbackUrl, destPath, _cts.Token,
+                                    (p, d) => { sa.Status = $"{fallbackLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                    .ConfigureAwait(false);
+                                if (ok) usedUrl = manualSkipFallbackUrl;
+                                else LogMessage?.Invoke($"   ❌ {entry.Name}: {manualSkipFallbackHost} letztlich doch fehlgeschlagen.");
+                            }
+                        }
 
                         // Alle Mirror ausgeschöpft, keiner erfolgreich — aber mindestens einer war
                         // erreichbar und nur zu langsam (kein echter Fehler). Statt endgültig
