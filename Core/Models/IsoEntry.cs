@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace ULM.Core.Models
 {
@@ -66,8 +67,29 @@ namespace ULM.Core.Models
             foreach (string? u in new string?[] { resolvedUrl, RemoteUrl, Url, Mirror1, Mirror2, Mirror3, Mirror4, Mirror5 })
             {
                 if (string.IsNullOrWhiteSpace(u)) continue;
-                if (seen.Add(u)) yield return u;
+                string normalized = NormalizeSourceForgeUrl(u);
+                if (seen.Add(normalized)) yield return normalized;
             }
+        }
+
+        // BUGFIX: manuell eingetragene SourceForge-Links zeigen gelegentlich auf einen konkret
+        // gepinnten Mirror (z.B. "altushost-bul.dl.sourceforge.net") statt auf SourceForges eigenen
+        // Auto-Redirector "master.dl.sourceforge.net" — typischerweise aus der Browser-Adresszeile
+        // kopiert, NACHDEM der Redirector bereits aufgelöst hat. Ein gepinnter Mirror kann für den
+        // jeweiligen Nutzer deutlich langsamer sein als der automatisch gewählte, und trägt bei
+        // manchen SourceForge-Links zusätzlich signierte, zeitlich begrenzte Parameter (z.B. "e="
+        // als Ablauf-Unixzeit) — die URL kann also nach kurzer Zeit komplett ausfallen. Wird hier
+        // beim Lesen normalisiert (nicht beim Speichern), damit bereits vorhandene Datenbank-
+        // Einträge automatisch mitkorrigiert werden, ohne dass der Nutzer sie manuell nachbearbeiten
+        // muss, und ohne den im DB-Editor sichtbaren Wert zu verfälschen.
+        private static readonly Regex PinnedSourceForgeMirror =
+            new(@"^https?://(?!master\.dl\.sourceforge\.net)[a-z0-9.-]+\.dl\.sourceforge\.net/project/([^?#]+)",
+                RegexOptions.IgnoreCase);
+
+        internal static string NormalizeSourceForgeUrl(string url)
+        {
+            Match m = PinnedSourceForgeMirror.Match(url);
+            return m.Success ? $"https://master.dl.sourceforge.net/project/{m.Groups[1].Value}?viasf=1" : url;
         }
 
         // ── Abgeleitete Eigenschaften ───────────────────────────────────
