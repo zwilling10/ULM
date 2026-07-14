@@ -116,11 +116,18 @@ namespace ULM.Views.Dialogs
     {
         public event Action? CancelRequested;
 
-        private readonly StackPanel _itemsPanel;
-        private readonly TextBlock  _summaryText;
+        private readonly StackPanel  _itemsPanel;
+        private readonly TextBlock   _summaryText;
+        private readonly StackPanel  _overallPanel;
+        private readonly ProgressBar _overallBar;
+        private readonly TextBlock   _overallText;
+        private readonly int         _total;
+        private readonly bool        _hasDownload;
+        private readonly bool        _hasCopy;
 
         private sealed class Row
         {
+            public required Border      Container;
             public required TextBlock   NameText;
             public required ProgressBar Bar;
             public required TextBlock   PercentText;
@@ -128,11 +135,22 @@ namespace ULM.Views.Dialogs
             public required string      OriginalName;
         }
 
-        private readonly Dictionary<string, Row> _rows = new(StringComparer.OrdinalIgnoreCase);
+        // UiRow wird null, sobald die Zeile nach erfolgreichem Abschluss aus der Liste entfernt
+        // wurde — der Zustand bleibt aber für den Gesamt-Fortschritt erhalten.
+        private sealed class ItemState
+        {
+            public Row?   UiRow;
+            public double DlFrac;    // 0..1 Download-Anteil
+            public double CopyFrac;  // 0..1 Kopier-Anteil
+            public bool   Done;
+        }
 
-        public DownloadProgressDialog(IEnumerable<string> isoNames)
+        private readonly Dictionary<string, ItemState> _items = new(StringComparer.OrdinalIgnoreCase);
+
+        public DownloadProgressDialog(IEnumerable<string> isoNames, bool hasDownload = true, bool hasCopy = false)
         {
             var names = isoNames.ToList();
+            _total = names.Count; _hasDownload = hasDownload; _hasCopy = hasCopy;
             Title = "Download-Fortschritt";
             Width = 540; Height = 480;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -143,15 +161,28 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _summaryText = new TextBlock { Text = names.Count == 1 ? "⬇ Download läuft ..." : "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14), Foreground = AppRes.Brush("BrushHeader") };
-            Grid.SetRow(_summaryText, 0); root.Children.Add(_summaryText);
+            var header = new StackPanel();
+            _summaryText = new TextBlock { Text = names.Count == 1 ? "⬇ Download läuft ..." : "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
+            header.Children.Add(_summaryText);
+
+            // Gesamt-Fortschrittsbalken: nur bei mehreren Einträgen sinnvoll (bei einem einzigen
+            // genügt dessen eigener Balken). Läuft auch während der Stick-Kopie weiter, wenn diese
+            // länger dauert als der Download.
+            _overallPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12), Visibility = _total > 1 ? Visibility.Visible : Visibility.Collapsed };
+            _overallText  = new TextBlock { Text = $"Gesamt: 0 %   (0/{_total} fertig)", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), Margin = new Thickness(0, 0, 0, 3) };
+            _overallBar   = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8 };
+            _overallPanel.Children.Add(_overallText);
+            _overallPanel.Children.Add(_overallBar);
+            header.Children.Add(_overallPanel);
+
+            Grid.SetRow(header, 0); root.Children.Add(header);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             _itemsPanel = new StackPanel();
             scroll.Content = _itemsPanel;
             Grid.SetRow(scroll, 1); root.Children.Add(scroll);
 
-            foreach (string name in names) AddRow(name);
+            foreach (string name in names) GetOrCreate(name);
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
             var bCan = new Button { Content = "✕ Abbrechen", Width = 120, Style = AppRes.Style("BtnDanger"), Margin = new Thickness(0, 0, 8, 0) };
@@ -185,25 +216,86 @@ namespace ULM.Views.Dialogs
 
             border.Child = stack;
             _itemsPanel.Children.Add(border);
-            var row = new Row { NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, OriginalName = name };
-            _rows[name] = row;
-            return row;
+            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, OriginalName = name };
         }
 
-        public void UpdateItem(string name, int percent, string status)
+        private ItemState GetOrCreate(string name)
         {
-            if (!_rows.TryGetValue(name, out var row)) row = AddRow(name);
-            int c = Math.Max(0, Math.Min(100, percent));
-            row.Bar.Value = c; row.PercentText.Text = $"{c}%"; row.StatusText.Text = status;
+            if (_items.TryGetValue(name, out var s)) return s;
+            s = new ItemState { UiRow = AddRow(name) };
+            _items[name] = s;
+            return s;
         }
 
+        // Download-Fortschritt eines Eintrags. Im reinen Download-Modus (keine Stick-Kopie) gilt der
+        // Eintrag bei 100 % als erfolgreich fertig und wird entfernt.
+        public void UpdateDownload(string name, int percent, string status)
+        {
+            var it = GetOrCreate(name); if (it.Done) return;
+            int c = Math.Max(0, Math.Min(100, percent));
+            it.DlFrac = c / 100.0;
+            if (it.UiRow is { } r) { r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status; }
+            if (!_hasCopy && c >= 100) { MarkDone(name, removeRow: true); return; }
+            RecomputeOverall();
+        }
+
+        // Kopier-Fortschritt eines Eintrags. Erreicht der Wert 100 %, war die Stick-Kopie erfolgreich
+        // (die Worker melden Fehlschläge mit 0 %, nicht mit 100 %) → Eintrag entfernen.
+        public void UpdateCopy(string name, int percent, string status)
+        {
+            var it = GetOrCreate(name); if (it.Done) return;
+            int c = Math.Max(0, Math.Min(100, percent));
+            it.CopyFrac = c / 100.0;
+            if (it.UiRow is { } r)
+            {
+                r.NameText.Text = $"{r.OriginalName}  —  Kopiere auf Stick";
+                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+            }
+            if (c >= 100) { MarkDone(name, removeRow: true); return; }
+            RecomputeOverall();
+        }
+
+        // Voranstellbares Phasen-Label (z.B. beim reinen Kopiervorgang bereits vor dem ersten
+        // Fortschritts-Tick).
         public void SetPhaseLabel(string name, string? phaseSuffix)
         {
-            if (!_rows.TryGetValue(name, out var row)) row = AddRow(name);
-            row.NameText.Text = string.IsNullOrWhiteSpace(phaseSuffix) ? row.OriginalName : $"{row.OriginalName}  —  {phaseSuffix}";
+            var it = GetOrCreate(name);
+            if (it.UiRow is { } r)
+                r.NameText.Text = string.IsNullOrWhiteSpace(phaseSuffix) ? r.OriginalName : $"{r.OriginalName}  —  {phaseSuffix}";
         }
 
-        public void SetOverallComplete(string summary) => _summaryText.Text = $"✅ {summary}";
+        private void MarkDone(string name, bool removeRow)
+        {
+            var it = GetOrCreate(name);
+            if (it.Done) return;
+            it.Done = true; it.DlFrac = 1; it.CopyFrac = 1;
+            if (removeRow && it.UiRow is { } r) { _itemsPanel.Children.Remove(r.Container); it.UiRow = null; }
+            RecomputeOverall();
+        }
+
+        private void RecomputeOverall()
+        {
+            if (_total <= 0) return;
+            double sum = 0; int done = 0;
+            foreach (var it in _items.Values)
+            {
+                if (it.Done) { sum += 1.0; done++; }
+                else if (_hasDownload && _hasCopy) sum += 0.5 * it.DlFrac + 0.5 * it.CopyFrac;
+                else if (_hasCopy)                 sum += it.CopyFrac;
+                else                               sum += it.DlFrac;
+            }
+            int pct = (int)Math.Round(sum * 100.0 / _total);
+            pct = Math.Max(0, Math.Min(100, pct));
+            _overallBar.Value = pct;
+            _overallText.Text = $"Gesamt: {pct} %   ({done}/{_total} fertig)";
+        }
+
+        public void SetOverallComplete(string summary)
+        {
+            _summaryText.Text = $"✅ {summary}";
+            _overallBar.Value = 100;
+            _overallText.Text = $"Gesamt: 100 %   ({_total}/{_total} fertig)";
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
