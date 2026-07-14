@@ -38,6 +38,26 @@ namespace ULM.Core.Services
                 req.Headers.TryAddWithoutValidation("Authorization", $"Bearer {GitHubToken}");
         }
 
+        // SourceForge-Downloads müssen sich als curl ausgeben. Der SCHNELLE Mirror-Pfad (der
+        // eigentliche Download bzw. dessen Geschwindigkeitsmessung, nicht die Versionsauflösung)
+        // läuft über downloads.sourceforge.net, das hinter Cloudflare liegt. Cloudflare fordert
+        // Browser-User-Agents zu einer JavaScript-Challenge auf, die ein reiner HTTP-Client (ohne
+        // JS-Engine) NICHT lösen kann → 403 Forbidden. CLI-Downloader wie curl/wget lässt Cloudflare
+        // dort dagegen gezielt durch — genau die Nutzungsart, die ULM hier hat (Datei-Download, kein
+        // Seitenaufruf). Live verifiziert: mit dem Standard-Chrome-User-Agent 403, mit curl-UA 206
+        // und voller Mirror-Geschwindigkeit (15–33 statt 3–4 Mbit/s über master direkt). Der
+        // curl-UA wird per Einzel-Request gesetzt (überschreibt den Standard-UA nur für diese
+        // Anfrage) und ausschließlich für sourceforge.net-Hosts, damit andere Anbieter, die
+        // umgekehrt Browser-UAs erwarten, unberührt bleiben.
+        private const string SourceForgeDownloadUserAgent = "curl/8.5.0";
+
+        private static void ApplyDownloadUserAgent(HttpRequestMessage req)
+        {
+            string? host = req.RequestUri?.Host;
+            if (host != null && host.EndsWith("sourceforge.net", StringComparison.OrdinalIgnoreCase))
+                req.Headers.TryAddWithoutValidation("User-Agent", SourceForgeDownloadUserAgent);
+        }
+
         private HttpService()
         {
             var handler = new SocketsHttpHandler
@@ -1111,6 +1131,7 @@ namespace ULM.Core.Services
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(duration + TimeSpan.FromSeconds(3)); // Puffer für Verbindungsaufbau/DNS
                 using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                ApplyDownloadUserAgent(req);
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) return 0;
                 using var stream = await resp.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
@@ -1156,6 +1177,7 @@ namespace ULM.Core.Services
             try
             {
                 using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                ApplyDownloadUserAgent(req);
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0L;
