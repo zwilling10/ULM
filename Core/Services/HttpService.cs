@@ -743,6 +743,24 @@ namespace ULM.Core.Services
                 string basePage = pool.First(p => p.Link == best).PageUrl;
                 string url = best.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? best
                     : Uri.TryCreate(new Uri(basePage), best, out var abs) ? abs.ToString() : basePage.TrimEnd('/') + "/" + best.TrimStart('/');
+
+                // Dieselbe Mirror1/2-Persistenz wie in ResolveViaDistroWatchAsync (siehe dortiger
+                // BUGFIX-Kommentar): über "ISO suchen" hinzugefügte Distros, die erst hier — im
+                // allerletzten Fallback — eine Quelle finden, hatten bisher NIE eine zweite Quelle
+                // zum Ausweichen, selbst wenn die Suchergebnisse mehrere brauchbare .iso-Links
+                // geliefert haben. Reachability wird hier NICHT geprüft (teuer) — übernimmt Mirror-
+                // Race vor dem eigentlichen Download.
+                if (pool.Count > 1)
+                {
+                    var extras = pool.Select(p => p.Link).Where(l => l != best)
+                        .Select(l => l.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? l
+                            : Uri.TryCreate(new Uri(basePage), l, out var eabs) ? eabs.ToString() : basePage.TrimEnd('/') + "/" + l.TrimStart('/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(2).ToList();
+                    if (extras.Count > 0 && string.IsNullOrWhiteSpace(entry.Mirror1)) entry.Mirror1 = extras[0];
+                    if (extras.Count > 1 && string.IsNullOrWhiteSpace(entry.Mirror2)) entry.Mirror2 = extras[1];
+                }
+
                 return await IsReachableAsync(url, 8).ConfigureAwait(false) ? (ExtractVersion(bestFname), url, bestFname) : Empty;
             }
             catch (Exception ex) { Debug.WriteLine($"[WebSearch] {entry.Name}: {ex.Message}"); }
