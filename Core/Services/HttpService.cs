@@ -340,7 +340,12 @@ namespace ULM.Core.Services
                 else if (nl.Contains("systemrescue"))   result = await ResolveSourceForgeAsync("systemrescuecd", "/sysresccd-x86", @"systemrescue-[\d.]+-amd64\.iso").ConfigureAwait(false);
                 else if (nl.Contains("gparted"))        result = await ResolveSourceForgeAsync("gparted", "/gparted-live-stable", @"gparted-live-[\.\d]+-\d+-amd64\.iso").ConfigureAwait(false);
                 else if (nl.Contains("clonezilla"))     result = await ResolveSourceForgeAsync("clonezilla", "/clonezilla_live_stable", @"clonezilla-live-[\.\d]+-\d+-amd64\.iso").ConfigureAwait(false);
-                else if (nl.Contains("rescuezilla"))    result = await ResolveSourceForgeAsync("rescuezilla", "/rescuezilla", @"rescuezilla-[\d.]+-64bit.*\.iso").ConfigureAwait(false);
+                // Rescuezilla ist von SourceForge komplett auf GitHub umgezogen (das SF-Projekt dient
+                // laut eigener Projektbeschreibung nur noch als Diskussionsforum, keine Dateien mehr) —
+                // der frühere dedizierte SF-Resolver lieferte deshalb nur noch verlässlich NICHTS und
+                // kostete bei jedem Versionscheck einen nutzlosen Roundtrip. Der Eintrag hat bereits
+                // GithubRepo/GithubAsset konfiguriert (siehe IsoDatabaseService), fällt also unten in
+                // ResolveGenericAsync automatisch auf die funktionierende GitHub-Auflösung zurück.
                 else if (nl.Contains("kodachi"))        result = await ResolveKodachiAsync().ConfigureAwait(false);
             }
             if (result != Empty) return result;
@@ -693,6 +698,20 @@ namespace ULM.Core.Services
                 {
                     if (candidate.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
                     { pool.Add((candidate, candidate)); continue; }
+
+                    // SourceForge-Treffer (z.B. die Projekt-Homepage) zuerst über den bewährten
+                    // RSS-Feed auflösen, bevor generisches Link-Scraping versucht wird — SourceForges
+                    // eigene Projektseiten laden ihre Dateiliste per JavaScript nach und enthalten in
+                    // der rohen HTML-Antwort deshalb KEINE .iso-Links (siehe
+                    // TryResolveSourceForgeProjectAsync). Ohne diesen Vorgriff würde ein Websuche-
+                    // Treffer auf SourceForge hier stumm leer bleiben, obwohl die Distro dort tatsächlich
+                    // gehostet wird.
+                    string? sfSlug = TryFindSourceForgeProjectSlug(candidate);
+                    if (sfSlug != null)
+                    {
+                        var sfResult = await TryResolveSourceForgeProjectAsync(sfSlug, entry.Filename).ConfigureAwait(false);
+                        if (sfResult != Empty) return sfResult;
+                    }
 
                     string? pageHtml = await GetStringAsync(candidate, 12).ConfigureAwait(false);
                     if (pageHtml is null) continue;
