@@ -27,6 +27,13 @@ namespace ULM.ViewModels
         private CancellationTokenSource _workerCts = new();
         private object?  _activeWorker;
         private string   _lastDriveSignature = string.Empty;
+        // Startphase: unterdrückt den SOFORTIGEN Stick-Scan beim Programmstart (der sonst über den
+        // SelectedDrive-Setter → TriggerUsbScan noch VOR dem Online-Versionscheck liefe). Gewünschte
+        // Reihenfolge: erst der Online-Versionscheck, danach der Stick-Scan — Letzteren stößt der
+        // Abschluss des Versionschecks ohnehin selbst an (siehe TriggerAutoVersionCheck.Completed).
+        // Wird nach dem ersten abgeschlossenen Versionscheck aufgehoben; danach scannt ein
+        // Laufwerkswechsel/Neu-Einstecken wieder sofort wie gewohnt.
+        private bool     _startupPhase = true;
         private bool     _expertMode;
 
         private static readonly string[] _platformCodenames =
@@ -64,10 +71,19 @@ namespace ULM.ViewModels
         private string _statusText = "Bereit."; public string StatusText { get => _statusText; private set => SetField(ref _statusText, value); }
         private int    _progressPercent; public int ProgressPercent { get => _progressPercent; set => SetField(ref _progressPercent, value); }
         private bool   _isBusy; public bool IsBusy { get => _isBusy; private set { if (SetField(ref _isBusy, value)) RelayCommand.RaiseCanExecuteChanged(); } }
-        private bool   _onlineScanActive;  public bool OnlineScanActive  { get => _onlineScanActive;  private set => SetField(ref _onlineScanActive,  value); }
+        private bool   _onlineScanActive;  public bool OnlineScanActive  { get => _onlineScanActive;  private set { if (SetField(ref _onlineScanActive, value)) NotifyScanHint(); } }
         private int    _onlineScanPercent; public int  OnlineScanPercent { get => _onlineScanPercent; private set => SetField(ref _onlineScanPercent, value); }
-        private bool   _usbScanActive;    public bool UsbScanActive     { get => _usbScanActive;     private set => SetField(ref _usbScanActive,     value); }
+        private bool   _usbScanActive;    public bool UsbScanActive     { get => _usbScanActive;     private set { if (SetField(ref _usbScanActive, value)) NotifyScanHint(); } }
         private int    _usbScanPercent;   public int  UsbScanPercent    { get => _usbScanPercent;    private set => SetField(ref _usbScanPercent,    value); }
+
+        // Für den Startphasen-Hinweis (rotierender Spinner + pulsierender Text): sichtbar, solange
+        // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
+        // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
+        public bool ScanInProgress => OnlineScanActive || UsbScanActive;
+        public string ScanHintText => OnlineScanActive ? "Online-Versionscheck läuft"
+                                    : UsbScanActive     ? "Stick-Scan läuft"
+                                    : string.Empty;
+        private void NotifyScanHint() { OnPropertyChanged(nameof(ScanInProgress)); OnPropertyChanged(nameof(ScanHintText)); }
         private bool   _healthCheckActive;  public bool HealthCheckActive  { get => _healthCheckActive;  private set => SetField(ref _healthCheckActive,  value); }
         private int    _healthCheckPercent; public int  HealthCheckPercent { get => _healthCheckPercent; private set => SetField(ref _healthCheckPercent, value); }
 
@@ -312,6 +328,9 @@ namespace ULM.ViewModels
         // geführt, statt einen weiteren nebenher zu starten.
         public void TriggerUsbScan()
         {
+            // Während der Startphase bewusst NICHT scannen — der Stick-Scan folgt erst nach dem
+            // Online-Versionscheck (siehe _startupPhase / TriggerAutoVersionCheck.Completed).
+            if (_startupPhase) return;
             if (string.IsNullOrEmpty(SelectedDriveLetter) || UsbScanActive) return;
             Log($"💾 Stick-Scan: {SelectedDriveLetter}");
             StatusText = $"Scanne {SelectedDriveLetter}..."; UsbScanActive = true; UsbScanPercent = 0;
@@ -492,6 +511,9 @@ namespace ULM.ViewModels
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
                     else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
                     OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
+                    // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
+                    // sofort scannen. Der Start-Stick-Scan selbst folgt unten (capturedDrive).
+                    _startupPhase = false;
                     StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
                                : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
                     Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
@@ -537,8 +559,20 @@ namespace ULM.ViewModels
             // Download-Slot (läuft in seinem eigenen Hintergrund-Task), die anderen parallelen
             // Slots laufen unbeeinflusst weiter.
             worker.ConfirmSlowDownloadAnyway = (name, host) => _ui.Invoke(() => ConfirmSlowDownload?.Invoke(name, host) ?? false);
+
+            // Erfolgreich fertige Distros automatisch abwählen (Häkchen entfernen), damit sie beim
+            // nächsten Start-Klick nicht versehentlich erneut heruntergeladen werden. Im Pipeline-
+            // Modus (Download → Stick-Kopie) geschieht das erst NACH erfolgreicher Kopie (siehe
+            // RunPipelineCopyConsumerAsync); im reinen Download-Modus schon nach dem Download.
+            bool usePipeline = copyAfter && !string.IsNullOrEmpty(drive);
+            if (!usePipeline)
+                worker.ItemCompleted += (entry, success) =>
+                {
+                    if (success) _ui.Invoke(() => { entry.IsSelected = false; RefreshEntry(GetEntryIndex(entry.Name)); });
+                };
+
             Channel<IsoEntry>? pipelineChannel = null; Task? pipelineTask = null;
-            if (copyAfter && !string.IsNullOrEmpty(drive))
+            if (usePipeline)
             {
                 pipelineChannel = Channel.CreateUnbounded<IsoEntry>(new UnboundedChannelOptions { SingleReader = true });
                 var channelReader = pipelineChannel.Reader; var capDrive = drive;
@@ -686,6 +720,9 @@ namespace ULM.ViewModels
                 entry.UsbStatus = Core.Models.UsbStatus.Ok;
                 entry.UsbSize   = FormatGb(sz);
                 entry.VerifiedComplete = false;
+                // Erfolgreich heruntergeladen UND kopiert → Häkchen entfernen (siehe usePipeline-
+                // Kommentar in StartDownload).
+                entry.IsSelected = false;
                 bool localDeleted = IsoEntry.TryDelete(srcPath, msg => _ui.Invoke(() => Log(msg)));
                 string fn  = entryName;
                 int    idx = GetEntryIndex(fn);

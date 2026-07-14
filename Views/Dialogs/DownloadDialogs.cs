@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -131,6 +132,7 @@ namespace ULM.Views.Dialogs
 
         public DownloadProgressDialog(IEnumerable<string> isoNames)
         {
+            var names = isoNames.ToList();
             Title = "Download-Fortschritt";
             Width = 540; Height = 480;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -141,7 +143,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _summaryText = new TextBlock { Text = "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14), Foreground = AppRes.Brush("BrushHeader") };
+            _summaryText = new TextBlock { Text = names.Count == 1 ? "⬇ Download läuft ..." : "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14), Foreground = AppRes.Brush("BrushHeader") };
             Grid.SetRow(_summaryText, 0); root.Children.Add(_summaryText);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -149,7 +151,7 @@ namespace ULM.Views.Dialogs
             scroll.Content = _itemsPanel;
             Grid.SetRow(scroll, 1); root.Children.Add(scroll);
 
-            foreach (string name in isoNames) AddRow(name);
+            foreach (string name in names) AddRow(name);
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
             var bCan = new Button { Content = "✕ Abbrechen", Width = 120, Style = AppRes.Style("BtnDanger"), Margin = new Thickness(0, 0, 8, 0) };
