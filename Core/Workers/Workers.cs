@@ -266,7 +266,16 @@ namespace ULM.Core.Workers
             for (int i = 0; i < total; i++)
             {
                 int index = i; var entry = _entries[index];
-                await semaphore.WaitAsync(_cts.Token).ConfigureAwait(false);
+                // BUGFIX: Bricht der Anwender ab, während dieser Slot noch auf einen freien Platz
+                // wartet (alle _maxConcurrent Downloads belegt), wirft WaitAsync eine
+                // OperationCanceledException. Ungefangen entkam die aus dieser Task.Run-Lambda, ließ
+                // RunAsync() mit einer faulted Task enden und stürzte über das ungeschützte
+                // "await worker.RunAsync()" in der async-void-Methode MainViewModel.StartDownload als
+                // echte unbehandelte Exception ab (AppDomain.UnhandledException-Dialog). Ein Abbruch
+                // ist hier ein erwarteter, kein außergewöhnlicher Fall — daher schlicht abbrechen wie
+                // im nicht-werfenden Fall direkt darunter.
+                try { await semaphore.WaitAsync(_cts.Token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
                 if (_cts.IsCancellationRequested) break;
                 tasks.Add(Task.Run(async () =>
                 {
