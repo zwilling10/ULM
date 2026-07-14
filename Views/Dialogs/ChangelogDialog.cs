@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.31.0", new[]
+            {
+                "Neu: Autostart-Option — Checkbox im Einrichtungsfenster startet ULM ab sofort automatisch mit Windows, kein Admin-Recht nötig",
+            }),
             ("2.30.0", new[]
             {
                 "Neu: „🔍 ISO suchen“ zeigt jetzt zwei Online-Listen von DistroWatch — „🆕 Aktuellste“ (neu hinzugefügte Distros) und „🔥 Beliebteste“ (Popularitäts-Ranking), beide gefiltert auf garantiert per USB-Stick bootfähige Live-Medium-Distros, mit Kategorie-Vorschlag, Tooltip und optionalem Direkt-Download. Die frühere reine Textsuche entfällt (dafür: „🗃 Datenbank“)",
