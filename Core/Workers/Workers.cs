@@ -1,5 +1,6 @@
 // Core/Workers/Workers.cs
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -209,6 +210,10 @@ namespace ULM.Core.Workers
         public string IsoName { get; set; } = string.Empty;
         public string Status  { get; set; } = string.Empty;
         public int    Percent { get; set; }
+        // True nur während eines laufenden Mirror-Download-Versuchs, für den noch mindestens ein
+        // weiterer (bereits vom Mirror-Race gemessener) Kandidat übrig ist — steuert die
+        // Sichtbarkeit des "(schneller)"-Buttons im Fortschrittsfenster.
+        public bool   CanRequestFasterMirror { get; set; }
     }
 
     public sealed class DownloadWorker
@@ -222,6 +227,35 @@ namespace ULM.Core.Workers
         public event Action<IsoEntry, bool>?    ItemCompleted;
         public event Action<int, int, int>?     Completed;
         public event Action<string>?            LogMessage;
+
+        // Der jeweils laufende Mirror-Versuch pro Distro (Name → Versuch), damit ein von außen
+        // (Anwender-Klick auf "(schneller)") ausgelöster RequestFasterMirror()-Aufruf GENAU diesen
+        // einen Versuch abbrechen kann, ohne den ganzen Batch oder andere parallele Downloads zu
+        // berühren. Siehe RequestFasterMirror weiter unten.
+        private sealed class ActiveAttempt
+        {
+            public required CancellationTokenSource Cts;
+            public bool HasMoreMirrors;
+            public bool ManualSkipRequested;
+        }
+        private readonly ConcurrentDictionary<string, ActiveAttempt> _activeAttempts = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Bricht den GERADE laufenden Mirror-Download-Versuch für die genannte Distro ab, damit der
+        /// nächste (vom Mirror-Race bereits gemessene) Kandidat versucht wird — z.B. wenn der aktuelle
+        /// Server zwar deutlich über der Geschwindigkeits-Wächter-Schwelle liegt, dem Anwender aber
+        /// trotzdem zu langsam ist. Anders als beim automatischen Geschwindigkeits-Wächter wird dieser
+        /// Wechsel NICHT als "dauerhaft langsam" geloggt und fließt nicht in die "trotzdem fortfahren?"-
+        /// Bewertung ein (siehe ManualSkipRequested). Gibt false zurück, wenn gerade kein Versuch läuft
+        /// oder kein weiterer Kandidat mehr übrig ist (Button ist dann in der UI ohnehin ausgeblendet).
+        /// </summary>
+        public bool RequestFasterMirror(string entryName)
+        {
+            if (!_activeAttempts.TryGetValue(entryName, out var active) || !active.HasMoreMirrors) return false;
+            active.ManualSkipRequested = true;
+            try { active.Cts.Cancel(); } catch (ObjectDisposedException) { return false; }
+            return true;
+        }
 
         /// <summary>
         /// Wird aufgerufen, wenn alle Mirror-Versuche für eine Distro ausgeschöpft sind, aber
@@ -344,7 +378,8 @@ namespace ULM.Core.Workers
                             mirrorIdx++;
                             string host = TryGetSourceLabel(tryUrl);
                             string label = mirrorIdx == 1 ? $"⬇ {host}" : $"⬇ Mirror {mirrorIdx}: {host}";
-                            sa.Status = $"{label} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            bool hasMoreMirrors = mirrorIdx < urlsToTry.Count;
+                            sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = hasMoreMirrors; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
 
                             // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
@@ -359,24 +394,46 @@ namespace ULM.Core.Workers
                             var lastFastEnough = attemptSw.Elapsed;
                             bool abortedForSlowness = false;
 
-                            ok = await HttpService.Instance.DownloadFileAsync(
-                                tryUrl, destPath, mirrorCts.Token,
-                                (p, d) =>
-                                {
-                                    sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
-                                    double bps = ParseSpeedBytesPerSec(d);
-                                    if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
-                                    else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                            // Registriert diesen Versuch für RequestFasterMirror (Anwender-Klick auf
+                            // "(schneller)") — der Server liegt über der Geschwindigkeits-Wächter-
+                            // Schwelle (sonst würde der Wächter selbst schon abbrechen), ist dem
+                            // Anwender aber trotzdem zu langsam.
+                            var active = new ActiveAttempt { Cts = mirrorCts, HasMoreMirrors = hasMoreMirrors };
+                            _activeAttempts[entry.Name] = active;
+                            try
+                            {
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    tryUrl, destPath, mirrorCts.Token,
+                                    (p, d) =>
                                     {
-                                        abortedForSlowness = true;
-                                        LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
-                                            (mirrorIdx < urlsToTry.Count ? " und versuche nächste Quelle …" : "."));
-                                        mirrorCts.Cancel();
-                                    }
-                                })
-                                .ConfigureAwait(false);
+                                        sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
+                                        double bps = ParseSpeedBytesPerSec(d);
+                                        if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
+                                        else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                                        {
+                                            abortedForSlowness = true;
+                                            LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
+                                                (hasMoreMirrors ? " und versuche nächste Quelle …" : "."));
+                                            mirrorCts.Cancel();
+                                        }
+                                    })
+                                    .ConfigureAwait(false);
+                            }
+                            finally { _activeAttempts.TryRemove(entry.Name, out _); }
 
                             if (ok) { usedUrl = tryUrl; break; }
+
+                            // Anwender hat manuell "(schneller)" geklickt — kein Fehler, keine
+                            // Langsamkeits-Meldung, einfach weiter zum nächsten (bereits gemessenen)
+                            // Mirror. Zählt bewusst NICHT als slowAbortedUrl: der Server war schnell
+                            // genug (sonst hätte der Wächter selbst schon abgebrochen), es gibt also
+                            // nichts, worüber am Ende noch "trotzdem fortfahren?" gefragt werden müsste.
+                            if (active.ManualSkipRequested)
+                            {
+                                LogMessage?.Invoke($"   ⚡ {entry.Name}: Nutzer fordert schnelleren Mirror an — wechsle von {host} …");
+                                if (_cts.IsCancellationRequested) break;
+                                continue;
+                            }
 
                             // Nur den ERSTEN Langsamkeits-Abbruch merken — dank Mirror-Race sind die
                             // Kandidaten schon nach gemessener Geschwindigkeit sortiert, der erste
@@ -388,6 +445,10 @@ namespace ULM.Core.Workers
                                 LogMessage?.Invoke($"   ⚠ {entry.Name}: {host} fehlgeschlagen{(mirrorIdx < urlsToTry.Count ? " — versuche nächsten Mirror …" : ".")}");
                             if (_cts.IsCancellationRequested) break;
                         }
+                        // Button "(schneller)" ist nur WÄHREND eines laufenden Mirror-Versuchs
+                        // sinnvoll (siehe Schleife oben) — in jeder Folgephase (Nachfrage-Dialog,
+                        // Abschluss) ausblenden.
+                        sa.CanRequestFasterMirror = false;
 
                         // Alle Mirror ausgeschöpft, keiner erfolgreich — aber mindestens einer war
                         // erreichbar und nur zu langsam (kein echter Fehler). Statt endgültig

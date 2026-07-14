@@ -120,7 +120,7 @@ namespace ULM.ViewModels
         public event Action<List<UsbService.StickIso>, string>? IncompleteIsosOnStickDetected;
         public event Action<List<VersionCheckEntryResult>>?     HealthCheckCompleted;
         public event Action<List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>, string>? NewerVersionsOnStickDetected;
-        public event Action<string, int, string>? DownloadItemProgress;
+        public event Action<string, int, string, bool>? DownloadItemProgress;
         public event Action<int, int, int>?       DownloadBatchCompleted;
         public event Action<string, int, string>? CopyItemProgress;
         public event Action<int>?                 CopyBatchCompleted;
@@ -587,12 +587,12 @@ namespace ULM.ViewModels
                     if (success && entry.IsLocallyAvailable(_paths.DownloadDir))
                     {
                         pipelineChannel.Writer.TryWrite(entry);
-                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …"); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
+                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
                     }
                 };
             }
             worker.OverallProgress += (pct, detail) => _ui.Invoke(() => { ProgressPercent = pct; StatusText = $"⬇ {detail}"; });
-            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status); });
+            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror); });
             worker.Completed += (ok, failed, _) => _ui.Invoke(() =>
             {
                 _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen."); DownloadBatchCompleted?.Invoke(ok, failed, 0);
@@ -937,6 +937,14 @@ namespace ULM.ViewModels
             if (_activeWorker is UrlCheckWorker   uw) uw.Cancel();
             if (_activeWorker is UpdateScanWorker us) us.Cancel();
             Log("⛔ Abbruch."); StatusText = "Abbruch …"; ProgressPercent = 0;
+        }
+
+        // Reicht den Klick auf "(schneller)" im Fortschrittsfenster an den gerade aktiven
+        // DownloadWorker weiter (siehe DownloadWorker.RequestFasterMirror). Kein Effekt, wenn gerade
+        // kein Download läuft oder der Button für diesen Eintrag bereits ausgeblendet wurde.
+        public void RequestFasterMirror(string entryName)
+        {
+            if (_activeWorker is DownloadWorker dw) dw.RequestFasterMirror(entryName);
         }
 
         private void SetBusy(bool busy) { IsBusy = busy; if (busy) ProgressPercent = 0; }

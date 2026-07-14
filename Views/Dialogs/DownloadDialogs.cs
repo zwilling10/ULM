@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using ULM.Core.Models;
 using ULM.Core.Services;
@@ -115,6 +116,10 @@ namespace ULM.Views.Dialogs
     public sealed class DownloadProgressDialog : Window
     {
         public event Action? CancelRequested;
+        // Anwender-Klick auf den "(schneller)"-Button einer Zeile — der Server läuft zwar über der
+        // Geschwindigkeits-Wächter-Schwelle (sonst wäre der Download schon automatisch abgebrochen
+        // worden), ist dem Anwender aber trotzdem zu langsam. Träger ist der Distro-Name.
+        public event Action<string>? FasterMirrorRequested;
 
         private readonly StackPanel  _itemsPanel;
         private readonly TextBlock   _summaryText;
@@ -132,6 +137,7 @@ namespace ULM.Views.Dialogs
             public required ProgressBar Bar;
             public required TextBlock   PercentText;
             public required TextBlock   StatusText;
+            public required Button      FasterBtn;
             public required string      OriginalName;
         }
 
@@ -202,11 +208,20 @@ namespace ULM.Views.Dialogs
             var hRow = new Grid();
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var nameText = new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = AppRes.Brush("BrushHeader") };
             Grid.SetColumn(nameText, 0); hRow.Children.Add(nameText);
-            var pctText  = new TextBlock { Text = "0%", FontSize = 11, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushBlue") };
-            Grid.SetColumn(pctText, 1); hRow.Children.Add(pctText);
+
+            // Nur sichtbar, während ein Mirror-Versuch läuft, der über der Geschwindigkeits-Wächter-
+            // Schwelle liegt, ABER noch mindestens ein weiterer (bereits gemessener) Mirror übrig ist —
+            // siehe UpdateDownload/DownloadWorker.ActiveAttempt.HasMoreMirrors.
+            var fasterBtn = CreateFasterMirrorButton();
+            fasterBtn.Click += (_, _) => FasterMirrorRequested?.Invoke(name);
+            Grid.SetColumn(fasterBtn, 1); hRow.Children.Add(fasterBtn);
+
+            var pctText  = new TextBlock { Text = "0%", FontSize = 11, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushBlue"), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(pctText, 2); hRow.Children.Add(pctText);
             stack.Children.Add(hRow);
 
             var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8, Margin = new Thickness(0, 5, 0, 3) };
@@ -216,7 +231,40 @@ namespace ULM.Views.Dialogs
 
             border.Child = stack;
             _itemsPanel.Children.Add(border);
-            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, OriginalName = name };
+            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, FasterBtn = fasterBtn, OriginalName = name };
+        }
+
+        // Kleiner, pillenförmiger ("runder") Button mit Text "(schneller)" — bricht auf Klick den
+        // aktuellen Mirror-Download-Versuch ab und wechselt zum nächsten, vom Mirror-Race bereits
+        // gemessenen Kandidaten (siehe DownloadWorker.RequestFasterMirror).
+        private static Button CreateFasterMirrorButton()
+        {
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "Bd";
+            borderFactory.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding(nameof(Button.Background)) { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(9));
+            borderFactory.SetValue(Border.PaddingProperty, new Thickness(9, 0, 9, 0));
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
+            template.Triggers.Add(new Trigger { Property = Button.IsMouseOverProperty, Value = true, Setters = { new Setter(Border.OpacityProperty, 0.8, "Bd") } });
+            template.Triggers.Add(new Trigger { Property = Button.IsPressedProperty,   Value = true, Setters = { new Setter(Border.OpacityProperty, 0.6, "Bd") } });
+
+            return new Button
+            {
+                Content = "(schneller)",
+                FontSize = 8, Height = 18,
+                Background = AppRes.Brush("BrushBlue"), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Template = template,
+                ToolTip = "Aktuellen Server abbrechen und zum nächsten (bereits getesteten) Mirror wechseln",
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+            };
         }
 
         private ItemState GetOrCreate(string name)
@@ -229,12 +277,16 @@ namespace ULM.Views.Dialogs
 
         // Download-Fortschritt eines Eintrags. Im reinen Download-Modus (keine Stick-Kopie) gilt der
         // Eintrag bei 100 % als erfolgreich fertig und wird entfernt.
-        public void UpdateDownload(string name, int percent, string status)
+        public void UpdateDownload(string name, int percent, string status, bool canFasterMirror = false)
         {
             var it = GetOrCreate(name); if (it.Done) return;
             int c = Math.Max(0, Math.Min(100, percent));
             it.DlFrac = c / 100.0;
-            if (it.UiRow is { } r) { r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status; }
+            if (it.UiRow is { } r)
+            {
+                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.FasterBtn.Visibility = canFasterMirror ? Visibility.Visible : Visibility.Collapsed;
+            }
             if (!_hasCopy && c >= 100) { MarkDone(name, removeRow: true); return; }
             RecomputeOverall();
         }
@@ -250,6 +302,7 @@ namespace ULM.Views.Dialogs
             {
                 r.NameText.Text = $"{r.OriginalName}  —  Kopiere auf Stick";
                 r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.FasterBtn.Visibility = Visibility.Collapsed; // Mirror-Wahl betrifft nur den Download, nicht die Stick-Kopie.
             }
             if (c >= 100) { MarkDone(name, removeRow: true); return; }
             RecomputeOverall();

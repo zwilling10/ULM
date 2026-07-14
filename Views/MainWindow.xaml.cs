@@ -123,7 +123,7 @@ namespace ULM.Views
                 else AppendLog($"ℹ Stick-Wartung übersprungen ({fresh.Count} Datei(en) behalten).");
             };
 
-            _vm.DownloadItemProgress   += (name, pct, status) => _downloadProgressDialog?.UpdateDownload(name, pct, status);
+            _vm.DownloadItemProgress   += (name, pct, status, canFaster) => _downloadProgressDialog?.UpdateDownload(name, pct, status, canFaster);
             _vm.DownloadBatchCompleted += (ok, failed, _) => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete($"{ok} erfolgreich" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + "."); };
             _vm.CopyItemProgress       += (name, pct, detail) => _downloadProgressDialog?.UpdateCopy(name, pct, detail);
             _vm.CopyBatchCompleted     += count => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete(count > 0 ? $"{count} ISO(s) auf den Stick kopiert." : "Nichts kopiert."); };
@@ -516,6 +516,7 @@ namespace ULM.Views
             var nameList = names.ToList();
             _downloadProgressDialog = new DownloadProgressDialog(nameList, hasDownload, hasCopy) { Owner = this };
             _downloadProgressDialog.CancelRequested += () => _vm.CancelCommand.Execute(null);
+            _downloadProgressDialog.FasterMirrorRequested += name => _vm.RequestFasterMirror(name);
             _downloadProgressDialog.Closed += (_, _) => _downloadProgressDialog = null;
             // Reiner Kopiervorgang (kein Download davor): Zeilen sofort als "Kopiere auf Stick" labeln.
             if (hasCopy && !hasDownload) foreach (string n in nameList) _downloadProgressDialog.SetPhaseLabel(n, "Kopiere auf Stick");
