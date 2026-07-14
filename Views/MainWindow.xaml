@@ -135,7 +135,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal"
                             VerticalAlignment="Center" HorizontalAlignment="Center"
                             Visibility="{Binding ScanInProgress, Converter={StaticResource BoolToVis}}">
-                    <Ellipse Width="18" Height="18" Stroke="#FFC107" StrokeThickness="2.6"
+                    <Ellipse Width="15" Height="15" Stroke="#FFC107" StrokeThickness="2.3"
                              StrokeDashArray="3.4 2.2" StrokeDashCap="Round"
                              RenderTransformOrigin="0.5,0.5">
                         <Ellipse.RenderTransform>
@@ -154,9 +154,9 @@
                             </EventTrigger>
                         </Ellipse.Triggers>
                     </Ellipse>
-                    <TextBlock Margin="10,0,0,0" VerticalAlignment="Center"
-                               Foreground="#FFC107" FontSize="12" FontWeight="SemiBold"
-                               Text="{Binding ScanHintText, StringFormat=⏳ {0} — bitte noch nicht klicken …}">
+                    <TextBlock Margin="8,0,0,0" VerticalAlignment="Center"
+                               Foreground="#FFC107" FontSize="10.5" FontWeight="SemiBold"
+                               Text="{Binding ScanHintText}">
                         <TextBlock.Triggers>
                             <EventTrigger RoutedEvent="Loaded">
                                 <BeginStoryboard>

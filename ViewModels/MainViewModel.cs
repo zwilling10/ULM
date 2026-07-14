@@ -80,8 +80,8 @@ namespace ULM.ViewModels
         // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
         // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
         public bool ScanInProgress => OnlineScanActive || UsbScanActive;
-        public string ScanHintText => OnlineScanActive ? "Online-Versionscheck läuft"
-                                    : UsbScanActive     ? "Stick-Scan läuft"
+        public string ScanHintText => OnlineScanActive ? "Online-Scan, bitte warten"
+                                    : UsbScanActive     ? "Stick-Scan, bitte warten"
                                     : string.Empty;
         private void NotifyScanHint() { OnPropertyChanged(nameof(ScanInProgress)); OnPropertyChanged(nameof(ScanHintText)); }
         private bool   _healthCheckActive;  public bool HealthCheckActive  { get => _healthCheckActive;  private set => SetField(ref _healthCheckActive,  value); }
