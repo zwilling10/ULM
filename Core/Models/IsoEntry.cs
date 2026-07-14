@@ -92,6 +92,44 @@ namespace ULM.Core.Models
             return m.Success ? $"https://master.dl.sourceforge.net/project/{m.Groups[1].Value}?viasf=1" : url;
         }
 
+        // Bekannte, geografisch gestreute SourceForge-Mirror. "?use_mirror=<name>" bittet
+        // SourceForges Redirector, GENAU diesen Mirror zu bevorzugen; ein unbekannter/toter Name
+        // wird gefahrlos ignoriert (SourceForge wählt dann automatisch einen funktionierenden
+        // Mirror — live geprüft: liefert weiterhin 206). Ein veralteter Eintrag hier kann also nie
+        // ein schlechteres Ergebnis liefern als die schlichte master-URL. Zweck: dem Mirror-Race
+        // ECHTE Auswahl geben statt immer nur den EINEN Server zu messen, den master von sich aus
+        // zuteilt — real gemessene Spannweite für dieselbe Datei: 3 vs. 14 Mbit/s je nach Mirror.
+        // Bewusst breit gestreut (DE/SE/BG/US), damit auf beliebigen Nutzer-Standorten mindestens
+        // ein naher, schneller Mirror im Rennen ist — welcher es ist, entscheidet das Race selbst.
+        private static readonly string[] SourceForgeMirrors =
+            { "deac-fra", "altushost-swe", "netix", "phoenixnap" };
+
+        private static readonly Regex SourceForgeMasterProjectPath =
+            new(@"^https?://master\.dl\.sourceforge\.net/project/([^?#]+)", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Fächert eine SourceForge-master-Download-URL in mehrere Kandidaten auf: die schlichte
+        /// master-URL (SourceForges eigene Mirror-Wahl) PLUS je eine "?use_mirror=<name>"-Variante
+        /// pro bekanntem Mirror. Jede Variante ist stabil (kein ablaufendes signiertes Token) und
+        /// landet tendenziell auf einem ANDEREN Auslieferungs-Server — so bekommt das Mirror-Race
+        /// echte Geschwindigkeitsunterschiede zu messen, statt immer nur den einen von master
+        /// zugeteilten Server. URLs, die NICHT dem master-Muster entsprechen (Nicht-SourceForge,
+        /// GitHub, direkte CDN-Links), werden unverändert als Einzelelement zurückgegeben.
+        /// </summary>
+        internal static IReadOnlyList<string> ExpandSourceForgeMirrors(string url)
+        {
+            Match m = SourceForgeMasterProjectPath.Match(url);
+            if (!m.Success) return new[] { url };
+            string path = m.Groups[1].Value;
+            var list = new List<string>(SourceForgeMirrors.Length + 1)
+            {
+                $"https://master.dl.sourceforge.net/project/{path}?viasf=1",
+            };
+            foreach (string mirror in SourceForgeMirrors)
+                list.Add($"https://master.dl.sourceforge.net/project/{path}?use_mirror={mirror}");
+            return list;
+        }
+
         // ── Abgeleitete Eigenschaften ───────────────────────────────────
         public string NormalizedCategory =>
             Category == "Leichtgewichtig" ? "Leichtgewicht" : Category;
