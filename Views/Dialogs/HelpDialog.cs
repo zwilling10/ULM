@@ -132,7 +132,7 @@ namespace ULM.Views.Dialogs
                 "Prüft im Hintergrund, ob auf GitHub eine neuere ULM-Version verfügbar ist. Läuft rein " +
                 "informativ mit — kein Dialog, keine Unterbrechung. Ist eine neue Version verfügbar, " +
                 "erscheint nur eine Zeile im Protokoll:\n" +
-                "  🆕 Neue ULM-Version verfügbar: v2.28.0 (aktuell installiert: v2.27.1)\n" +
+                "  🆕 Neue ULM-Version verfügbar: vX.Y.Z (aktuell installiert: vA.B.C)\n" +
                 "gefolgt vom Link zur Release-Seite."));
             content.Children.Add(MakeItem("„Was ist neu?“-Dialog",
                 "Erscheint automatisch beim ersten Start NACH einem Update auf eine neue ULM-Version " +
@@ -195,8 +195,8 @@ namespace ULM.Views.Dialogs
                 "  'Ungeprüft'   = Stick wurde noch nicht gescannt"));
             content.Children.Add(MakeItem("Aktuell",
                 "Zeigt das Ergebnis des Online-Versionschecks:\n" +
-                "  'Update v7.9.1'     = neuere Version online verfügbar\n" +
-                "  'Aktuell (v7.9.1)'  = Online-Check: bereits aktuellste Version\n" +
+                "  'Update vX.Y.Z'     = neuere Version online verfügbar\n" +
+                "  'Aktuell (vX.Y.Z)'  = Online-Check: bereits aktuellste Version\n" +
                 "  'Lokal vorhanden'   = lokal vorhanden, kein Online-Check\n" +
                 "  '?'                 = noch nicht geprüft"));
             content.Children.Add(Spacer(6));
@@ -211,9 +211,9 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("🌐✗ (Suffix)",
                 "URL-Check fehlgeschlagen — die Download-URL ist nicht erreichbar. " +
                 "Mouseover zeigt: 'URL nicht erreichbar — Download-Server antwortet nicht'."));
-            content.Children.Add(MakeItem("🆕 v7.9.1 (Suffix)",
-                "Online wurde eine neuere Version (hier: v7.9.1) gefunden. " +
-                "Mouseover zeigt: 'Neue Version verfügbar: v7.9.1 (jetzt herunterladen)'. " +
+            content.Children.Add(MakeItem("🆕 vX.Y.Z (Suffix)",
+                "Online wurde eine neuere Version (hier beispielhaft: vX.Y.Z) gefunden. " +
+                "Mouseover zeigt: 'Neue Version verfügbar: vX.Y.Z (jetzt herunterladen)'. " +
                 "Eintrag auswählen und Download starten."));
             content.Children.Add(Spacer(6));
 
@@ -340,7 +340,7 @@ namespace ULM.Views.Dialogs
                 "Beginn mit einer Ja/Nein-Rückfrage, statt erst mittendrin auf mehreren parallelen " +
                 "Downloads zugleich zu scheitern. Zusätzlich prüft ein zweiter, feingranularer Check " +
                 "unmittelbar vor jeder einzelnen Datei erneut den dann noch verfügbaren Platz:\n" +
-                "  ❌ Nicht genug Speicherplatz auf E:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
+                "  ❌ Nicht genug Speicherplatz auf X:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
             content.Children.Add(Spacer());
 
             // ── USB-Stick ──────────────────────────────────────────────────
