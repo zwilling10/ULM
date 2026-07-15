@@ -352,6 +352,18 @@ namespace ULM.ViewModels
                     IncompleteIsosOnStickDetected?.Invoke(incomplete, ltr);
                 }
 
+                _ = Task.Run(async () =>
+                {
+                    var mismatches = await DetectVersionlessHashMismatchesAsync(found).ConfigureAwait(false);
+                    if (mismatches.Count == 0) return;
+                    _ui.Invoke(() =>
+                    {
+                        Log($"⚠ Stick-Scan {ltr}: {mismatches.Count} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.");
+                        foreach (var m in mismatches) Log($"   ⚠ {m.Filename} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.");
+                        IncompleteIsosOnStickDetected?.Invoke(mismatches, ltr);
+                    });
+                });
+
                 var newerOnStick = DetectNewerVersionsOnStick(found);
                 var newerFnSet   = new HashSet<string>(newerOnStick.Select(x => x.StickIso.Filename), StringComparer.OrdinalIgnoreCase);
                 var dbFn         = new HashSet<string>(_db.Entries.Select(e => e.Filename), StringComparer.OrdinalIgnoreCase);
@@ -433,6 +445,32 @@ namespace ULM.ViewModels
             }
         }
 
+        /// <summary>
+        /// Verdachtsfall 1 (siehe Spec): für Einträge mit versionslosem Dateinamen (z. B. Hiren's
+        /// BootCD — der Dateiname ändert sich nie, RepresentsGenuineFilenameChange kann also NIE
+        /// "veraltet" erkennen) ist ein Namensvergleich wirkungslos. Hier wird stattdessen die
+        /// Stick-Kopie gegen den zuletzt lokal verifizierten Referenz-Hash geprüft — erkennt stille
+        /// Beschädigung oder eine heimlich andere Datei unter demselben Namen. Sagt NICHTS darüber
+        /// aus, ob online eine neuere Version existiert (das bleibt außerhalb des Scopes, siehe Spec
+        /// Nicht-Ziele) — nur, ob die Stick-Datei der zuletzt bekannten guten Version entspricht.
+        /// </summary>
+        private async Task<List<UsbService.StickIso>> DetectVersionlessHashMismatchesAsync(List<UsbService.StickIso> found)
+        {
+            var mismatches = new List<UsbService.StickIso>();
+            var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
+
+            foreach (var e in _db.Entries)
+            {
+                if (string.IsNullOrEmpty(e.Sha256) || !HasVersionlessFilename(e.Filename)) continue;
+                if (!byFn.TryGetValue(e.Filename, out var stick)) continue;
+                string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
+                    mismatches.Add(stick);
+            }
+            return mismatches;
+        }
+
         internal static bool IsSameDistroDifferentVersion(string a, string b)
         {
             if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
@@ -482,6 +520,9 @@ namespace ULM.ViewModels
             }
             return (outdated, duplicates);
         }
+
+        internal static bool HasVersionlessFilename(string filename)
+            => !string.IsNullOrWhiteSpace(filename) && string.IsNullOrEmpty(HttpService.ExtractVersion(filename));
 
         internal static string NormalizeForDistroComparison(string filename)
         {

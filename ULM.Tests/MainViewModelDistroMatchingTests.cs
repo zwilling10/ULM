@@ -103,6 +103,18 @@ public class MainViewModelDistroMatchingTests
     public void RepresentsGenuineFilenameChange_OnlyTrueWhenFilenameActuallyDiffers(string oldFilename, string newFilename, bool expected)
         => Assert.Equal(expected, MainViewModel.RepresentsGenuineFilenameChange(oldFilename, newFilename));
 
+    // Entscheidet, ob für einen Eintrag ein Hash-Rehash sinnvoll ist: nur wenn sich aus dem
+    // Dateinamen KEINE Version ablesen lässt (z. B. "HBCD_PE_x64.iso") — bei versionierten
+    // Dateinamen ("ubuntu-24.04...") reicht der bestehende Namensvergleich, ein Hash-Rehash über
+    // USB wäre unnötig teuer.
+    [Theory]
+    [InlineData("HBCD_PE_x64.iso", true)]
+    [InlineData("ubuntu-24.04-desktop-amd64.iso", false)]
+    [InlineData("equestria-os-2026.07.15-x86_64.iso", false)]
+    [InlineData("", false)]
+    public void HasVersionlessFilename_TrueOnlyWithoutExtractableVersion(string filename, bool expected)
+        => Assert.Equal(expected, MainViewModel.HasVersionlessFilename(filename));
+
     public class MainViewModelSplitOutdatedFromDuplicatesTests
     {
         private static IsoEntry Entry(string filename) => new() { Name = filename, Filename = filename };
