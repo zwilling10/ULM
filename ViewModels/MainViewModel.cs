@@ -439,6 +439,25 @@ namespace ULM.ViewModels
             return NormalizeForDistroComparison(a) == NormalizeForDistroComparison(b);
         }
 
+        /// <summary>
+        /// BUGFIX: Ob ein Eintrag durch einen Versionscheck-Durchlauf tatsächlich einen NEUEN
+        /// Dateinamen bekommen hat — nicht bloß, ob "hasUpdate" für den Versionscheck selbst true
+        /// war. Manche Resolver (z.B. ResolveHirensAsync für Hiren's BootCD PE) liefern IMMER
+        /// denselben statischen Dateinamen ohne Versionsnummer; für solche Einträge ist
+        /// HttpService.IsUpdateAvailable() bei jedem Check "true" (keine Version aus dem Dateinamen
+        /// ableitbar → jeder Fund gilt als Erstbezug), obwohl sich am Dateinamen nichts ändert. Wird
+        /// so ein Eintrag von einem Stick importiert und beim nächsten Versionscheck erneut "als
+        /// Update" markiert, darf er NICHT als "auf dem Stick veraltet" gelten — der alte und der
+        /// neue Dateiname sind identisch, die Stick-Kopie IST die aktuelle. Dieselbe Unterscheidung
+        /// trifft ApplyStickResults (regulärer Stick-Scan) bereits korrekt über
+        /// IsSameDistroDifferentVersion (liefert bei identischem Dateinamen explizit false) — diese
+        /// Methode wendet dasselbe Prinzip auf den separaten Stick-Abgleich in
+        /// TriggerAutoVersionCheck an.
+        /// </summary>
+        internal static bool RepresentsGenuineFilenameChange(string? oldFilename, string? newFilename)
+            => !string.IsNullOrWhiteSpace(oldFilename) && !string.IsNullOrWhiteSpace(newFilename)
+               && !string.Equals(oldFilename, newFilename, StringComparison.OrdinalIgnoreCase);
+
         internal static string NormalizeForDistroComparison(string filename)
         {
             string s = Regex.Replace(filename.ToLowerInvariant(), @"[\d.]+", string.Empty);
@@ -484,8 +503,16 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) =>
             {
+                // BUGFIX: Ohne die RepresentsGenuineFilenameChange-Prüfung wurden Einträge, deren
+                // Resolver IMMER denselben statischen Dateinamen liefert (z.B. Hiren's BootCD PE —
+                // ResolveHirensAsync gibt konstant "HBCD_PE_x64.iso" zurück), bei JEDEM Versionscheck
+                // erneut fälschlich als "auf dem Stick veraltet" gemeldet — der alte und der neue
+                // Dateiname sind identisch, die Stick-Kopie IST bereits die aktuelle. Nur ein
+                // Eintrag, dessen Dateiname sich durchs Update TATSÄCHLICH ändert, kann eine ältere
+                // (unter dem alten Namen gefundene) Stick-Kopie wirklich veraltet machen.
                 var oldFn = updates
-                    .Where(i => !string.IsNullOrEmpty(_db.Entries[i].RemoteUrl) && !string.IsNullOrEmpty(_db.Entries[i].Filename))
+                    .Where(i => !string.IsNullOrEmpty(_db.Entries[i].RemoteUrl) && !string.IsNullOrEmpty(_db.Entries[i].Filename)
+                             && RepresentsGenuineFilenameChange(_db.Entries[i].Filename, _db.Entries[i].RemoteFilename))
                     .ToDictionary(i => _db.Entries[i].Filename, i => i, StringComparer.OrdinalIgnoreCase);
                 _ui.Invoke(() =>
                 {

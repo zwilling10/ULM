@@ -84,4 +84,22 @@ public class MainViewModelDistroMatchingTests
     [InlineData("1.0", "1.0", false)]
     public void IsVersionNewer_ComparesNumerically(string candidate, string current, bool expected)
         => Assert.Equal(expected, MainViewModel.IsVersionNewer(candidate, current));
+
+    // Regression: Distros mit einem Resolver, der IMMER denselben statischen Dateinamen liefert
+    // (z.B. Hiren's BootCD PE — ResolveHirensAsync gibt konstant "HBCD_PE_x64.iso" zurück, ohne
+    // Versionsnummer im Namen), wurden nach dem Import von einem Stick fälschlich als "veraltet auf
+    // dem Stick" gemeldet — bei JEDEM Versionscheck erneut, obwohl sich der Dateiname nie ändert und
+    // die Stick-Kopie exakt der aktuellen entspricht. Ursache: TriggerAutoVersionCheck prüfte nur
+    // "ist der alte Dateiname auf dem Stick vorhanden", ohne zu prüfen, ob sich der Dateiname beim
+    // Update überhaupt geändert hat. Dieselbe Situation behandelt ApplyStickResults (der reguläre
+    // Stick-Scan-Pfad) bereits korrekt: IsSameDistroDifferentVersion liefert für IDENTISCHE Namen
+    // explizit false — nur ein tatsächlicher Namenswechsel gilt als "andere Version".
+    [Theory]
+    [InlineData("HBCD_PE_x64.iso", "HBCD_PE_x64.iso", false)]        // unverändert -> keine echte Änderung
+    [InlineData("HBCD_PE_X64.ISO", "hbcd_pe_x64.iso", false)]        // Groß-/Kleinschreibung ignorieren
+    [InlineData("equestria-os-2026.07.08-x86_64.iso", "equestria-os-2026.07.14-x86_64.iso", true)] // echte Umbenennung
+    [InlineData("", "HBCD_PE_x64.iso", false)]
+    [InlineData("HBCD_PE_x64.iso", "", false)]
+    public void RepresentsGenuineFilenameChange_OnlyTrueWhenFilenameActuallyDiffers(string oldFilename, string newFilename, bool expected)
+        => Assert.Equal(expected, MainViewModel.RepresentsGenuineFilenameChange(oldFilename, newFilename));
 }
