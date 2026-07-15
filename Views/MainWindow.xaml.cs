@@ -55,6 +55,7 @@ namespace ULM.Views
                 "Trotzdem mit dieser Quelle fortfahren? (Das kann sehr lange dauern.)",
                 "⚠ Langsamer Download", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
+            _vm.StaleDuplicatesOnStickDetected += OnStaleDuplicatesOnStick;
 
             _vm.NewerVersionsOnStickDetected += (matches, drive) =>
             {
@@ -362,6 +363,47 @@ namespace ULM.Views
             if (MessageBox.Show(sb.ToString(), "💾 Stick-Aktualisierung", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             foreach (var e in outdated) e.IsSelected = true; _vm.RefreshAllEntries();
             StartDownloadWithProgressDialog(outdated, drive, copyAfter: true, deleteAfter: false, slots: Math.Min(outdated.Count, Constants.MaxParallelSlots));
+        }
+
+        // BUGFIX: siehe SplitOutdatedFromDuplicates — diese Einträge sind bereits aktuell (der neue
+        // Dateiname liegt schon auf dem Stick), nur die ALTE Datei ist noch da. Statt der bisherigen
+        // "Jetzt aktualisieren?"-Frage (die fälschlich einen erneuten Download angeboten hätte) wird
+        // hier direkt das Löschen der alten, überflüssigen Datei angeboten — wiederverwendet
+        // OrphanedDownloadsDialog (gleiches Muster wie beim Datenmüll-/Unvollständig-Fall).
+        private void OnStaleDuplicatesOnStick(List<(IsoEntry Entry, string OldFilename)> duplicates, string drive)
+        {
+            if (duplicates.Count == 0) return;
+            string root = UsbService.DriveRoot(drive);
+            var files = new List<(string Path, long Size)>();
+            foreach (var (entry, oldFilename) in duplicates)
+            {
+                string? path = FindOldDuplicatePath(root, oldFilename);
+                if (path != null) files.Add((path, IsoEntry.GetRobustLength(path)));
+            }
+            if (files.Count == 0) return;
+
+            var dlg = new OrphanedDownloadsDialog(files,
+                "Veraltete Duplikate auf dem Stick gefunden",
+                "veraltete Duplikat-ISO(s) — aktuelle Version bereits vorhanden") { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                int deleted = 0, failed = 0;
+                foreach (string path in dlg.ToDelete)
+                { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {Path.GetFileName(path)}"); } else failed++; }
+                AppendLog($"🗑 {deleted} veraltete Duplikat(e) auf {drive} gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
+            }
+            else AppendLog($"ℹ Duplikat-Bereinigung übersprungen ({files.Count} Datei(en) behalten).");
+        }
+
+        private static string? FindOldDuplicatePath(string root, string filename)
+        {
+            try
+            {
+                foreach (string f in Directory.EnumerateFiles(root, "*.iso", SearchOption.AllDirectories))
+                    if (string.Equals(Path.GetFileName(f), filename, StringComparison.OrdinalIgnoreCase)) return f;
+            }
+            catch (UnauthorizedAccessException) { } catch (IOException) { }
+            return null;
         }
 
         private void OnMissingOnStickDetected(List<IsoEntry> entries, string drive)
