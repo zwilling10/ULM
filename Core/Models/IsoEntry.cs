@@ -3,7 +3,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ULM.Core.Models
 {
@@ -53,6 +56,13 @@ namespace ULM.Core.Models
         public bool      IsSelected        { get; set; }
         public string    DownloadStatus    { get; set; } = string.Empty;
         public bool      ImportedFromStick { get; set; }
+
+        // SHA-256-Referenzhash: einmalig nach erfolgreichem Download oder Stick-Import gesetzt
+        // (siehe DownloadWorker/ImportStickIsosDialog-Flow). Sha256Source zeigt die Vertrauensstufe:
+        // "LocalDownload" = nur lokal berechnet, "OfficialChecksum" = zusätzlich gegen die vom
+        // Anbieter veröffentlichte Prüfsumme verifiziert (siehe HttpService.ResolveOfficialChecksumAsync).
+        public string Sha256       { get; set; } = string.Empty;
+        public string Sha256Source { get; set; } = string.Empty;
 
         /// <summary>
         /// Gibt alle konfigurierten Download-URLs in Prioritätsreihenfolge zurück.
@@ -238,6 +248,23 @@ namespace ULM.Core.Models
             UrlOk = false; UrlChecked = false; RemoteVersion = string.Empty;
             RemoteUrl = string.Empty; RemoteFilename = string.Empty;
             UpdateAvailable = false; DownloadStatus = string.Empty; VerifiedComplete = false;
+        }
+
+        /// <summary>
+        /// Berechnet den SHA-256-Hash einer Datei streamend (kein Volleinlesen in den Speicher —
+        /// wichtig bei mehrere GB großen ISOs). Liefert einen leeren String bei jedem Fehler
+        /// (Datei fehlt, gesperrt, Lesefehler) statt zu werfen — Aufrufer behandeln das wie
+        /// "kein Referenz-Hash vorhanden", kein harter Fehler.
+        /// </summary>
+        public static async Task<string> ComputeSha256Async(string path, CancellationToken ct = default)
+        {
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 1 << 20, useAsync: true);
+                byte[] hash = await SHA256.HashDataAsync(fs, ct).ConfigureAwait(false);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+            catch (Exception) { return string.Empty; }
         }
 
         public override string ToString() => Name;

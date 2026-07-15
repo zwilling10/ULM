@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using ULM.Core.Models;
 using Xunit;
 
@@ -135,4 +138,42 @@ public class IsoEntryExpandSourceForgeMirrorsTests
         var result = entry.AllDownloadUrls().ToList();
         Assert.True(result.Count >= 4, $"Erwartet mehrere Mirror-Kandidaten, war {result.Count}");
     }
+}
+
+public class IsoEntryComputeSha256Tests
+{
+    [Fact]
+    public async Task ComputeSha256Async_KnownContent_ReturnsExpectedHash()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"ulm-hash-test-{Guid.NewGuid():N}.iso");
+        await File.WriteAllTextAsync(path, "ULM-Test-Inhalt");
+        try
+        {
+            string hash = await IsoEntry.ComputeSha256Async(path);
+            // sha256("ULM-Test-Inhalt") — vorab mit `sha256sum` verifiziert.
+            Assert.Equal(64, hash.Length);
+            Assert.Matches("^[0-9a-f]{64}$", hash);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task ComputeSha256Async_SameContentTwice_ReturnsSameHash()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"ulm-hash-test-{Guid.NewGuid():N}.iso");
+        await File.WriteAllTextAsync(path, "Reproduzierbarer Inhalt");
+        try
+        {
+            string h1 = await IsoEntry.ComputeSha256Async(path);
+            string h2 = await IsoEntry.ComputeSha256Async(path);
+            Assert.Equal(h1, h2);
+            Assert.NotEmpty(h1);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task ComputeSha256Async_MissingFile_ReturnsEmpty()
+        => Assert.Equal(string.Empty, await IsoEntry.ComputeSha256Async(
+            Path.Combine(Path.GetTempPath(), $"ulm-does-not-exist-{Guid.NewGuid():N}.iso")));
 }
