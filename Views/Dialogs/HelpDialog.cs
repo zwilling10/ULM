@@ -114,15 +114,20 @@ namespace ULM.Views.Dialogs
 
             // ── Programmstart ──────────────────────────────────────────────
             AddSection("🚀 Was passiert beim Programmstart?", "Programmstart");
-            content.Children.Add(MakeText("Direkt nach dem Start laufen automatisch im Hintergrund:"));
-            content.Children.Add(MakeItem("USB-Stick-Scan",
-                "Erkennt angeschlossene Ventoy-Sticks. Zeigt welche ISOs bereits drauf sind, welche " +
-                "veraltet sind und welche fehlen. Läuft erneut wenn ein Stick eingesteckt wird. Prüft dabei " +
-                "jedes Mal zusätzlich die Online-Größe jeder gefundenen ISO (siehe 🧹 Datenmüll-Schutz)."));
-            content.Children.Add(MakeItem("Online-Versionscheck",
-                "Fragt für alle Distros in der Datenbank die aktuellste Version ab (ca. 5–30 Sek.) — " +
+            content.Children.Add(MakeText("Direkt nach dem Start laufen automatisch im Hintergrund, in dieser Reihenfolge:"));
+            content.Children.Add(MakeItem("1. Online-Versionscheck",
+                "Fragt zuerst für alle Distros in der Datenbank die aktuellste Version ab (ca. 5–30 Sek.) — " +
                 "auch für vom Stick importierte Einträge. Findet neue Versionen automatisch — ohne manuelle " +
-                "Eingabe von URLs. Aktualisiert die Datenbank-Einträge wenn eine neue Version verfügbar ist."));
+                "Eingabe von URLs. Aktualisiert die Datenbank-Einträge wenn eine neue Version verfügbar ist. " +
+                "Ein pulsierender Hinweis oben in der Kopfzeile ('Online-Scan, bitte warten') zeigt an, dass " +
+                "der Check noch läuft — am besten bis dahin noch nicht klicken, damit Datenbank und Stick-" +
+                "Stand vollständig sind."));
+            content.Children.Add(MakeItem("2. USB-Stick-Scan",
+                "Läuft erst NACH dem Versionscheck (nicht gleichzeitig), damit der Stick-Stand direkt mit den " +
+                "aktuellsten Versionsdaten verglichen wird. Erkennt angeschlossene Ventoy-Sticks, zeigt welche " +
+                "ISOs bereits drauf sind, welche veraltet sind und welche fehlen. Läuft erneut, wenn ein Stick " +
+                "eingesteckt wird (derselbe pulsierende Hinweis, dann 'Stick-Scan, bitte warten'). Prüft dabei " +
+                "jedes Mal zusätzlich die Online-Größe jeder gefundenen ISO (siehe 🧹 Datenmüll-Schutz)."));
             content.Children.Add(MakeItem("Datei-Wartung",
                 "Läuft nach dem Versionscheck. Scannt den Arbeitsordner rekursiv und vergleicht jede ISO-Größe " +
                 "mit der tatsächlichen Original-Größe beim Anbieter (Online-HEAD-Request). Erkennt so " +
@@ -132,12 +137,18 @@ namespace ULM.Views.Dialogs
                 "Prüft im Hintergrund, ob auf GitHub eine neuere ULM-Version verfügbar ist. Läuft rein " +
                 "informativ mit — kein Dialog, keine Unterbrechung. Ist eine neue Version verfügbar, " +
                 "erscheint nur eine Zeile im Protokoll:\n" +
-                "  🆕 Neue ULM-Version verfügbar: v2.28.0 (aktuell installiert: v2.27.1)\n" +
+                "  🆕 Neue ULM-Version verfügbar: vX.Y.Z (aktuell installiert: vA.B.C)\n" +
                 "gefolgt vom Link zur Release-Seite."));
             content.Children.Add(MakeItem("„Was ist neu?“-Dialog",
                 "Erscheint automatisch beim ersten Start NACH einem Update auf eine neue ULM-Version " +
                 "(nicht beim allerersten Programmstart) und listet alle Änderungen seit der zuletzt " +
                 "gesehenen Version auf. Einmal quittiert, erscheint er erst beim nächsten Versionswechsel wieder."));
+            content.Children.Add(MakeItem("🚀 Autostart (optional)",
+                "Checkbox 'Mit Windows starten' im Einrichtungsfenster — startet ULM dann automatisch " +
+                "(sichtbares Fenster) bei jeder Windows-Anmeldung. Kein Admin-Recht nötig, funktioniert über " +
+                "einen Registry-Eintrag nur für den aktuellen Benutzer. Lässt sich im Einrichtungsfenster " +
+                "jederzeit wieder abwählen; ist das Fenster einmal per 'Nicht mehr anzeigen' übersprungen, " +
+                "hilft ein Löschen des passenden Eintrags in 'ulm_settings.ini', um es erneut zu sehen."));
             content.Children.Add(Spacer());
 
             // ── Hauptliste ─────────────────────────────────────────────────
@@ -195,8 +206,8 @@ namespace ULM.Views.Dialogs
                 "  'Ungeprüft'   = Stick wurde noch nicht gescannt"));
             content.Children.Add(MakeItem("Aktuell",
                 "Zeigt das Ergebnis des Online-Versionschecks:\n" +
-                "  'Update v7.9.1'     = neuere Version online verfügbar\n" +
-                "  'Aktuell (v7.9.1)'  = Online-Check: bereits aktuellste Version\n" +
+                "  'Update vX.Y.Z'     = neuere Version online verfügbar\n" +
+                "  'Aktuell (vX.Y.Z)'  = Online-Check: bereits aktuellste Version\n" +
                 "  'Lokal vorhanden'   = lokal vorhanden, kein Online-Check\n" +
                 "  '?'                 = noch nicht geprüft"));
             content.Children.Add(Spacer(6));
@@ -211,9 +222,9 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("🌐✗ (Suffix)",
                 "URL-Check fehlgeschlagen — die Download-URL ist nicht erreichbar. " +
                 "Mouseover zeigt: 'URL nicht erreichbar — Download-Server antwortet nicht'."));
-            content.Children.Add(MakeItem("🆕 v7.9.1 (Suffix)",
-                "Online wurde eine neuere Version (hier: v7.9.1) gefunden. " +
-                "Mouseover zeigt: 'Neue Version verfügbar: v7.9.1 (jetzt herunterladen)'. " +
+            content.Children.Add(MakeItem("🆕 vX.Y.Z (Suffix)",
+                "Online wurde eine neuere Version (hier beispielhaft: vX.Y.Z) gefunden. " +
+                "Mouseover zeigt: 'Neue Version verfügbar: vX.Y.Z (jetzt herunterladen)'. " +
                 "Eintrag auswählen und Download starten."));
             content.Children.Add(Spacer(6));
 
@@ -313,13 +324,16 @@ namespace ULM.Views.Dialogs
                 "auf den Stick kopiert werden. Die lokale Datei wird danach gelöscht. " +
                 "Downloads und Kopieren laufen parallel. Im Fortschritts-Dialog wechselt die Zeile " +
                 "einer ISO von 'Kopiere auf Stick' zu 'Fertig', sobald sie vollständig kopiert ist."));
-            content.Children.Add(MakeItem("Mirror-Race (bis zu 5 Quellen)",
+            content.Children.Add(MakeItem("Mirror-Race (bis zu 8 Quellen)",
                 "Bevor der eigentliche Download beginnt, testet ULM alle konfigurierten Mirror-URLs " +
                 "einer Distro parallel für ca. 3 Sekunden und startet dann mit der schnellsten Quelle " +
                 "— nicht einfach mit der ersten. Gemessen wird in kurzen Zeitfenstern statt eines " +
                 "einzigen Durchschnittswerts, damit CDNs, die erst nach ein bis zwei Sekunden auf volle " +
-                "Geschwindigkeit hochfahren, nicht fälschlich als langsam eingestuft werden. Ergebnis " +
-                "erscheint im Protokoll:\n  🔎 Distro: Mirror-Test — cdn1.beispiel.org 42,3 Mbit/s, …"));
+                "Geschwindigkeit hochfahren, nicht fälschlich als langsam eingestuft werden. Bei " +
+                "SourceForge-Quellen fächert ULM zusätzlich automatisch mehrere geografisch verteilte " +
+                "Mirror auf, statt sich auf SourceForges eigene (oft nicht optimale) Serverwahl zu " +
+                "verlassen. Ergebnis erscheint im Protokoll:\n" +
+                "  🔎 Distro: Mirror-Test — cdn1.beispiel.org 42,3 Mbit/s, …"));
             content.Children.Add(MakeItem("Geschwindigkeits-Wächter",
                 "Bleibt eine laufende Übertragung (nach ca. 20 Sekunden Anlaufzeit) für weitere 20 " +
                 "Sekunden ununterbrochen unter ca. 1 MB/s, bricht ULM automatisch ab und versucht die " +
@@ -328,6 +342,15 @@ namespace ULM.Views.Dialogs
                 "Geschwindigkeit gescheitert (nicht an einem echten Fehler), fragt ULM aktiv nach:\n" +
                 "  ⚠ Kein schnellerer Mirror gefunden — trotzdem mit dieser Quelle fortfahren?\n" +
                 "Bestätigt man das, läuft der Download ohne weitere Geschwindigkeitsprüfung zu Ende."));
+            content.Children.Add(MakeItem("„(schneller)“-Button",
+                "Erscheint im Download-Fortschrittsfenster neben einer laufenden Übertragung, sobald " +
+                "noch mindestens ein weiterer, vom Mirror-Race bereits gemessener Kandidat übrig ist — " +
+                "auch dann, wenn der aktuelle Server über der Geschwindigkeits-Wächter-Schwelle liegt " +
+                "(also selbst gar nicht automatisch abbrechen würde), einem aber trotzdem zu langsam " +
+                "vorkommt. Klick bricht den aktuellen Versuch ab und wechselt sofort zum nächsten " +
+                "Kandidaten. Findet sich dabei kein schnellerer Server, kehrt ULM automatisch — ohne " +
+                "Nachfrage — zum ursprünglichen, nachweislich erreichbaren Server zurück " +
+                "('Kein schnellerer Server gefunden — Download wird fortgesetzt')."));
             content.Children.Add(MakeItem("Verbleibende Zeit (ETA)",
                 "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe auch die geschätzte " +
                 "Restzeit an, z.B.:\n  12.4 MB/s  ·  noch 2m 14s  ·  1.2 GB / 3.5 GB\n" +
@@ -340,7 +363,7 @@ namespace ULM.Views.Dialogs
                 "Beginn mit einer Ja/Nein-Rückfrage, statt erst mittendrin auf mehreren parallelen " +
                 "Downloads zugleich zu scheitern. Zusätzlich prüft ein zweiter, feingranularer Check " +
                 "unmittelbar vor jeder einzelnen Datei erneut den dann noch verfügbaren Platz:\n" +
-                "  ❌ Nicht genug Speicherplatz auf E:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
+                "  ❌ Nicht genug Speicherplatz auf X:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
             content.Children.Add(Spacer());
 
             // ── USB-Stick ──────────────────────────────────────────────────

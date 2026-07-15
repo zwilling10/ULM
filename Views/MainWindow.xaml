@@ -129,6 +129,48 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Startphasen-Hinweis: rotierender Spinner + pulsierender Text, sichtbar solange
+                     Online-Versionscheck ODER Stick-Scan läuft — hält Anwender/Experte vom
+                     vorschnellen Klicken ab, bis Datenbank- und Stick-Stand vollständig sind. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center" HorizontalAlignment="Center"
+                            Visibility="{Binding ScanInProgress, Converter={StaticResource BoolToVis}}">
+                    <Ellipse Width="15" Height="15" Stroke="#FFC107" StrokeThickness="2.3"
+                             StrokeDashArray="3.4 2.2" StrokeDashCap="Round"
+                             RenderTransformOrigin="0.5,0.5">
+                        <Ellipse.RenderTransform>
+                            <RotateTransform x:Name="ScanSpinnerRotate" Angle="0"/>
+                        </Ellipse.RenderTransform>
+                        <Ellipse.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="ScanSpinnerRotate"
+                                                         Storyboard.TargetProperty="Angle"
+                                                         From="0" To="360" Duration="0:0:1"
+                                                         RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Ellipse.Triggers>
+                    </Ellipse>
+                    <TextBlock Margin="8,0,0,0" VerticalAlignment="Center"
+                               Foreground="#FFC107" FontSize="10.5" FontWeight="SemiBold"
+                               Text="{Binding ScanHintText}">
+                        <TextBlock.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="1.0" To="0.35" Duration="0:0:0.85"
+                                                         AutoReverse="True" RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </TextBlock.Triggers>
+                    </TextBlock>
+                </StackPanel>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
                             VerticalAlignment="Center" HorizontalAlignment="Right">
 

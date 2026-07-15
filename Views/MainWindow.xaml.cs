@@ -123,9 +123,9 @@ namespace ULM.Views
                 else AppendLog($"ℹ Stick-Wartung übersprungen ({fresh.Count} Datei(en) behalten).");
             };
 
-            _vm.DownloadItemProgress   += (name, pct, status) => _downloadProgressDialog?.UpdateItem(name, pct, status);
+            _vm.DownloadItemProgress   += (name, pct, status, canFaster) => _downloadProgressDialog?.UpdateDownload(name, pct, status, canFaster);
             _vm.DownloadBatchCompleted += (ok, failed, _) => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete($"{ok} erfolgreich" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + "."); };
-            _vm.CopyItemProgress       += (name, pct, detail) => { _downloadProgressDialog?.SetPhaseLabel(name, pct >= 100 ? "Fertig" : "Kopiere auf Stick"); _downloadProgressDialog?.UpdateItem(name, pct, detail); };
+            _vm.CopyItemProgress       += (name, pct, detail) => _downloadProgressDialog?.UpdateCopy(name, pct, detail);
             _vm.CopyBatchCompleted     += count => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete(count > 0 ? $"{count} ISO(s) auf den Stick kopiert." : "Nichts kopiert."); };
 
             _vm.OperationSucceeded += message =>
@@ -372,7 +372,7 @@ namespace ULM.Views
             foreach (var e in fresh) sb.AppendLine($"  • {e.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt kopieren?");
             if (MessageBox.Show(sb.ToString(), "💾 Vollständige ISOs nicht auf dem Stick", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             bool del = MessageBox.Show("Lokale Dateien danach löschen?", "Dateien löschen?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
-            OpenProgressDialog(fresh.Select(q => q.Name), copyPhase: true);
+            OpenProgressDialog(fresh.Select(q => q.Name), hasDownload: false, hasCopy: true);
             _vm.StartCopyToStick(fresh, drive, del);
         }
 
@@ -505,18 +505,21 @@ namespace ULM.Views
 
         private async void StartDownloadWithProgressDialog(List<IsoEntry> queue, string drive, bool copyAfter, bool deleteAfter, int slots)
         {
-            OpenProgressDialog(queue.Select(q => q.Name), copyPhase: false); SetBusyUi(true);
+            OpenProgressDialog(queue.Select(q => q.Name), hasDownload: true, hasCopy: copyAfter); SetBusyUi(true);
             await Task.Run(() => _vm.StartDownload(queue, drive, copyAfter, deleteAfter, slots));
             SetBusyUi(false);
         }
 
-        private void OpenProgressDialog(IEnumerable<string> names, bool copyPhase)
+        private void OpenProgressDialog(IEnumerable<string> names, bool hasDownload, bool hasCopy)
         {
             _downloadProgressDialog?.Close();
-            _downloadProgressDialog = new DownloadProgressDialog(names) { Owner = this };
+            var nameList = names.ToList();
+            _downloadProgressDialog = new DownloadProgressDialog(nameList, hasDownload, hasCopy) { Owner = this };
             _downloadProgressDialog.CancelRequested += () => _vm.CancelCommand.Execute(null);
+            _downloadProgressDialog.FasterMirrorRequested += name => _vm.RequestFasterMirror(name);
             _downloadProgressDialog.Closed += (_, _) => _downloadProgressDialog = null;
-            if (copyPhase) foreach (string n in names) _downloadProgressDialog.SetPhaseLabel(n, "Kopiere auf Stick");
+            // Reiner Kopiervorgang (kein Download davor): Zeilen sofort als "Kopiere auf Stick" labeln.
+            if (hasCopy && !hasDownload) foreach (string n in nameList) _downloadProgressDialog.SetPhaseLabel(n, "Kopiere auf Stick");
             _downloadProgressDialog.Show();
         }
 
@@ -567,7 +570,7 @@ namespace ULM.Views
             List<IsoEntry> queue = _vm.GetLocallyAvailableEntries();
             if (queue.Count == 0) { MessageBox.Show("Keine lokal heruntergeladenen ISOs vorhanden.", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
             bool del = MessageBox.Show("Lokale Dateien nach dem Kopieren löschen?", "Dateien löschen?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
-            OpenProgressDialog(queue.Select(q => q.Name), copyPhase: true);
+            OpenProgressDialog(queue.Select(q => q.Name), hasDownload: false, hasCopy: true);
             SetBusyUi(true); _vm.StartCopyToStick(queue, _vm.SelectedDriveLetter, del); SetBusyUi(false);
         }
 

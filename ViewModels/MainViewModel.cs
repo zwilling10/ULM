@@ -27,6 +27,13 @@ namespace ULM.ViewModels
         private CancellationTokenSource _workerCts = new();
         private object?  _activeWorker;
         private string   _lastDriveSignature = string.Empty;
+        // Startphase: unterdrückt den SOFORTIGEN Stick-Scan beim Programmstart (der sonst über den
+        // SelectedDrive-Setter → TriggerUsbScan noch VOR dem Online-Versionscheck liefe). Gewünschte
+        // Reihenfolge: erst der Online-Versionscheck, danach der Stick-Scan — Letzteren stößt der
+        // Abschluss des Versionschecks ohnehin selbst an (siehe TriggerAutoVersionCheck.Completed).
+        // Wird nach dem ersten abgeschlossenen Versionscheck aufgehoben; danach scannt ein
+        // Laufwerkswechsel/Neu-Einstecken wieder sofort wie gewohnt.
+        private bool     _startupPhase = true;
         private bool     _expertMode;
 
         private static readonly string[] _platformCodenames =
@@ -64,10 +71,19 @@ namespace ULM.ViewModels
         private string _statusText = "Bereit."; public string StatusText { get => _statusText; private set => SetField(ref _statusText, value); }
         private int    _progressPercent; public int ProgressPercent { get => _progressPercent; set => SetField(ref _progressPercent, value); }
         private bool   _isBusy; public bool IsBusy { get => _isBusy; private set { if (SetField(ref _isBusy, value)) RelayCommand.RaiseCanExecuteChanged(); } }
-        private bool   _onlineScanActive;  public bool OnlineScanActive  { get => _onlineScanActive;  private set => SetField(ref _onlineScanActive,  value); }
+        private bool   _onlineScanActive;  public bool OnlineScanActive  { get => _onlineScanActive;  private set { if (SetField(ref _onlineScanActive, value)) NotifyScanHint(); } }
         private int    _onlineScanPercent; public int  OnlineScanPercent { get => _onlineScanPercent; private set => SetField(ref _onlineScanPercent, value); }
-        private bool   _usbScanActive;    public bool UsbScanActive     { get => _usbScanActive;     private set => SetField(ref _usbScanActive,     value); }
+        private bool   _usbScanActive;    public bool UsbScanActive     { get => _usbScanActive;     private set { if (SetField(ref _usbScanActive, value)) NotifyScanHint(); } }
         private int    _usbScanPercent;   public int  UsbScanPercent    { get => _usbScanPercent;    private set => SetField(ref _usbScanPercent,    value); }
+
+        // Für den Startphasen-Hinweis (rotierender Spinner + pulsierender Text): sichtbar, solange
+        // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
+        // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
+        public bool ScanInProgress => OnlineScanActive || UsbScanActive;
+        public string ScanHintText => OnlineScanActive ? "Online-Scan, bitte warten"
+                                    : UsbScanActive     ? "Stick-Scan, bitte warten"
+                                    : string.Empty;
+        private void NotifyScanHint() { OnPropertyChanged(nameof(ScanInProgress)); OnPropertyChanged(nameof(ScanHintText)); }
         private bool   _healthCheckActive;  public bool HealthCheckActive  { get => _healthCheckActive;  private set => SetField(ref _healthCheckActive,  value); }
         private int    _healthCheckPercent; public int  HealthCheckPercent { get => _healthCheckPercent; private set => SetField(ref _healthCheckPercent, value); }
 
@@ -104,7 +120,7 @@ namespace ULM.ViewModels
         public event Action<List<UsbService.StickIso>, string>? IncompleteIsosOnStickDetected;
         public event Action<List<VersionCheckEntryResult>>?     HealthCheckCompleted;
         public event Action<List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>, string>? NewerVersionsOnStickDetected;
-        public event Action<string, int, string>? DownloadItemProgress;
+        public event Action<string, int, string, bool>? DownloadItemProgress;
         public event Action<int, int, int>?       DownloadBatchCompleted;
         public event Action<string, int, string>? CopyItemProgress;
         public event Action<int>?                 CopyBatchCompleted;
@@ -312,6 +328,9 @@ namespace ULM.ViewModels
         // geführt, statt einen weiteren nebenher zu starten.
         public void TriggerUsbScan()
         {
+            // Während der Startphase bewusst NICHT scannen — der Stick-Scan folgt erst nach dem
+            // Online-Versionscheck (siehe _startupPhase / TriggerAutoVersionCheck.Completed).
+            if (_startupPhase) return;
             if (string.IsNullOrEmpty(SelectedDriveLetter) || UsbScanActive) return;
             Log($"💾 Stick-Scan: {SelectedDriveLetter}");
             StatusText = $"Scanne {SelectedDriveLetter}..."; UsbScanActive = true; UsbScanPercent = 0;
@@ -452,7 +471,6 @@ namespace ULM.ViewModels
         {
             Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
             StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0;
-            string capturedDrive = SelectedDriveLetter;
             var worker = new AutoVersionCheckWorker(_db.Entries);
             worker.Progress += (c, t) => _ui.Invoke(() => OnlineScanPercent = t > 0 ? (c * 100) / t : 0);
             worker.EntryChecked += result => _ui.Invoke(() =>
@@ -479,6 +497,11 @@ namespace ULM.ViewModels
                         string newVer = string.IsNullOrEmpty(e.RemoteVersion)
                             ? HttpService.ExtractVersion(e.RemoteFilename) : e.RemoteVersion;
                         e.Url = e.RemoteUrl; e.Filename = e.RemoteFilename;
+                        // Der Eintrag repräsentiert nach der Übernahme selbst die neueste Version →
+                        // es gibt kein ausstehendes Update mehr. Ohne dieses Zurücksetzen bliebe das
+                        // (vor der Übernahme korrekt gesetzte) Flag veraltet auf true und die
+                        // "Aktuell"-Spalte zeigte fälschlich "Update vX" statt "Aktuell (vX)".
+                        e.UpdateAvailable = false;
                         if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
                         {
                             int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);
@@ -492,15 +515,30 @@ namespace ULM.ViewModels
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
                     else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
                     OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
+                    // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
+                    // sofort scannen. Der Start-Stick-Scan selbst folgt unten (capturedDrive).
+                    _startupPhase = false;
                     StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
                                : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
                     Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
                 });
-                if (!string.IsNullOrEmpty(capturedDrive))
+                // BUGFIX: Der zu scannende Stick wurde bisher als "capturedDrive" VOR dem
+                // Versionscheck erfasst — steckte der Anwender einen Stick erst WÄHREND des Checks
+                // ein, blieb dieser Nachlauf-Scan auf dem alten (oft leeren) Stand hängen: der
+                // reguläre TriggerUsbScan()-Aufruf über den SelectedDrive-Setter war durch
+                // _startupPhase blockiert, UND hier wurde weiterhin der veraltete Laufwerksbuchstabe
+                // von vor dem Check geprüft — der neu eingesteckte Stick wurde nie gescannt, bis er
+                // ab- und wieder eingesteckt wurde. SelectedDrive selbst wird aber auch während
+                // _startupPhase korrekt aktualisiert (nur der TriggerUsbScan()-Aufruf im Setter wird
+                // unterdrückt) — ein frischer Blick auf SelectedDriveLetter GENAU JETZT (nach dem
+                // Zurücksetzen von _startupPhase oben) liefert daher immer den tatsächlich
+                // aktuellen Stick, egal ob er schon vor dem Check da war oder währenddessen dazukam.
+                string driveToScan = SelectedDriveLetter;
+                if (!string.IsNullOrEmpty(driveToScan))
                     _ = Task.Run(async () =>
                     {
-                        _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {capturedDrive} …"); });
-                        var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(capturedDrive, _db.Entries).ConfigureAwait(false);
+                        _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
+                        var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
                         var sn = new HashSet<string>(si.Select(s => s.Filename), StringComparer.OrdinalIgnoreCase);
                         var od = oldFn.Where(kvp => sn.Contains(kvp.Key)).Select(kvp => _db.Entries[kvp.Value]).ToList();
                         _ui.Invoke(() =>
@@ -508,14 +546,14 @@ namespace ULM.ViewModels
                             ApplyStickResults(si); UsbScanActive = false; UsbScanPercent = 100; RefreshAllEntries();
                             if (incomplete.Count > 0)
                             {
-                                Log($"⚠ Stick-Prüfung {capturedDrive}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
+                                Log($"⚠ Stick-Prüfung {driveToScan}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
                                 foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
-                                IncompleteIsosOnStickDetected?.Invoke(incomplete, capturedDrive);
+                                IncompleteIsosOnStickDetected?.Invoke(incomplete, driveToScan);
                             }
-                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {capturedDrive}."); foreach (var e in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, capturedDrive); }
-                            else if (si.Count > 0) Log($"✅ Alle ISOs auf {capturedDrive} aktuell.");
+                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var e in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, driveToScan); }
+                            else if (si.Count > 0) Log($"✅ Alle ISOs auf {driveToScan} aktuell.");
                             var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !od.Contains(e)).ToList();
-                            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, capturedDrive);
+                            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, driveToScan);
                         });
                     });
             };
@@ -537,8 +575,20 @@ namespace ULM.ViewModels
             // Download-Slot (läuft in seinem eigenen Hintergrund-Task), die anderen parallelen
             // Slots laufen unbeeinflusst weiter.
             worker.ConfirmSlowDownloadAnyway = (name, host) => _ui.Invoke(() => ConfirmSlowDownload?.Invoke(name, host) ?? false);
+
+            // Erfolgreich fertige Distros automatisch abwählen (Häkchen entfernen), damit sie beim
+            // nächsten Start-Klick nicht versehentlich erneut heruntergeladen werden. Im Pipeline-
+            // Modus (Download → Stick-Kopie) geschieht das erst NACH erfolgreicher Kopie (siehe
+            // RunPipelineCopyConsumerAsync); im reinen Download-Modus schon nach dem Download.
+            bool usePipeline = copyAfter && !string.IsNullOrEmpty(drive);
+            if (!usePipeline)
+                worker.ItemCompleted += (entry, success) =>
+                {
+                    if (success) _ui.Invoke(() => { entry.IsSelected = false; RefreshEntry(GetEntryIndex(entry.Name)); });
+                };
+
             Channel<IsoEntry>? pipelineChannel = null; Task? pipelineTask = null;
-            if (copyAfter && !string.IsNullOrEmpty(drive))
+            if (usePipeline)
             {
                 pipelineChannel = Channel.CreateUnbounded<IsoEntry>(new UnboundedChannelOptions { SingleReader = true });
                 var channelReader = pipelineChannel.Reader; var capDrive = drive;
@@ -548,17 +598,22 @@ namespace ULM.ViewModels
                     if (success && entry.IsLocallyAvailable(_paths.DownloadDir))
                     {
                         pipelineChannel.Writer.TryWrite(entry);
-                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …"); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
+                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
                     }
                 };
             }
             worker.OverallProgress += (pct, detail) => _ui.Invoke(() => { ProgressPercent = pct; StatusText = $"⬇ {detail}"; });
-            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status); });
+            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror); });
             worker.Completed += (ok, failed, _) => _ui.Invoke(() =>
             {
-                _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen."); DownloadBatchCompleted?.Invoke(ok, failed, 0);
+                _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen.");
                 if (pipelineChannel != null && pipelineTask != null)
                 {
+                    // BUGFIX: DownloadBatchCompleted früher HIER schon ausgelöst — der Download-
+                    // Fortschrittsdialog (SetOverallComplete) sprang dadurch fälschlich auf "100% /
+                    // ✅ erfolgreich", obwohl die Stick-Kopie erst jetzt beginnt und noch länger
+                    // dauern kann. Feuert jetzt erst unten im ContinueWith, wenn die Kopie WIRKLICH
+                    // fertig ist — vorher zeigt UpdateCopy/RecomputeOverall den echten Zwischenstand.
                     pipelineChannel.Writer.Complete();
                     StatusText = ok > 0 ? $"⬇ {ok} Downloads fertig — Stick-Kopie läuft …" : "⬇ 0 Downloads …";
                     if (ok > 0) Log("⬇ Downloads fertig. Pipeline-Kopiervorgang läuft weiter …");
@@ -567,6 +622,7 @@ namespace ULM.ViewModels
                     {
                         SetBusy(false); RefreshAllEntries(); ProgressPercent = 100;
                         TriggerVentoyMenuUpdate(capDrive); TriggerUsbScan();
+                        DownloadBatchCompleted?.Invoke(okC, failedC, 0);
                         if (okC > 0)
                         {
                             string msg = $"{okC} ISO(s) heruntergeladen und auf {capDrive} kopiert.\n\n" +
@@ -580,9 +636,10 @@ namespace ULM.ViewModels
                     }));
                 }
                 else if (!string.IsNullOrEmpty(drive) && copyAfter && ok > 0)
-                { SetBusy(false); StartCopyToStick(queue, drive, deleteAfter); }
+                { DownloadBatchCompleted?.Invoke(ok, failed, 0); SetBusy(false); StartCopyToStick(queue, drive, deleteAfter); }
                 else
                 {
+                    DownloadBatchCompleted?.Invoke(ok, failed, 0);
                     SetBusy(false); RefreshAllEntries();
                     StatusText = $"{ok}/{queue.Count} heruntergeladen" + (failed > 0 ? $", {failed} fehlgeschlagen" : "");
                     ProgressPercent = 100;
@@ -686,6 +743,9 @@ namespace ULM.ViewModels
                 entry.UsbStatus = Core.Models.UsbStatus.Ok;
                 entry.UsbSize   = FormatGb(sz);
                 entry.VerifiedComplete = false;
+                // Erfolgreich heruntergeladen UND kopiert → Häkchen entfernen (siehe usePipeline-
+                // Kommentar in StartDownload).
+                entry.IsSelected = false;
                 bool localDeleted = IsoEntry.TryDelete(srcPath, msg => _ui.Invoke(() => Log(msg)));
                 string fn  = entryName;
                 int    idx = GetEntryIndex(fn);
@@ -895,6 +955,14 @@ namespace ULM.ViewModels
             if (_activeWorker is UrlCheckWorker   uw) uw.Cancel();
             if (_activeWorker is UpdateScanWorker us) us.Cancel();
             Log("⛔ Abbruch."); StatusText = "Abbruch …"; ProgressPercent = 0;
+        }
+
+        // Reicht den Klick auf "(schneller)" im Fortschrittsfenster an den gerade aktiven
+        // DownloadWorker weiter (siehe DownloadWorker.RequestFasterMirror). Kein Effekt, wenn gerade
+        // kein Download läuft oder der Button für diesen Eintrag bereits ausgeblendet wurde.
+        public void RequestFasterMirror(string entryName)
+        {
+            if (_activeWorker is DownloadWorker dw) dw.RequestFasterMirror(entryName);
         }
 
         private void SetBusy(bool busy) { IsBusy = busy; if (busy) ProgressPercent = 0; }
