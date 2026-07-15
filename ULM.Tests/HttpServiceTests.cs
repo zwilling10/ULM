@@ -105,3 +105,38 @@ public class HttpServiceNormalizeForMatchTests
             Assert.Contains("popos", HttpService.NormalizeForMatch(v));
     }
 }
+
+public class HttpServiceChecksumParserTests
+{
+    // Hinweis: die Fixture-Hashes im Task-Brief waren 63/62 Hex-Zeichen statt der für SHA-256
+    // erforderlichen 64 (Tippfehler in der Vorlage) — hier auf gültige 64-Zeichen-Hex-Strings
+    // aufgefüllt (Trailing-Nullen), sonst kann der {64}-Regex im Parser sie nie matchen.
+    private const string Sha256SumsFixture =
+        "d34e2b30b9a3a34532e51b1f3f4a1f6e2b6f7c8a1b2c3d4e5f60718293a4b5c0  ubuntu-24.04-desktop-amd64.iso\n" +
+        "1a2b3c4d5e6f7089a0b1c2d3e4f506172839405162738495061728394a5b6c00  ubuntu-24.04-live-server-amd64.iso\n";
+
+    [Fact]
+    public void ParseSha256SumsLine_FindsMatchingFilename()
+        => Assert.Equal("d34e2b30b9a3a34532e51b1f3f4a1f6e2b6f7c8a1b2c3d4e5f60718293a4b5c0",
+            HttpService.ParseSha256SumsLine(Sha256SumsFixture, "ubuntu-24.04-desktop-amd64.iso"));
+
+    [Fact]
+    public void ParseSha256SumsLine_UnknownFilename_ReturnsNull()
+        => Assert.Null(HttpService.ParseSha256SumsLine(Sha256SumsFixture, "does-not-exist.iso"));
+
+    [Fact]
+    public void ParseSha256SumsLine_EmptyContent_ReturnsNull()
+        => Assert.Null(HttpService.ParseSha256SumsLine(string.Empty, "ubuntu-24.04-desktop-amd64.iso"));
+
+    private const string BsdStyleFixture =
+        "SHA256 (Fedora-Workstation-Live-42-1.7.x86_64.iso) = 9f8e7d6c5b4a392817263544536271809f8e7d6c5b4a39281726354453627100\n";
+
+    [Fact]
+    public void ParseBsdStyleChecksum_FindsMatchingFilename()
+        => Assert.Equal("9f8e7d6c5b4a392817263544536271809f8e7d6c5b4a39281726354453627100",
+            HttpService.ParseBsdStyleChecksum(BsdStyleFixture, "Fedora-Workstation-Live-42-1.7.x86_64.iso"));
+
+    [Fact]
+    public void ParseBsdStyleChecksum_UnknownFilename_ReturnsNull()
+        => Assert.Null(HttpService.ParseBsdStyleChecksum(BsdStyleFixture, "does-not-exist.iso"));
+}
