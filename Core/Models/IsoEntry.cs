@@ -58,6 +58,18 @@ namespace ULM.Core.Models
         /// Gibt alle konfigurierten Download-URLs in Prioritätsreihenfolge zurück.
         /// resolvedUrl (aufgelöst) → RemoteUrl → Url → Mirror1-5.
         /// Duplikate und leere Strings werden herausgefiltert.
+        ///
+        /// BUGFIX: Normalisierte SourceForge-URLs wurden hier bisher nur EINFACH zurückgegeben
+        /// (ein Eintrag pro Feld) — dedupliziert nach dem NORMALISIERTEN String. Trugen Url/Mirror1-5
+        /// mehrere VERSCHIEDENE gepinnte SourceForge-Mirror für dieselbe Datei (z.B. der ausgelieferte
+        /// "Linux Kodachi"-Eintrag: Mirror1 ein Köln-Mirror, Mirror2 bereits die master-URL), normalisierten
+        /// beide auf denselben String und die Deduplizierung verschluckte die zweite Quelle komplett —
+        /// echte, unabhängig konfigurierte Redundanz ging verloren, und zwar für JEDEN Aufrufer
+        /// (UrlCheckWorker, GetExpectedSizeAsync, ResolveGenericAsync), nicht nur den Download-Worker
+        /// (der das bisher separat über ExpandSourceForgeMirrors kompensierte). Jetzt wird jede
+        /// normalisierte SourceForge-URL SOFORT hier aufgefächert (mehrere Mirror-Kandidaten statt nur
+        /// der einen master-URL) — dadurch bleibt die Redundanz für alle Aufrufer erhalten, nicht nur
+        /// für den Download-Worker.
         /// </summary>
         public IEnumerable<string> AllDownloadUrls(string? resolvedUrl = null)
         {
@@ -68,7 +80,8 @@ namespace ULM.Core.Models
             {
                 if (string.IsNullOrWhiteSpace(u)) continue;
                 string normalized = NormalizeSourceForgeUrl(u);
-                if (seen.Add(normalized)) yield return normalized;
+                foreach (string candidate in ExpandSourceForgeMirrors(normalized))
+                    if (seen.Add(candidate)) yield return candidate;
             }
         }
 
@@ -99,10 +112,17 @@ namespace ULM.Core.Models
         // ein schlechteres Ergebnis liefern als die schlichte master-URL. Zweck: dem Mirror-Race
         // ECHTE Auswahl geben statt immer nur den EINEN Server zu messen, den master von sich aus
         // zuteilt — real gemessene Spannweite für dieselbe Datei: 3 vs. 14 Mbit/s je nach Mirror.
-        // Bewusst breit gestreut (DE/SE/BG/US), damit auf beliebigen Nutzer-Standorten mindestens
+        // Bewusst geografisch gestreut (DE/SE/US), damit auf beliebigen Nutzer-Standorten mindestens
         // ein naher, schneller Mirror im Rennen ist — welcher es ist, entscheidet das Race selbst.
+        //
+        // BUGFIX: bewusst auf 3 statt ursprünglich 4 Mirror begrenzt — seit AllDownloadUrls() JEDE
+        // SourceForge-Quelle direkt hier auffächert (nicht mehr nur einmalig im Download-Worker),
+        // multipliziert sich diese Zahl mit jedem parallelen Download-Slot UND dem Mirror-Race
+        // (paralleles ~3s-Antesten jedes Kandidaten). Weniger Kandidaten pro Quelle hält die Zahl
+        // gleichzeitig offener echter Verbindungen (und damit die gegenseitige Bandbreiten-Konkurrenz
+        // der Messung) in einem vertretbaren Rahmen, ohne die Mirror-Diversität nennenswert zu senken.
         private static readonly string[] SourceForgeMirrors =
-            { "deac-fra", "altushost-swe", "netix", "phoenixnap" };
+            { "deac-fra", "altushost-swe", "phoenixnap" };
 
         private static readonly Regex SourceForgeMasterProjectPath =
             new(@"^https?://master\.dl\.sourceforge\.net/project/([^?#]+)", RegexOptions.IgnoreCase);

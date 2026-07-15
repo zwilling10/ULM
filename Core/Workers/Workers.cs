@@ -345,16 +345,23 @@ namespace ULM.Core.Workers
                         // SourceForge-Fächer: eine SourceForge-Download-URL zeigt immer auf
                         // master.dl.sourceforge.net, das den Ziel-Mirror serverseitig wählt — oft
                         // einen für den jeweiligen Nutzer langsamen (real gemessen: 3 vs. 14 Mbit/s
-                        // für dieselbe Datei). ExpandSourceForgeMirrors fächert eine solche URL in
-                        // mehrere "?use_mirror=<name>"-Kandidaten auf, die tendenziell auf
-                        // verschiedenen Servern landen — erst DADURCH hat das Mirror-Race unten
-                        // überhaupt echte Auswahl zu messen (vorher waren alle Kandidaten derselbe
-                        // master-Server). Nicht-SourceForge-URLs bleiben unverändert.
+                        // für dieselbe Datei). AllDownloadUrls() fächert jede SourceForge-Quelle
+                        // bereits selbst in mehrere "?use_mirror=<name>"-Kandidaten auf (siehe dortiger
+                        // Kommentar) — erst DADURCH hat das Mirror-Race unten überhaupt echte Auswahl
+                        // zu messen (vorher waren alle Kandidaten derselbe master-Server).
+                        //
+                        // BUGFIX: Take(8) reichte nicht mehr, seit AllDownloadUrls() selbst auffächert
+                        // — eine einzelne SourceForge-Quelle allein liefert schon 4 Kandidaten
+                        // (master + 3 benannte Mirror), sodass bei zusätzlich mehreren echten,
+                        // unabhängig konfigurierten Mirror1-5 (z.B. der ausgelieferte "Linux Kodachi"-
+                        // Eintrag: kodachi.cloud + 2 weitere CDN-Knoten) die LETZTEN davon aus der
+                        // Liste fielen, bevor sie je versucht wurden. Take(10) deckt den realistischen
+                        // Regelfall (eine SourceForge-Quelle + bis zu 5 echte Mirror-Felder) ab, ohne
+                        // echte Fallback-Quellen zu verschlucken.
                         string destPath = Path.Combine(_downloadDir, fname);
                         var urlsToTry = entry.AllDownloadUrls(resolvedUrl)
-                            .SelectMany(IsoEntry.ExpandSourceForgeMirrors)
                             .Distinct(StringComparer.OrdinalIgnoreCase)
-                            .Take(8).ToList();
+                            .Take(10).ToList();
 
                         // ── Mirror-Race: bevor der eigentliche Download beginnt, alle Kandidaten
                         // parallel für ~3s antesten und den schnellsten zuerst versuchen (siehe

@@ -595,9 +595,14 @@ namespace ULM.ViewModels
             worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror); });
             worker.Completed += (ok, failed, _) => _ui.Invoke(() =>
             {
-                _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen."); DownloadBatchCompleted?.Invoke(ok, failed, 0);
+                _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen.");
                 if (pipelineChannel != null && pipelineTask != null)
                 {
+                    // BUGFIX: DownloadBatchCompleted früher HIER schon ausgelöst — der Download-
+                    // Fortschrittsdialog (SetOverallComplete) sprang dadurch fälschlich auf "100% /
+                    // ✅ erfolgreich", obwohl die Stick-Kopie erst jetzt beginnt und noch länger
+                    // dauern kann. Feuert jetzt erst unten im ContinueWith, wenn die Kopie WIRKLICH
+                    // fertig ist — vorher zeigt UpdateCopy/RecomputeOverall den echten Zwischenstand.
                     pipelineChannel.Writer.Complete();
                     StatusText = ok > 0 ? $"⬇ {ok} Downloads fertig — Stick-Kopie läuft …" : "⬇ 0 Downloads …";
                     if (ok > 0) Log("⬇ Downloads fertig. Pipeline-Kopiervorgang läuft weiter …");
@@ -606,6 +611,7 @@ namespace ULM.ViewModels
                     {
                         SetBusy(false); RefreshAllEntries(); ProgressPercent = 100;
                         TriggerVentoyMenuUpdate(capDrive); TriggerUsbScan();
+                        DownloadBatchCompleted?.Invoke(okC, failedC, 0);
                         if (okC > 0)
                         {
                             string msg = $"{okC} ISO(s) heruntergeladen und auf {capDrive} kopiert.\n\n" +
@@ -619,9 +625,10 @@ namespace ULM.ViewModels
                     }));
                 }
                 else if (!string.IsNullOrEmpty(drive) && copyAfter && ok > 0)
-                { SetBusy(false); StartCopyToStick(queue, drive, deleteAfter); }
+                { DownloadBatchCompleted?.Invoke(ok, failed, 0); SetBusy(false); StartCopyToStick(queue, drive, deleteAfter); }
                 else
                 {
+                    DownloadBatchCompleted?.Invoke(ok, failed, 0);
                     SetBusy(false); RefreshAllEntries();
                     StatusText = $"{ok}/{queue.Count} heruntergeladen" + (failed > 0 ? $", {failed} fehlgeschlagen" : "");
                     ProgressPercent = 100;

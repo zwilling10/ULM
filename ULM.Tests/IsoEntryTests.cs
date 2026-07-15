@@ -29,14 +29,61 @@ public class IsoEntryNormalizeSourceForgeUrlTests
         => Assert.Equal(url, IsoEntry.NormalizeSourceForgeUrl(url));
 
     [Fact]
-    public void AllDownloadUrls_NormalizesPinnedSourceForgeMirror()
+    public void AllDownloadUrls_NormalizesAndFanOutsPinnedSourceForgeMirror()
     {
         var entry = new IsoEntry
         {
             Url = "https://altushost-bul.dl.sourceforge.net/project/equestria-os/equestria-os-2026.07.08-x86_64.iso?viasf=1&fid=300117e26ccce9ea&e=1784121291&st=SN49t1Ny8cGNVkTxslzIgw",
         };
-        string result = Assert.Single(entry.AllDownloadUrls());
-        Assert.Equal("https://master.dl.sourceforge.net/project/equestria-os/equestria-os-2026.07.08-x86_64.iso?viasf=1", result);
+        var result = entry.AllDownloadUrls().ToList();
+        // Nicht mehr nur EIN Kandidat: die normalisierte master-URL wird sofort aufgefächert
+        // (siehe AllDownloadUrls-BUGFIX-Kommentar), damit auch Aufrufer, die selbst nicht
+        // nachfächern (UrlCheckWorker, GetExpectedSizeAsync, ResolveGenericAsync), echte
+        // Mirror-Auswahl bekommen.
+        Assert.Equal("https://master.dl.sourceforge.net/project/equestria-os/equestria-os-2026.07.08-x86_64.iso?viasf=1", result[0]);
+        Assert.True(result.Count >= 4, $"Erwartet mehrere Mirror-Kandidaten, war {result.Count}");
+        Assert.Equal(result.Count, result.Distinct().Count());
+    }
+
+    [Fact]
+    public void AllDownloadUrls_TwoDistinctPinnedMirrorsForSameFile_PreservesFullRedundancy()
+    {
+        // Regression: der ausgelieferte "Linux Kodachi"-Eintrag (IsoDatabaseService.cs) hat Mirror1
+        // als gepinnten Köln-Mirror UND Mirror2 als master-URL für DIESELBE Datei — beide
+        // normalisierten früher auf denselben String und die Deduplizierung verschluckte die zweite
+        // Quelle komplett (nur 1 statt der vollen Mirror-Auswahl). Jetzt fächert bereits die erste
+        // normalisierte URL alle Mirror-Kandidaten auf; die zweite (identische) Quelle darf keine
+        // zusätzlichen echten Kandidaten mehr verlieren, weil sie einfach als Duplikat herausfällt.
+        var entry = new IsoEntry
+        {
+            Mirror1 = "https://netcologne.dl.sourceforge.net/project/linuxkodachi/kodachi-desktop/linux-kodachi-xfce-9.0.1-amd64.iso?viasf=1",
+            Mirror2 = "https://master.dl.sourceforge.net/project/linuxkodachi/kodachi-desktop/linux-kodachi-xfce-9.0.1-amd64.iso?viasf=1",
+        };
+        var result = entry.AllDownloadUrls().ToList();
+        Assert.True(result.Count >= 4, $"Erwartet mehrere Mirror-Kandidaten trotz zwei (identisch normalisierten) Quellfeldern, war {result.Count}");
+        Assert.Equal(result.Count, result.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
+    public void AllDownloadUrls_TakeTen_DoesNotCrowdOutRealMirror4And5()
+    {
+        // Regression: der ausgelieferte "Linux Kodachi"-Eintrag hat NEBEN der SourceForge-Quelle
+        // (Mirror1/2) noch drei echte, unabhängige Nicht-SourceForge-Mirror (Mirror3-5). Der
+        // SourceForge-Fächer allein liefert 4 Kandidaten (master + 3 benannte Mirror) — zusammen mit
+        // Url + Mirror3-5 muss Mirror4 UND Mirror5 innerhalb der ersten 10 Kandidaten (siehe
+        // DownloadWorker.Take(10)) noch enthalten sein.
+        var entry = new IsoEntry
+        {
+            Url     = "https://cdn.kodachi.cloud/kodachi.iso",
+            Mirror1 = "https://netcologne.dl.sourceforge.net/project/linuxkodachi/kodachi-desktop/linux-kodachi-xfce-9.0.1-amd64.iso?viasf=1",
+            Mirror2 = "https://master.dl.sourceforge.net/project/linuxkodachi/kodachi-desktop/linux-kodachi-xfce-9.0.1-amd64.iso?viasf=1",
+            Mirror3 = "https://downloads.sourceforge.net/project/linuxkodachi/kodachi-desktop/linux-kodachi-xfce-9.0.1-amd64.iso",
+            Mirror4 = "https://cdn.kodachi.cloud/kodachi-alt1.iso",
+            Mirror5 = "https://downloads.kodachi.cloud/kodachi-alt2.iso",
+        };
+        var first10 = entry.AllDownloadUrls().Take(10).ToList();
+        Assert.Contains(entry.Mirror4, first10);
+        Assert.Contains(entry.Mirror5, first10);
     }
 }
 
@@ -76,17 +123,16 @@ public class IsoEntryExpandSourceForgeMirrorsTests
     }
 
     [Fact]
-    public void AllDownloadUrls_ThenExpand_TurnsSingleSourceForgeEntryIntoMultipleMirrors()
+    public void AllDownloadUrls_SingleSourceForgeEntry_AlreadyYieldsMultipleMirrors()
     {
         // Der reale "ISO suchen"-Fall: ein Eintrag mit genau EINER SourceForge-Quelle.
+        // AllDownloadUrls() fächert seit dem Redundanz-Bugfix selbst auf — kein zusätzliches
+        // manuelles SelectMany(ExpandSourceForgeMirrors) durch den Aufrufer mehr nötig.
         var entry = new IsoEntry
         {
             Url = "https://master.dl.sourceforge.net/project/equestria-os/equestria-os-2026.07.08-x86_64.iso?viasf=1",
         };
-        var expanded = entry.AllDownloadUrls()
-            .SelectMany(IsoEntry.ExpandSourceForgeMirrors)
-            .Distinct()
-            .ToList();
-        Assert.True(expanded.Count >= 4, $"Erwartet mehrere Mirror-Kandidaten, war {expanded.Count}");
+        var result = entry.AllDownloadUrls().ToList();
+        Assert.True(result.Count >= 4, $"Erwartet mehrere Mirror-Kandidaten, war {result.Count}");
     }
 }
