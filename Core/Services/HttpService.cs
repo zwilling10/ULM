@@ -1260,7 +1260,8 @@ namespace ULM.Core.Services
         public async Task<bool> DownloadAsync(
             string url, string destinationPath,
             IProgress<(int Percent, string Detail)>? progress,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Action<long>? onTotalKnown = null)
         {
             if (string.IsNullOrWhiteSpace(url)||string.IsNullOrWhiteSpace(destinationPath)) return false;
             string? dir=Path.GetDirectoryName(destinationPath);
@@ -1274,6 +1275,11 @@ namespace ULM.Core.Services
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0L;
+                // Wird SOFORT nach Bekanntwerden der Content-Length gemeldet (noch bevor der Download
+                // selbst fertig ist) — der Aufrufer (DownloadWorker) persistiert sie umgehend auf
+                // IsoEntry.ExpectedSizeBytes, damit ein Prozessabsturz mitten im Download die erwartete
+                // Zielgröße nicht mit sich reißt (siehe IsoDatabaseService.SaveExpectedSize).
+                if (total > 0) onTotalKnown?.Invoke(total);
 
                 // Freispeicher-Check: sobald die Content-Length bekannt ist (praktisch immer bei
                 // ISO-/Ventoy-Downloads), lieber jetzt klar abbrechen als nach halbem Download mitten

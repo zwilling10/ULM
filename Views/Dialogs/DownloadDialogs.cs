@@ -158,7 +158,18 @@ namespace ULM.Views.Dialogs
             var names = isoNames.ToList();
             _total = names.Count; _hasDownload = hasDownload; _hasCopy = hasCopy;
             Title = "Download-Fortschritt";
-            Width = 540; Height = 480;
+            Width = 540;
+            // Feste Höhe (480) zeigte bei mehreren parallelen Downloads nur einen Bruchteil der
+            // Zeilen — der Rest war nur per Scrollbalken erreichbar, wo die %-Anzeige kaum noch zu
+            // sehen war. SizeToContent.Height lässt das Fenster stattdessen mit der tatsächlichen
+            // Zeilenzahl wachsen; MaxHeight (analog SetupDialog-Fix) deckelt das am tatsächlich
+            // verfügbaren Arbeitsbereich des Zielsystems — erst darüber greift wieder der
+            // ScrollViewer der Zeilenliste (Star-Zeile verhält sich bei SizeToContent wie Auto und
+            // wird erst am MaxHeight-Deckel zum kompressiblen, scrollbaren Bereich).
+            double maxH = SystemParameters.WorkArea.Height - 60;
+            MinHeight = Math.Min(320, maxH);
+            MaxHeight = Math.Max(320, maxH);
+            SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = AppRes.Brush("BrushBg");
 
@@ -183,7 +194,7 @@ namespace ULM.Views.Dialogs
 
             Grid.SetRow(header, 0); root.Children.Add(header);
 
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 0, 14, 0) };
             _itemsPanel = new StackPanel();
             scroll.Content = _itemsPanel;
             Grid.SetRow(scroll, 1); root.Children.Add(scroll);
@@ -275,6 +286,14 @@ namespace ULM.Views.Dialogs
             return s;
         }
 
+        // Einfache Schwellenwert-Färbung nach FORTSCHRITT (nicht nach Geschwindigkeit — die variiert
+        // je nach Stick/Mirror zu stark, um dafür feste Werte sinnvoll festzulegen): früh im Verlauf
+        // gedämpft (Amber), im Hauptteil die normale Akzentfarbe (Blau), kurz vor Ende Grün.
+        private static Brush ProgressColor(int percent) =>
+            percent >= 90 ? AppRes.Brush("BrushGreen")
+            : percent < 30 ? AppRes.Brush("BrushAmber")
+            : AppRes.Brush("BrushBlue");
+
         // Download-Fortschritt eines Eintrags. Im reinen Download-Modus (keine Stick-Kopie) gilt der
         // Eintrag bei 100 % als erfolgreich fertig und wird entfernt.
         public void UpdateDownload(string name, int percent, string status, bool canFasterMirror = false)
@@ -284,7 +303,7 @@ namespace ULM.Views.Dialogs
             it.DlFrac = c / 100.0;
             if (it.UiRow is { } r)
             {
-                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.Bar.Value = c; r.Bar.Foreground = ProgressColor(c); r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
                 r.FasterBtn.Visibility = canFasterMirror ? Visibility.Visible : Visibility.Collapsed;
             }
             if (!_hasCopy && c >= 100) { MarkDone(name, removeRow: true); return; }
@@ -301,7 +320,7 @@ namespace ULM.Views.Dialogs
             if (it.UiRow is { } r)
             {
                 r.NameText.Text = $"{r.OriginalName}  —  Kopiere auf Stick";
-                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.Bar.Value = c; r.Bar.Foreground = ProgressColor(c); r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
                 r.FasterBtn.Visibility = Visibility.Collapsed; // Mirror-Wahl betrifft nur den Download, nicht die Stick-Kopie.
             }
             if (c >= 100) { MarkDone(name, removeRow: true); return; }
@@ -340,14 +359,20 @@ namespace ULM.Views.Dialogs
             int pct = (int)Math.Round(sum * 100.0 / _total);
             pct = Math.Max(0, Math.Min(100, pct));
             _overallBar.Value = pct;
+            _overallBar.Foreground = ProgressColor(pct);
             _overallText.Text = $"Gesamt: {pct} %   ({done}/{_total} fertig)";
         }
 
+        // BUGFIX: Gesamt-Balken/-Text wurden hier bisher hart auf 100%/"{_total}/{_total} fertig"
+        // gesetzt — unabhängig vom tatsächlichen Ergebnis. Schlug z.B. die anschließende Stick-Kopie
+        // fehl, blieb der über UpdateCopy korrekt NICHT als fertig markierte Eintrag unsichtbar, weil
+        // diese Methode den echten Zwischenstand einfach überschrieb. RecomputeOverall() zählt die
+        // tatsächlich fertigen Einträge (ItemState.Done) und liefert damit den echten Endstand.
         public void SetOverallComplete(string summary)
         {
-            _summaryText.Text = $"✅ {summary}";
-            _overallBar.Value = 100;
-            _overallText.Text = $"Gesamt: 100 %   ({_total}/{_total} fertig)";
+            RecomputeOverall();
+            bool allDone = _items.Values.All(it => it.Done);
+            _summaryText.Text = $"{(allDone ? "✅" : "⚠")} {summary}";
         }
     }
 

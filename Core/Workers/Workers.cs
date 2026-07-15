@@ -221,6 +221,7 @@ namespace ULM.Core.Workers
         private readonly List<IsoEntry> _entries;
         private readonly string         _downloadDir;
         private readonly int            _maxConcurrent;
+        private readonly IsoDatabaseService? _db;
         private readonly CancellationTokenSource _cts = new();
         public event Action<int, string>?       OverallProgress;
         public event Action<DownloadSlotArgs>?  SlotUpdated;
@@ -270,7 +271,7 @@ namespace ULM.Core.Workers
         public Func<string, string, bool>? ConfirmSlowDownloadAnyway;
         public DownloadWorker(List<IsoEntry> entries, int maxConcurrent, string downloadDir,
             IsoDatabaseService? db, string drive, bool copyAfter, bool deleteAfter)
-        { _entries = entries; _downloadDir = downloadDir; _maxConcurrent = maxConcurrent > 0 ? maxConcurrent : 1; }
+        { _entries = entries; _downloadDir = downloadDir; _maxConcurrent = maxConcurrent > 0 ? maxConcurrent : 1; _db = db; }
         public void Cancel() => _cts.Cancel();
 
         // ── Geschwindigkeits-Wächter-Konstanten ─────────────────────────────
@@ -281,6 +282,14 @@ namespace ULM.Core.Workers
         private static readonly TimeSpan SlowSustainedWindow = TimeSpan.FromSeconds(20);
         private const double SlowSpeedThresholdBytesPerSec   = 1_048_576; // ~1 MB/s
 
+        // BUGFIX: der "(schneller)"-Button erschien bisher bei JEDEM Mirror-Versuch mit noch
+        // übrigen Kandidaten — auch bei blitzschnellen Downloads, direkt ab Sekunde 0 (siehe
+        // ShouldShowFasterMirrorButton unten). Diese Schwelle ("komfortabel schnell") liegt bewusst
+        // deutlich über SlowSpeedThresholdBytesPerSec (die nur den automatischen Abbruch steuert) —
+        // der Button soll nur bei spürbar mittelmäßigen, aber nicht auto-abgebrochenen Downloads
+        // angeboten werden, nicht bei ohnehin schon guter Geschwindigkeit.
+        private const double ComfortableSpeedThresholdBytesPerSec = SlowSpeedThresholdBytesPerSec * 3; // ~3 MB/s
+
         /// <summary>Extrahiert die aktuelle Übertragungsrate aus dem von DownloadAsync gelieferten
         /// Detail-Text (Format "... 12.4 MB/s ..."); -1 wenn (noch) keine Rate im Text steht.</summary>
         private static double ParseSpeedBytesPerSec(string detail)
@@ -289,6 +298,20 @@ namespace ULM.Core.Workers
             if (!m.Success) return -1;
             if (!double.TryParse(m.Groups[1].Value.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) return -1;
             return m.Groups[2].Value switch { "GB" => v * 1_073_741_824, "MB" => v * 1_048_576, "KB" => v * 1024, _ => v };
+        }
+
+        /// <summary>
+        /// Entscheidet, ob der manuelle "(schneller)"-Button für den aktuell laufenden Mirror-Versuch
+        /// sichtbar sein soll. Erst nach der Anlaufzeit (manche CDNs drosseln die ersten Sekunden) UND
+        /// nur, solange die tatsächlich gemessene Geschwindigkeit unter der Komfort-Schwelle liegt —
+        /// bei einer bereits schnellen Quelle gibt es nichts, wozu "schneller" wechseln sinnvoll wäre.
+        /// </summary>
+        internal static bool ShouldShowFasterMirrorButton(bool hasMoreMirrors, TimeSpan elapsedSinceAttemptStart, double currentBpsOrNegativeIfUnknown)
+        {
+            if (!hasMoreMirrors) return false;
+            if (elapsedSinceAttemptStart < WarmupGrace) return false;
+            if (currentBpsOrNegativeIfUnknown < 0) return false;
+            return currentBpsOrNegativeIfUnknown < ComfortableSpeedThresholdBytesPerSec;
         }
 
         public Task RunAsync() => Task.Run(async () =>
@@ -391,7 +414,10 @@ namespace ULM.Core.Workers
                             string host = TryGetSourceLabel(tryUrl);
                             string label = mirrorIdx == 1 ? $"⬇ {host}" : $"⬇ Mirror {mirrorIdx}: {host}";
                             bool hasMoreMirrors = mirrorIdx < urlsToTry.Count;
-                            sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = hasMoreMirrors; SlotUpdated?.Invoke(sa);
+                            // Button bleibt zunächst versteckt — erscheint erst im Progress-Callback
+                            // unten, sobald Anlaufzeit UND gemessene Geschwindigkeit das rechtfertigen
+                            // (siehe ShouldShowFasterMirrorButton).
+                            sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = false; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
 
                             // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
@@ -418,8 +444,10 @@ namespace ULM.Core.Workers
                                     tryUrl, destPath, mirrorCts.Token,
                                     (p, d) =>
                                     {
-                                        sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
                                         double bps = ParseSpeedBytesPerSec(d);
+                                        sa.Status = $"{label}  {d}"; sa.Percent = p;
+                                        sa.CanRequestFasterMirror = ShouldShowFasterMirrorButton(hasMoreMirrors, attemptSw.Elapsed, bps);
+                                        SlotUpdated?.Invoke(sa);
                                         if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
                                         else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
                                         {
@@ -428,7 +456,8 @@ namespace ULM.Core.Workers
                                                 (hasMoreMirrors ? " und versuche nächste Quelle …" : "."));
                                             mirrorCts.Cancel();
                                         }
-                                    })
+                                    },
+                                    onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                             }
                             finally { _activeAttempts.TryRemove(entry.Name, out _); }
@@ -481,7 +510,8 @@ namespace ULM.Core.Workers
                                 sa.Status = $"{fallbackLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
                                 ok = await HttpService.Instance.DownloadFileAsync(
                                     manualSkipFallbackUrl, destPath, _cts.Token,
-                                    (p, d) => { sa.Status = $"{fallbackLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                    (p, d) => { sa.Status = $"{fallbackLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); },
+                                    onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = manualSkipFallbackUrl;
                                 else LogMessage?.Invoke($"   ❌ {entry.Name}: {manualSkipFallbackHost} letztlich doch fehlgeschlagen.");
@@ -503,7 +533,8 @@ namespace ULM.Core.Workers
                                 sa.Status = $"{slowLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
                                 ok = await HttpService.Instance.DownloadFileAsync(
                                     slowAbortedUrl, destPath, _cts.Token,
-                                    (p, d) => { sa.Status = $"{slowLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                    (p, d) => { sa.Status = $"{slowLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); },
+                                    onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = slowAbortedUrl;
                                 else LogMessage?.Invoke($"   ❌ {entry.Name}: {slowAbortedHost} letztlich doch fehlgeschlagen.");
@@ -548,6 +579,14 @@ namespace ULM.Core.Workers
                     }
                     catch (Exception ex)
                     {
+                        // BUGFIX (Review): der normale Pfad blendet den "(schneller)"-Button nach der
+                        // Mirror-Schleife aus (sa.CanRequestFasterMirror = false weiter oben) — eine
+                        // Exception MITTEN in einem bereits sichtbaren Versuch (Button war schon an,
+                        // siehe ShouldShowFasterMirrorButton) sprang bisher direkt hierher, ohne das
+                        // Flag zurückzusetzen. Der Button blieb dann auf der Fehler-Zeile sichtbar
+                        // (harmlos, da der zugehörige Versuch längst aus _activeAttempts entfernt ist,
+                        // aber optisch falsch).
+                        sa.CanRequestFasterMirror = false;
                         sa.Status = $"Fehler: {ex.Message}"; SlotUpdated?.Invoke(sa);
                         LogMessage?.Invoke($"   ❌ {entry.Name}: {ex.GetType().Name}: {ex.Message}");
                     }
@@ -847,12 +886,12 @@ namespace ULM.Core.Workers
         /// </summary>
         public static Task<bool> DownloadFileAsync(
             this HttpService service, string url, string destPath,
-            CancellationToken token, Action<int, string>? progress)
+            CancellationToken token, Action<int, string>? progress, Action<long>? onTotalKnown = null)
         {
             var iProgress = progress is null
                 ? (IProgress<(int Percent, string Detail)>?)null
                 : new Progress<(int Percent, string Detail)>(t => progress(t.Percent, t.Detail));
-            return service.DownloadAsync(url, destPath, iProgress, token);
+            return service.DownloadAsync(url, destPath, iProgress, token, onTotalKnown);
         }
     }
 }

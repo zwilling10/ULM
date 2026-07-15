@@ -143,6 +143,18 @@ namespace ULM.ViewModels
 
         public Brush ForegroundBrush => GetForeground();
 
+        // Hash-Status-Symbol in der Hauptliste: grün = Referenz-Hash vorhanden (lokal berechnet oder
+        // offiziell verifiziert), rot = bei der letzten Integritätsprüfung eine Abweichung gefunden,
+        // unsichtbar = noch nie heruntergeladen/importiert (kein Hash vorhanden) — bewusst NICHT rot,
+        // sonst würde jede noch nicht heruntergeladene ISO fälschlich wie ein Problem aussehen.
+        public bool   HasHashStatus   => !string.IsNullOrEmpty(_entry.Sha256);
+        public Brush  HashStatusBrush => _entry.HashMismatchDetected ? ThemeColors.Red : ThemeColors.Green;
+        public string HashStatusTooltip => _entry.HashMismatchDetected
+            ? "⚠ Hash-Abweichung — Datei weicht von der zuletzt gespeicherten Prüfsumme ab (evtl. beschädigt oder ersetzt)."
+            : _entry.Sha256Source == "OfficialChecksum"
+                ? "✅ Prüfsumme gegen die offiziell vom Anbieter veröffentlichte Prüfsumme verifiziert."
+                : "✅ Referenz-Prüfsumme lokal beim Download/Import berechnet (keine offizielle Gegenprüfung).";
+
         private string BuildDisplayName()
         {
             string prefix = _entry.ImportedFromStick ? "📥 " : string.Empty;
@@ -188,6 +200,9 @@ namespace ULM.ViewModels
             OnPropertyChanged(nameof(ForegroundBrush));
             OnPropertyChanged(nameof(IsSelected));
             OnPropertyChanged(nameof(TipTooltip));
+            OnPropertyChanged(nameof(HasHashStatus));
+            OnPropertyChanged(nameof(HashStatusBrush));
+            OnPropertyChanged(nameof(HashStatusTooltip));
         }
     }
 

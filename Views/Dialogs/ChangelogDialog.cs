@@ -18,6 +18,17 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.32.0", new[]
+            {
+                "Fehlerbehebung: ein durch Programmabsturz oder harten Kill mitten im Download unterbrochenes ISO konnte nach dem Neustart ungeprüft auf den Stick kopiert werden — die erwartete Zielgröße wird jetzt schon beim Download-Start gespeichert (nicht erst am Ende) und übersteht damit auch einen Absturz.",
+                "Fehlerbehebung: der „(schneller)“-Mirror-Wechsel-Button erschien bisher bei jedem Download mit weiteren Mirror-Kandidaten, selbst bei bereits sehr guter Geschwindigkeit — erscheint jetzt erst nach Anlaufzeit und nur bei spürbar mittelmäßiger Übertragung.",
+                "Fehlerbehebung: im kombinierten „Download → Stick-Kopie“-Modus zeigte die Gesamt-Fortschritts-Anzeige und die Abschluss-Meldung fälschlich vollen Erfolg, obwohl nur der Download geklappt hatte und die anschließende Stick-Kopie fehlgeschlagen war — beide zeigen jetzt das echte Kopier-Ergebnis.",
+                "Neu: Hash-Status-Symbol in der Hauptliste — zeigt auf einen Blick, ob eine gespeicherte Prüfsumme vorhanden ist bzw. ob die letzte Integritätsprüfung eine Abweichung gefunden hat.",
+                "Neu: Fortschrittsbalken färben sich abhängig vom Fortschritt (gedämpft am Anfang, grün kurz vor Fertigstellung).",
+                "Neu: „🔁 Verpasste Kopien nachholen“ (vorher „Auf Stick kopieren“) — manuelles Sicherheitsnetz, falls die automatische Kopier-Nachfrage abgelehnt wurde oder eine Kopie fehlgeschlagen ist.",
+                "Download-Fortschrittsfenster passt seine Höhe jetzt automatisch an die Bildschirmgröße an, damit bei mehreren parallelen Downloads mehr Zeilen ohne Bildlaufleiste sichtbar sind; die %-Anzeige wurde dabei bisher teils von der Bildlaufleiste verdeckt.",
+                "Lange Tooltip-Texte wurden bisher als eine einzige, bildschirmbreite Zeile angezeigt — brechen jetzt lesbar um.",
+            }),
             ("2.31.1", new[]
             {
                 "Fehlerbehebung: ULM meldete eine bereits aktuelle Stick-ISO fälschlich als veraltet, wenn eine alte Version nie gelöscht wurde — bietet jetzt stattdessen das Löschen der alten Datei an.",
