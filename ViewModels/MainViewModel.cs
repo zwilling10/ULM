@@ -103,14 +103,15 @@ namespace ULM.ViewModels
             set { if (SetField(ref _gitHubToken, value)) { IniService.Write(_paths.SettingsIni, "App", "GitHubToken", value); _http.GitHubToken = value; } }
         }
 
-        public RelayCommand DownloadCommand      { get; }
-        public RelayCommand CopyToUsbCommand     { get; }
-        public RelayCommand CheckUpdatesCommand  { get; }
-        public RelayCommand CheckUrlsCommand     { get; }
-        public RelayCommand HealthCheckCommand   { get; }
-        public RelayCommand VentoyCommand        { get; }
-        public RelayCommand CancelCommand        { get; }
-        public RelayCommand RefreshDrivesCommand { get; }
+        public RelayCommand DownloadCommand           { get; }
+        public RelayCommand CopyToUsbCommand        { get; }
+        public RelayCommand CheckUpdatesCommand     { get; }
+        public RelayCommand CheckUrlsCommand        { get; }
+        public RelayCommand HealthCheckCommand      { get; }
+        public RelayCommand VentoyCommand           { get; }
+        public RelayCommand CancelCommand           { get; }
+        public RelayCommand RefreshDrivesCommand    { get; }
+        public RelayCommand VerifyStickIntegrityCommand { get; }
 
         public event Action<string>?       LogMessage;
         public event Action<string, bool>? ShowMessageBox;
@@ -150,6 +151,7 @@ namespace ULM.ViewModels
             VentoyCommand        = new RelayCommand(OnVentoy,       () => !IsBusy);
             CancelCommand        = new RelayCommand(OnCancel,       () => IsBusy);
             RefreshDrivesCommand = new RelayCommand(RefreshDrives);
+            VerifyStickIntegrityCommand = new RelayCommand(() => _ = VerifyStickIntegrityAsync(), () => !IsBusy && !string.IsNullOrEmpty(SelectedDriveLetter));
             _expertMode = IniService.Read(_paths.SettingsIni, "App", "ExpertMode", "0") == "1";
             _secureBoot = IniService.Read(_paths.SettingsIni, "App", "SecureBoot", "1") != "0";
             _gitHubToken = IniService.Read(_paths.SettingsIni, "App", "GitHubToken", string.Empty);
@@ -469,6 +471,36 @@ namespace ULM.ViewModels
                     mismatches.Add(stick);
             }
             return mismatches;
+        }
+
+        /// <summary>
+        /// Manuelle, vollständige Variante von DetectVersionlessHashMismatchesAsync: prüft ALLE
+        /// Einträge mit vorhandenem Referenz-Hash (nicht nur versionslose) — bewusst nur auf
+        /// Anwender-Wunsch (Button), da das Hashen mehrerer GB-ISOs über USB spürbar dauert.
+        /// </summary>
+        public async Task VerifyStickIntegrityAsync()
+        {
+            if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
+            SetBusy(true); StatusText = "🔒 Prüfe Integrität …"; Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
+            var (found, _) = await UsbService.Instance.ScanStickVerifiedAsync(SelectedDriveLetter, _db.Entries).ConfigureAwait(false);
+            var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
+            foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
+
+            var mismatches = new List<UsbService.StickIso>(); int checkedCount = 0;
+            foreach (var e in _db.Entries)
+            {
+                if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
+                checkedCount++;
+                string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
+                    mismatches.Add(stick);
+            }
+            _ui.Invoke(() =>
+            {
+                SetBusy(false); StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
+                Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
+                if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
+            });
         }
 
         internal static bool IsSameDistroDifferentVersion(string a, string b)
