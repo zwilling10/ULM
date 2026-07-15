@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.31.1", new[]
+            {
+                "Fehlerbehebung: ULM meldete eine bereits aktuelle Stick-ISO fälschlich als veraltet, wenn eine alte Version nie gelöscht wurde — bietet jetzt stattdessen das Löschen der alten Datei an.",
+                "Neu: SHA-256-Integritätsprüfung — nach Download/Import wird ein Referenzhash gespeichert, bei Ubuntu/Debian/Fedora zusätzlich gegen die offizielle Prüfsumme verifiziert. Manuelle Prüfung über den neuen Button \"Integrität prüfen\".",
+            }),
             ("2.31.0", new[]
             {
                 "Neu: Autostart-Option — Checkbox im Einrichtungsfenster startet ULM ab sofort automatisch mit Windows, kein Admin-Recht nötig",
