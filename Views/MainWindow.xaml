@@ -412,6 +412,10 @@
                     <Button x:Name="BtnCopyUsb" Content="📋  Auf Stick kopieren"
                             Style="{DynamicResource BtnGhost}" Width="160"
                             Click="BtnCopyUsb_Click" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnVerifyIntegrity" Content="🔒  Integrität prüfen"
+                            Style="{DynamicResource BtnGhost}" Width="160"
+                            ToolTip="Prüft die ISOs auf dem gewählten Stick gegen den beim Download/Import gespeicherten SHA-256-Referenzhash."
+                            Click="BtnVerifyIntegrity_Click" Margin="0,0,8,0"/>
                     <Button x:Name="BtnGitHubToken" Content="🔑  GitHub-Token"
                             Style="{DynamicResource BtnGhost}" Width="130"
                             ToolTip="Optional: hebt das API-Limit für GitHub-basierte Distros von 60 auf 5000 Anfragen/Std an."
