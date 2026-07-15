@@ -80,7 +80,7 @@ namespace ULM.Views
                 if (added > 0) _vm.RunHealthCheck();
             };
 
-            _vm.UnknownIsosOnStickDetected += (unknowns, drive) =>
+            _vm.UnknownIsosOnStickDetected += async (unknowns, drive) =>
             {
                 var fresh = unknowns.Where(u => _importedStickKeys.Add($"{drive}|{u.Filename}")).ToList();
                 if (fresh.Count == 0) return;
@@ -91,19 +91,23 @@ namespace ULM.Views
                 int movedFailed = 0;
                 foreach (var (entry, sourcePath) in dlg.ImportedEntries)
                 {
+                    string finalPath = sourcePath;
                     if (UsbService.MoveToCategoryFolder(sourcePath, drive, entry.NormalizedCategory, entry.Filename, AppendLog))
+                    {
                         AppendLog($"   📂 {entry.Filename} → {entry.NormalizedCategory}\\");
+                        finalPath = Path.Combine(drive, entry.NormalizedCategory, entry.Filename);
+                    }
                     else movedFailed++;
+                    // Referenz-Hash direkt von der Stick-Datei — es existiert keine lokale Kopie
+                    // für importierte Einträge (siehe Spec: Stufe 1, Import-Zeitpunkt).
+                    entry.Sha256 = await IsoEntry.ComputeSha256Async(finalPath);
+                    entry.Sha256Source = string.IsNullOrEmpty(entry.Sha256) ? string.Empty : "LocalDownload";
                     _vm.AddImportedEntry(entry);
                 }
                 IsoDatabaseService.Instance.Save(); _vm.RebuildTree();
                 AppendLog($"✅ {dlg.ImportedEntries.Count} ISO(s) zur Datenbank hinzugefügt" + (movedFailed > 0 ? $", {movedFailed} konnte(n) nicht in den Kategorie-Ordner verschoben werden" : "") + ".");
                 _vm.TriggerVentoyMenuUpdate(drive);
                 _vm.TriggerUsbScan();
-                // Frisch importierte Einträge haben (fast) nie eine geprüfte Url — genau hier lohnt
-                // sich der volle Gesundheitscheck, statt bis zum nächsten periodischen Online-Check
-                // zu warten (siehe MainViewModel.TriggerUsbScan für die Begründung, warum der Check
-                // nicht mehr bei jedem Scan automatisch läuft).
                 _vm.RunHealthCheck();
             };
 
