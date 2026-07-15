@@ -515,6 +515,12 @@ namespace ULM.Core.Workers
                         if (ok)
                         {
                             entry.UpdateAvailable = false; entry.VerifiedComplete = true;
+                            // Referenz-Hash für spätere Stick-Integritätsprüfung — siehe
+                            // IsoEntry.Sha256/Sha256Source. Fehler beim Hashen (Datei gesperrt o. ä.)
+                            // sind kein Download-Fehlschlag: ComputeSha256Async liefert dann leer,
+                            // der Download bleibt erfolgreich, nur ohne Referenz-Hash.
+                            entry.Sha256 = await IsoEntry.ComputeSha256Async(destPath, _cts.Token).ConfigureAwait(false);
+                            entry.Sha256Source = string.IsNullOrEmpty(entry.Sha256) ? string.Empty : "LocalDownload";
                             sa.Percent = 100; sa.Status = "✅ Fertig";
                             Interlocked.Increment(ref successCount);
                             LogMessage?.Invoke($"   ✅ {entry.Name}: Download abgeschlossen ({fname}) via {TryGetHost(usedUrl)}");
