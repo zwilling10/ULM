@@ -749,7 +749,16 @@ namespace ULM.Core.Workers
                 var e = _entries[i]; string localFn = e.Filename ?? string.Empty;
                 if (!_checkAllEntries && !e.IsAvailableAnywhere(_downloadDir)) { Progress?.Invoke(++processed, count); continue; }
                 bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
-                var (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false);
+                // BUGFIX: Ein unbehandelter Fehler bei EINEM Eintrag ließ bisher den kompletten Scan
+                // als faulted Task enden, OHNE dass Completed je feuert. Bei AutoVersionCheckWorker
+                // (Start-Versionscheck) blieb dadurch MainViewModel._startupPhase dauerhaft auf true
+                // hängen — TriggerUsbScan() wurde für den Rest der Sitzung zu einem stummen No-op,
+                // ganz ohne sichtbaren Fehler (siehe Kommentar dort). Analog zum Fix für DownloadWorker
+                // weiter oben: ein Fehler bei EINEM Eintrag darf den ganzen Batch nicht abwürgen —
+                // einfach als "nicht aufgelöst" behandeln und mit dem nächsten Eintrag weitermachen.
+                string remoteVer = string.Empty, url = string.Empty, fname = string.Empty;
+                try { (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false); }
+                catch (Exception ex) { Debug.WriteLine($"[UpdateScanWorker] {e.Name}: {ex.GetType().Name}: {ex.Message}"); }
                 Progress?.Invoke(++processed, count);
                 bool res = !string.IsNullOrWhiteSpace(remoteVer) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(fname);
                 bool hasUpdate = false;

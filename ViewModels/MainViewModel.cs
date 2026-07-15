@@ -471,7 +471,6 @@ namespace ULM.ViewModels
         {
             Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
             StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0;
-            string capturedDrive = SelectedDriveLetter;
             var worker = new AutoVersionCheckWorker(_db.Entries);
             worker.Progress += (c, t) => _ui.Invoke(() => OnlineScanPercent = t > 0 ? (c * 100) / t : 0);
             worker.EntryChecked += result => _ui.Invoke(() =>
@@ -523,11 +522,23 @@ namespace ULM.ViewModels
                                : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
                     Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
                 });
-                if (!string.IsNullOrEmpty(capturedDrive))
+                // BUGFIX: Der zu scannende Stick wurde bisher als "capturedDrive" VOR dem
+                // Versionscheck erfasst — steckte der Anwender einen Stick erst WÄHREND des Checks
+                // ein, blieb dieser Nachlauf-Scan auf dem alten (oft leeren) Stand hängen: der
+                // reguläre TriggerUsbScan()-Aufruf über den SelectedDrive-Setter war durch
+                // _startupPhase blockiert, UND hier wurde weiterhin der veraltete Laufwerksbuchstabe
+                // von vor dem Check geprüft — der neu eingesteckte Stick wurde nie gescannt, bis er
+                // ab- und wieder eingesteckt wurde. SelectedDrive selbst wird aber auch während
+                // _startupPhase korrekt aktualisiert (nur der TriggerUsbScan()-Aufruf im Setter wird
+                // unterdrückt) — ein frischer Blick auf SelectedDriveLetter GENAU JETZT (nach dem
+                // Zurücksetzen von _startupPhase oben) liefert daher immer den tatsächlich
+                // aktuellen Stick, egal ob er schon vor dem Check da war oder währenddessen dazukam.
+                string driveToScan = SelectedDriveLetter;
+                if (!string.IsNullOrEmpty(driveToScan))
                     _ = Task.Run(async () =>
                     {
-                        _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {capturedDrive} …"); });
-                        var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(capturedDrive, _db.Entries).ConfigureAwait(false);
+                        _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
+                        var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
                         var sn = new HashSet<string>(si.Select(s => s.Filename), StringComparer.OrdinalIgnoreCase);
                         var od = oldFn.Where(kvp => sn.Contains(kvp.Key)).Select(kvp => _db.Entries[kvp.Value]).ToList();
                         _ui.Invoke(() =>
@@ -535,14 +546,14 @@ namespace ULM.ViewModels
                             ApplyStickResults(si); UsbScanActive = false; UsbScanPercent = 100; RefreshAllEntries();
                             if (incomplete.Count > 0)
                             {
-                                Log($"⚠ Stick-Prüfung {capturedDrive}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
+                                Log($"⚠ Stick-Prüfung {driveToScan}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
                                 foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
-                                IncompleteIsosOnStickDetected?.Invoke(incomplete, capturedDrive);
+                                IncompleteIsosOnStickDetected?.Invoke(incomplete, driveToScan);
                             }
-                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {capturedDrive}."); foreach (var e in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, capturedDrive); }
-                            else if (si.Count > 0) Log($"✅ Alle ISOs auf {capturedDrive} aktuell.");
+                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var e in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, driveToScan); }
+                            else if (si.Count > 0) Log($"✅ Alle ISOs auf {driveToScan} aktuell.");
                             var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !od.Contains(e)).ToList();
-                            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, capturedDrive);
+                            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, driveToScan);
                         });
                     });
             };
