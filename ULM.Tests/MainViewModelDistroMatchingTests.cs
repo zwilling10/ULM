@@ -102,4 +102,75 @@ public class MainViewModelDistroMatchingTests
     [InlineData("HBCD_PE_x64.iso", "", false)]
     public void RepresentsGenuineFilenameChange_OnlyTrueWhenFilenameActuallyDiffers(string oldFilename, string newFilename, bool expected)
         => Assert.Equal(expected, MainViewModel.RepresentsGenuineFilenameChange(oldFilename, newFilename));
+
+    public class MainViewModelSplitOutdatedFromDuplicatesTests
+    {
+        private static IsoEntry Entry(string filename) => new() { Name = filename, Filename = filename };
+
+        [Fact]
+        public void SplitOutdatedFromDuplicates_OldNamePresentNewNameAbsent_IsTrulyOutdated()
+        {
+            var entries = new List<IsoEntry> { Entry("equestria-os-2026.07.15-x86_64.iso") };
+            var oldFn = new Dictionary<string, int> { ["equestria-os-2026.07.08-x86_64.iso"] = 0 };
+            var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "equestria-os-2026.07.08-x86_64.iso" };
+
+            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+
+            Assert.Single(outdated);
+            Assert.Empty(duplicates);
+        }
+
+        [Fact]
+        public void SplitOutdatedFromDuplicates_OldNameAndNewNameBothPresent_IsStaleDuplicate()
+        {
+            // Regression: genau der vom Nutzer gemeldete Fall — equestria-os-...07.08... UND
+            // ...07.15... liegen gleichzeitig auf dem Stick. Die aktuelle Version ist bereits da,
+            // die alte Datei ist reiner Datenmüll — KEINE "veraltet"-Meldung, sondern ein Löschangebot.
+            var entries = new List<IsoEntry> { Entry("equestria-os-2026.07.15-x86_64.iso") };
+            var oldFn = new Dictionary<string, int> { ["equestria-os-2026.07.08-x86_64.iso"] = 0 };
+            var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "equestria-os-2026.07.08-x86_64.iso", "equestria-os-2026.07.15-x86_64.iso" };
+
+            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+
+            Assert.Empty(outdated);
+            Assert.Single(duplicates);
+            Assert.Equal("equestria-os-2026.07.08-x86_64.iso", duplicates[0].OldFilename);
+        }
+
+        [Fact]
+        public void SplitOutdatedFromDuplicates_OldNameNotOnStick_ProducesNothing()
+        {
+            var entries = new List<IsoEntry> { Entry("equestria-os-2026.07.15-x86_64.iso") };
+            var oldFn = new Dictionary<string, int> { ["equestria-os-2026.07.08-x86_64.iso"] = 0 };
+            var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Stick leer / bereits bereinigt
+
+            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+
+            Assert.Empty(outdated);
+            Assert.Empty(duplicates);
+        }
+
+        [Fact]
+        public void SplitOutdatedFromDuplicates_MultipleEntries_ClassifiesEachIndependently()
+        {
+            var entries = new List<IsoEntry>
+            {
+                Entry("distro-a-2.0.iso"), // Index 0 — echt veraltet
+                Entry("distro-b-2.0.iso"), // Index 1 — Duplikat
+            };
+            var oldFn = new Dictionary<string, int>
+            {
+                ["distro-a-1.0.iso"] = 0,
+                ["distro-b-1.0.iso"] = 1,
+            };
+            var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "distro-a-1.0.iso", "distro-b-1.0.iso", "distro-b-2.0.iso" };
+
+            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+
+            Assert.Single(outdated); Assert.Equal("distro-a-2.0.iso", outdated[0].Filename);
+            Assert.Single(duplicates); Assert.Equal("distro-b-1.0.iso", duplicates[0].OldFilename);
+        }
+    }
 }
