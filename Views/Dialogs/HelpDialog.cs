@@ -358,7 +358,7 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("🔒 Integrität prüfen",
                 "Nach jedem Download oder beim Import vom Stick speichert ULM einen SHA-256-Referenzhash " +
                 "der ISO-Datei. Bei Ubuntu, Debian und Fedora prüft ULM automatisch die offizielle Prüfsumme " +
-                "vom Anbieter. Mit dem Button \"🔒 Integrität prüfen\" lässt sich jederzeit die Datei auf dem Stick " +
+                "vom Anbieter. Mit dem Button '🔒 Integrität prüfen' lässt sich jederzeit die Datei auf dem Stick " +
                 "gegen den Referenzhash verifizieren — warnt wenn die Kopie beschädigt oder unvollständig wurde."));
             content.Children.Add(MakeItem("Freispeicher-Check",
                 "Zweistufig: BEVOR der Download überhaupt startet, summiert ULM die online " +
