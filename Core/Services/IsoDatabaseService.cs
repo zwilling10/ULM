@@ -76,6 +76,14 @@ namespace ULM.Core.Services
                     GithubRepo  = d.GetValueOrDefault("GitHubRepo",  string.Empty),
                     GithubAsset = d.GetValueOrDefault("GitHubAsset", string.Empty),
                     Tip         = d.GetValueOrDefault("Tip",         string.Empty).Replace("\\n", "\n"),
+                    // BUGFIX (finaler Review): Sha256/Sha256Source wurden hier bisher NICHT gelesen
+                    // und landeten dadurch nach jedem Neuladen als leerer String — die gesamte
+                    // Integritaetspruefung (DetectVersionlessHashMismatchesAsync/
+                    // VerifyStickIntegrityAsync) uebersprang danach stillschweigend jeden Eintrag.
+                    // GetValueOrDefault liefert fuer ALTE ulm_isos.ini-Dateien ohne diese Keys
+                    // klaglos string.Empty zurueck — kein Migrationsschritt noetig.
+                    Sha256       = d.GetValueOrDefault("Sha256",       string.Empty),
+                    Sha256Source = d.GetValueOrDefault("Sha256Source", string.Empty),
                 });
             }
 
@@ -116,6 +124,13 @@ namespace ULM.Core.Services
                 sb.AppendLine($"GitHubRepo  = {e.GithubRepo}");
                 sb.AppendLine($"GitHubAsset = {e.GithubAsset}");
                 sb.AppendLine($"Tip         = {e.Tip.Replace("\n", "\\n")}");
+                // BUGFIX (finaler Review): Sha256/Sha256Source wurden hier bisher NICHT geschrieben
+                // (fester INI-Feld-Katalog statt Reflection-Serializer) — der Referenz-Hash ging bei
+                // jedem Save() (z.B. nach Download/Stick-Import) stillschweigend verloren, sobald die
+                // App neu startet und die Datenbank neu laedt. Siehe LoadFromIni() fuer die passende
+                // Gegenseite.
+                sb.AppendLine($"Sha256      = {e.Sha256}");
+                sb.AppendLine($"Sha256Source = {e.Sha256Source}");
                 sb.AppendLine();
             }
 
