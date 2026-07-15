@@ -521,6 +521,20 @@ namespace ULM.Core.Workers
                             // der Download bleibt erfolgreich, nur ohne Referenz-Hash.
                             entry.Sha256 = await IsoEntry.ComputeSha256Async(destPath, _cts.Token).ConfigureAwait(false);
                             entry.Sha256Source = string.IsNullOrEmpty(entry.Sha256) ? string.Empty : "LocalDownload";
+                            if (!string.IsNullOrEmpty(entry.Sha256))
+                            {
+                                // Stufe 2: wenn möglich gegen die vom Anbieter veröffentlichte offizielle
+                                // Prüfsumme verifizieren (stärkere Garantie als nur der lokal berechnete
+                                // Hash). Kein Treffer/Fehler → bleibt bei "LocalDownload", kein harter Fehler.
+                                string? official = await HttpService.Instance.ResolveOfficialChecksumAsync(entry, fname).ConfigureAwait(false);
+                                if (official != null)
+                                {
+                                    if (string.Equals(official, entry.Sha256, StringComparison.OrdinalIgnoreCase))
+                                    { entry.Sha256Source = "OfficialChecksum"; LogMessage?.Invoke($"   🔒 {entry.Name}: Prüfsumme gegen offizielle Quelle verifiziert."); }
+                                    else
+                                        LogMessage?.Invoke($"   ⚠ {entry.Name}: WARNUNG — heruntergeladene Datei weicht von der offiziellen Prüfsumme ab!");
+                                }
+                            }
                             sa.Percent = 100; sa.Status = "✅ Fertig";
                             Interlocked.Increment(ref successCount);
                             LogMessage?.Invoke($"   ✅ {entry.Name}: Download abgeschlossen ({fname}) via {TryGetHost(usedUrl)}");

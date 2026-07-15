@@ -290,6 +290,30 @@ namespace ULM.Core.Services
         }
 
         /// <summary>
+        /// Parst eine `sha256sum`-Ausgabedatei (Format "hash␣␣filename" pro Zeile, wie von Ubuntu/
+        /// Debian als SHA256SUMS veröffentlicht) und liefert den Hash für den exakten Dateinamen,
+        /// oder null wenn nicht gefunden.
+        /// </summary>
+        internal static string? ParseSha256SumsLine(string content, string filename)
+        {
+            if (string.IsNullOrEmpty(content)) return null;
+            var m = Regex.Match(content, $@"^([0-9a-fA-F]{{64}})\s+\*?{Regex.Escape(filename)}\s*$", RegexOptions.Multiline);
+            return m.Success ? m.Groups[1].Value.ToLowerInvariant() : null;
+        }
+
+        /// <summary>
+        /// Parst eine BSD-Style-Prüfsummendatei (Format "SHA256 (filename) = hash", wie von Fedora
+        /// veröffentlicht) und liefert den Hash für den exakten Dateinamen, oder null wenn nicht
+        /// gefunden.
+        /// </summary>
+        internal static string? ParseBsdStyleChecksum(string content, string filename)
+        {
+            if (string.IsNullOrEmpty(content)) return null;
+            var m = Regex.Match(content, $@"SHA256\s*\({Regex.Escape(filename)}\)\s*=\s*([0-9a-fA-F]{{64}})");
+            return m.Success ? m.Groups[1].Value.ToLowerInvariant() : null;
+        }
+
+        /// <summary>
         /// Vergleicht zwei Versions-STRINGS (z.B. "24.04", "7.9.1") numerisch, teilweise-für-teil.
         /// Public, damit Worker-Klassen (z.B. UpdateScanWorker) echte Versionsvergleiche nutzen
         /// können statt reiner Dateinamens-String-Gleichheit — zwei unterschiedliche Dateinamen
@@ -928,6 +952,56 @@ namespace ULM.Core.Services
                 return(mm.Groups[2].Value,isoDir+mm.Groups[1].Value,mm.Groups[1].Value);
             }
             return Empty;
+        }
+
+        /// <summary>
+        /// Stufe 2 (siehe Spec): versucht, die vom Anbieter veröffentlichte offizielle Prüfsumme für
+        /// die gegebene Datei zu finden — aktuell nur Ubuntu/Debian/Fedora (stabilstes, einfach
+        /// parsbares Format). Liefert null bei jedem Fehler (kein Resolver, Netzwerkfehler, Format
+        /// nicht erkannt) — das ist KEIN harter Fehler, der Aufrufer fällt dann auf
+        /// Sha256Source = "LocalDownload" zurück.
+        /// </summary>
+        public async Task<string?> ResolveOfficialChecksumAsync(IsoEntry entry, string filename)
+        {
+            string nl = NormalizeForMatch(entry.Name);
+            try
+            {
+                if (nl.Contains("ubuntu") && !nl.Contains("lubuntu"))
+                {
+                    var vm = Regex.Match(filename, @"ubuntu-(\d+\.\d+(?:\.\d+)?)-");
+                    if (!vm.Success) return null;
+                    string? content = await GetStringAsync($"https://releases.ubuntu.com/{vm.Groups[1].Value}/SHA256SUMS").ConfigureAwait(false);
+                    return content is null ? null : ParseSha256SumsLine(content, filename);
+                }
+                if (nl.Contains("debian"))
+                {
+                    foreach (string m in new[] { "https://ftp.halifax.rwth-aachen.de/debian-cd/current-live/amd64/iso-hybrid/", "https://ftp.fau.de/debian-cd/current-live/amd64/iso-hybrid/", "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/" })
+                    {
+                        string? content = await GetStringAsync(m + "SHA256SUMS").ConfigureAwait(false);
+                        string? hash = content is null ? null : ParseSha256SumsLine(content, filename);
+                        if (hash != null) return hash;
+                    }
+                    return null;
+                }
+                if (nl.Contains("fedora"))
+                {
+                    foreach (string m in new[] { "https://ftp.fau.de/fedora/linux/releases/", "https://ftp.halifax.rwth-aachen.de/fedora/linux/releases/" })
+                    {
+                        var vm = Regex.Match(filename, @"Fedora-Workstation-Live-(\d+)-");
+                        if (!vm.Success) continue;
+                        string isoDir = $"{m}{vm.Groups[1].Value}/Workstation/x86_64/iso/";
+                        foreach (string candidate in new[] { "CHECKSUM", $"{Path.GetFileNameWithoutExtension(filename)}-CHECKSUM" })
+                        {
+                            string? content = await GetStringAsync(isoDir + candidate).ConfigureAwait(false);
+                            string? hash = content is null ? null : ParseBsdStyleChecksum(content, filename);
+                            if (hash != null) return hash;
+                        }
+                    }
+                    return null;
+                }
+                return null;
+            }
+            catch (Exception) { return null; }
         }
 
         private async Task<(string, string, string)> ResolveUltramarineAsync(string edition)
