@@ -38,6 +38,26 @@ namespace ULM.Core.Services
                 req.Headers.TryAddWithoutValidation("Authorization", $"Bearer {GitHubToken}");
         }
 
+        // SourceForge-Downloads müssen sich als curl ausgeben. Der SCHNELLE Mirror-Pfad (der
+        // eigentliche Download bzw. dessen Geschwindigkeitsmessung, nicht die Versionsauflösung)
+        // läuft über downloads.sourceforge.net, das hinter Cloudflare liegt. Cloudflare fordert
+        // Browser-User-Agents zu einer JavaScript-Challenge auf, die ein reiner HTTP-Client (ohne
+        // JS-Engine) NICHT lösen kann → 403 Forbidden. CLI-Downloader wie curl/wget lässt Cloudflare
+        // dort dagegen gezielt durch — genau die Nutzungsart, die ULM hier hat (Datei-Download, kein
+        // Seitenaufruf). Live verifiziert: mit dem Standard-Chrome-User-Agent 403, mit curl-UA 206
+        // und voller Mirror-Geschwindigkeit (15–33 statt 3–4 Mbit/s über master direkt). Der
+        // curl-UA wird per Einzel-Request gesetzt (überschreibt den Standard-UA nur für diese
+        // Anfrage) und ausschließlich für sourceforge.net-Hosts, damit andere Anbieter, die
+        // umgekehrt Browser-UAs erwarten, unberührt bleiben.
+        private const string SourceForgeDownloadUserAgent = "curl/8.5.0";
+
+        private static void ApplyDownloadUserAgent(HttpRequestMessage req)
+        {
+            string? host = req.RequestUri?.Host;
+            if (host != null && host.EndsWith("sourceforge.net", StringComparison.OrdinalIgnoreCase))
+                req.Headers.TryAddWithoutValidation("User-Agent", SourceForgeDownloadUserAgent);
+        }
+
         private HttpService()
         {
             var handler = new SocketsHttpHandler
@@ -282,6 +302,25 @@ namespace ULM.Core.Services
             return VersionComparer.Instance.Compare(candidate, current) > 0;
         }
 
+        /// <summary>
+        /// Entscheidet, ob für einen Katalog-Eintrag ein Update ANGEZEIGT werden soll: die online
+        /// gefundene Version (<paramref name="remoteVersion"/>) ist ECHT neuer als die vom Eintrag
+        /// aktuell repräsentierte Version — abgeleitet aus dem Dateinamen, ersatzweise aus dem Namen
+        /// (<paramref name="localFilenameOrName"/>). Lässt sich daraus KEINE Version bestimmen (völlig
+        /// unbekannter Eintrag, z.B. per „ISO suchen“ neu hinzugefügt und noch nie aufgelöst), gilt
+        /// jede online gefundene Datei (<paramref name="remoteFileFound"/>) als anzubietender Erstbezug.
+        ///
+        /// WICHTIG: Trägt der Eintrag bereits die aktuellste Version (Dateiname ODER Name), liefert
+        /// diese Methode false — auch wenn online dieselbe Version gefunden wird. Genau das verhindert
+        /// die früher fälschlich in der „Aktuell“-Spalte angezeigten „Update vX“ für bereits aktuelle
+        /// Distros. Ist der Katalog sogar NEUER als der Online-Fund, ebenfalls false (kein Downgrade).
+        /// </summary>
+        public static bool IsUpdateAvailable(string? localFilenameOrName, string remoteVersion, bool remoteFileFound)
+        {
+            string localVer = ExtractVersion(localFilenameOrName ?? string.Empty);
+            return string.IsNullOrWhiteSpace(localVer) ? remoteFileFound : IsVersionNewer(remoteVersion, localVer);
+        }
+
         private static readonly (string, string, string) Empty = (string.Empty, string.Empty, string.Empty);
 
         /// <summary>
@@ -340,7 +379,12 @@ namespace ULM.Core.Services
                 else if (nl.Contains("systemrescue"))   result = await ResolveSourceForgeAsync("systemrescuecd", "/sysresccd-x86", @"systemrescue-[\d.]+-amd64\.iso").ConfigureAwait(false);
                 else if (nl.Contains("gparted"))        result = await ResolveSourceForgeAsync("gparted", "/gparted-live-stable", @"gparted-live-[\.\d]+-\d+-amd64\.iso").ConfigureAwait(false);
                 else if (nl.Contains("clonezilla"))     result = await ResolveSourceForgeAsync("clonezilla", "/clonezilla_live_stable", @"clonezilla-live-[\.\d]+-\d+-amd64\.iso").ConfigureAwait(false);
-                else if (nl.Contains("rescuezilla"))    result = await ResolveSourceForgeAsync("rescuezilla", "/rescuezilla", @"rescuezilla-[\d.]+-64bit.*\.iso").ConfigureAwait(false);
+                // Rescuezilla ist von SourceForge komplett auf GitHub umgezogen (das SF-Projekt dient
+                // laut eigener Projektbeschreibung nur noch als Diskussionsforum, keine Dateien mehr) —
+                // der frühere dedizierte SF-Resolver lieferte deshalb nur noch verlässlich NICHTS und
+                // kostete bei jedem Versionscheck einen nutzlosen Roundtrip. Der Eintrag hat bereits
+                // GithubRepo/GithubAsset konfiguriert (siehe IsoDatabaseService), fällt also unten in
+                // ResolveGenericAsync automatisch auf die funktionierende GitHub-Auflösung zurück.
                 else if (nl.Contains("kodachi"))        result = await ResolveKodachiAsync().ConfigureAwait(false);
             }
             if (result != Empty) return result;
@@ -694,6 +738,20 @@ namespace ULM.Core.Services
                     if (candidate.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
                     { pool.Add((candidate, candidate)); continue; }
 
+                    // SourceForge-Treffer (z.B. die Projekt-Homepage) zuerst über den bewährten
+                    // RSS-Feed auflösen, bevor generisches Link-Scraping versucht wird — SourceForges
+                    // eigene Projektseiten laden ihre Dateiliste per JavaScript nach und enthalten in
+                    // der rohen HTML-Antwort deshalb KEINE .iso-Links (siehe
+                    // TryResolveSourceForgeProjectAsync). Ohne diesen Vorgriff würde ein Websuche-
+                    // Treffer auf SourceForge hier stumm leer bleiben, obwohl die Distro dort tatsächlich
+                    // gehostet wird.
+                    string? sfSlug = TryFindSourceForgeProjectSlug(candidate);
+                    if (sfSlug != null)
+                    {
+                        var sfResult = await TryResolveSourceForgeProjectAsync(sfSlug, entry.Filename).ConfigureAwait(false);
+                        if (sfResult != Empty) return sfResult;
+                    }
+
                     string? pageHtml = await GetStringAsync(candidate, 12).ConfigureAwait(false);
                     if (pageHtml is null) continue;
                     // Folgt bei Bedarf einem "Download"-Link eine Ebene tiefer (siehe
@@ -724,6 +782,24 @@ namespace ULM.Core.Services
                 string basePage = pool.First(p => p.Link == best).PageUrl;
                 string url = best.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? best
                     : Uri.TryCreate(new Uri(basePage), best, out var abs) ? abs.ToString() : basePage.TrimEnd('/') + "/" + best.TrimStart('/');
+
+                // Dieselbe Mirror1/2-Persistenz wie in ResolveViaDistroWatchAsync (siehe dortiger
+                // BUGFIX-Kommentar): über "ISO suchen" hinzugefügte Distros, die erst hier — im
+                // allerletzten Fallback — eine Quelle finden, hatten bisher NIE eine zweite Quelle
+                // zum Ausweichen, selbst wenn die Suchergebnisse mehrere brauchbare .iso-Links
+                // geliefert haben. Reachability wird hier NICHT geprüft (teuer) — übernimmt Mirror-
+                // Race vor dem eigentlichen Download.
+                if (pool.Count > 1)
+                {
+                    var extras = pool.Select(p => p.Link).Where(l => l != best)
+                        .Select(l => l.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? l
+                            : Uri.TryCreate(new Uri(basePage), l, out var eabs) ? eabs.ToString() : basePage.TrimEnd('/') + "/" + l.TrimStart('/'))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Take(2).ToList();
+                    if (extras.Count > 0 && string.IsNullOrWhiteSpace(entry.Mirror1)) entry.Mirror1 = extras[0];
+                    if (extras.Count > 1 && string.IsNullOrWhiteSpace(entry.Mirror2)) entry.Mirror2 = extras[1];
+                }
+
                 return await IsReachableAsync(url, 8).ConfigureAwait(false) ? (ExtractVersion(bestFname), url, bestFname) : Empty;
             }
             catch (Exception ex) { Debug.WriteLine($"[WebSearch] {entry.Name}: {ex.Message}"); }
@@ -1074,6 +1150,7 @@ namespace ULM.Core.Services
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(duration + TimeSpan.FromSeconds(3)); // Puffer für Verbindungsaufbau/DNS
                 using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                ApplyDownloadUserAgent(req);
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
                 if (!resp.IsSuccessStatusCode) return 0;
                 using var stream = await resp.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
@@ -1119,6 +1196,7 @@ namespace ULM.Core.Services
             try
             {
                 using var req  = new HttpRequestMessage(HttpMethod.Get, url);
+                ApplyDownloadUserAgent(req);
                 using var resp = await _client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? 0L;

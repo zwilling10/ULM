@@ -203,6 +203,24 @@ namespace ULM.Views.Dialogs
             });
             body.Children.Add(MakeCard("👤 Modus", modeSection));
 
+            // ── Autostart ────────────────────────────────────────────
+            var autostartSection = new StackPanel();
+            var chkAutostart = new CheckBox
+            {
+                Content = "Mit Windows starten",
+                FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header,
+                VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 8),
+                IsChecked = AutostartService.IsEnabled(),
+            };
+            autostartSection.Children.Add(chkAutostart);
+            autostartSection.Children.Add(new TextBlock
+            {
+                Text = "ULM startet dann automatisch (sichtbares Fenster) bei jeder Windows-Anmeldung. " +
+                       "Kein Admin-Recht nötig. Kann später hier jederzeit wieder deaktiviert werden.",
+                TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
+            });
+            body.Children.Add(MakeCard("🚀 Autostart", autostartSection));
+
             // ── Design (System / Hell / Dunkel) ─────────────────────────
             var themeSection = new StackPanel();
             var themeRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
@@ -280,6 +298,7 @@ namespace ULM.Views.Dialogs
                 ChosenDirectory  = chosen;
                 DontShowAgain    = chkDontShowAgain.IsChecked == true;
                 ExpertModeChosen = chkExpert.IsChecked == true;
+                if (chkAutostart.IsChecked == true) AutostartService.Enable(); else AutostartService.Disable();
                 DialogResult = true;
                 Close();
             };

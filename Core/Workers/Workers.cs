@@ -1,5 +1,6 @@
 // Core/Workers/Workers.cs
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -209,6 +210,10 @@ namespace ULM.Core.Workers
         public string IsoName { get; set; } = string.Empty;
         public string Status  { get; set; } = string.Empty;
         public int    Percent { get; set; }
+        // True nur während eines laufenden Mirror-Download-Versuchs, für den noch mindestens ein
+        // weiterer (bereits vom Mirror-Race gemessener) Kandidat übrig ist — steuert die
+        // Sichtbarkeit des "(schneller)"-Buttons im Fortschrittsfenster.
+        public bool   CanRequestFasterMirror { get; set; }
     }
 
     public sealed class DownloadWorker
@@ -222,6 +227,35 @@ namespace ULM.Core.Workers
         public event Action<IsoEntry, bool>?    ItemCompleted;
         public event Action<int, int, int>?     Completed;
         public event Action<string>?            LogMessage;
+
+        // Der jeweils laufende Mirror-Versuch pro Distro (Name → Versuch), damit ein von außen
+        // (Anwender-Klick auf "(schneller)") ausgelöster RequestFasterMirror()-Aufruf GENAU diesen
+        // einen Versuch abbrechen kann, ohne den ganzen Batch oder andere parallele Downloads zu
+        // berühren. Siehe RequestFasterMirror weiter unten.
+        private sealed class ActiveAttempt
+        {
+            public required CancellationTokenSource Cts;
+            public bool HasMoreMirrors;
+            public bool ManualSkipRequested;
+        }
+        private readonly ConcurrentDictionary<string, ActiveAttempt> _activeAttempts = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Bricht den GERADE laufenden Mirror-Download-Versuch für die genannte Distro ab, damit der
+        /// nächste (vom Mirror-Race bereits gemessene) Kandidat versucht wird — z.B. wenn der aktuelle
+        /// Server zwar deutlich über der Geschwindigkeits-Wächter-Schwelle liegt, dem Anwender aber
+        /// trotzdem zu langsam ist. Anders als beim automatischen Geschwindigkeits-Wächter wird dieser
+        /// Wechsel NICHT als "dauerhaft langsam" geloggt und fließt nicht in die "trotzdem fortfahren?"-
+        /// Bewertung ein (siehe ManualSkipRequested). Gibt false zurück, wenn gerade kein Versuch läuft
+        /// oder kein weiterer Kandidat mehr übrig ist (Button ist dann in der UI ohnehin ausgeblendet).
+        /// </summary>
+        public bool RequestFasterMirror(string entryName)
+        {
+            if (!_activeAttempts.TryGetValue(entryName, out var active) || !active.HasMoreMirrors) return false;
+            active.ManualSkipRequested = true;
+            try { active.Cts.Cancel(); } catch (ObjectDisposedException) { return false; }
+            return true;
+        }
 
         /// <summary>
         /// Wird aufgerufen, wenn alle Mirror-Versuche für eine Distro ausgeschöpft sind, aber
@@ -266,7 +300,16 @@ namespace ULM.Core.Workers
             for (int i = 0; i < total; i++)
             {
                 int index = i; var entry = _entries[index];
-                await semaphore.WaitAsync(_cts.Token).ConfigureAwait(false);
+                // BUGFIX: Bricht der Anwender ab, während dieser Slot noch auf einen freien Platz
+                // wartet (alle _maxConcurrent Downloads belegt), wirft WaitAsync eine
+                // OperationCanceledException. Ungefangen entkam die aus dieser Task.Run-Lambda, ließ
+                // RunAsync() mit einer faulted Task enden und stürzte über das ungeschützte
+                // "await worker.RunAsync()" in der async-void-Methode MainViewModel.StartDownload als
+                // echte unbehandelte Exception ab (AppDomain.UnhandledException-Dialog). Ein Abbruch
+                // ist hier ein erwarteter, kein außergewöhnlicher Fall — daher schlicht abbrechen wie
+                // im nicht-werfenden Fall direkt darunter.
+                try { await semaphore.WaitAsync(_cts.Token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
                 if (_cts.IsCancellationRequested) break;
                 tasks.Add(Task.Run(async () =>
                 {
@@ -294,12 +337,31 @@ namespace ULM.Core.Workers
                         entry.Filename = fname;
                         if (!string.IsNullOrWhiteSpace(ver)) entry.RemoteVersion = ver;
 
-                        // ── Mirror-Fallback: bis zu 5 Quellen versuchen ────
-                        // Reihenfolge: aufgelöste URL → primäre URL → Mirror1-5
-                        // Ein CDN-Ausfall (z.B. kodachi.cloud) blockiert den Download
-                        // nicht wenn Fallback-Spiegel konfiguriert sind.
+                        // ── Mirror-Fallback: mehrere Quellen versuchen ────
+                        // Reihenfolge: aufgelöste URL → primäre URL → Mirror1-5. Ein CDN-Ausfall
+                        // (z.B. kodachi.cloud) blockiert den Download nicht, wenn Fallback-Spiegel
+                        // konfiguriert sind.
+                        //
+                        // SourceForge-Fächer: eine SourceForge-Download-URL zeigt immer auf
+                        // master.dl.sourceforge.net, das den Ziel-Mirror serverseitig wählt — oft
+                        // einen für den jeweiligen Nutzer langsamen (real gemessen: 3 vs. 14 Mbit/s
+                        // für dieselbe Datei). AllDownloadUrls() fächert jede SourceForge-Quelle
+                        // bereits selbst in mehrere "?use_mirror=<name>"-Kandidaten auf (siehe dortiger
+                        // Kommentar) — erst DADURCH hat das Mirror-Race unten überhaupt echte Auswahl
+                        // zu messen (vorher waren alle Kandidaten derselbe master-Server).
+                        //
+                        // BUGFIX: Take(8) reichte nicht mehr, seit AllDownloadUrls() selbst auffächert
+                        // — eine einzelne SourceForge-Quelle allein liefert schon 4 Kandidaten
+                        // (master + 3 benannte Mirror), sodass bei zusätzlich mehreren echten,
+                        // unabhängig konfigurierten Mirror1-5 (z.B. der ausgelieferte "Linux Kodachi"-
+                        // Eintrag: kodachi.cloud + 2 weitere CDN-Knoten) die LETZTEN davon aus der
+                        // Liste fielen, bevor sie je versucht wurden. Take(10) deckt den realistischen
+                        // Regelfall (eine SourceForge-Quelle + bis zu 5 echte Mirror-Felder) ab, ohne
+                        // echte Fallback-Quellen zu verschlucken.
                         string destPath = Path.Combine(_downloadDir, fname);
-                        var urlsToTry = entry.AllDownloadUrls(resolvedUrl).Take(6).ToList();
+                        var urlsToTry = entry.AllDownloadUrls(resolvedUrl)
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .Take(10).ToList();
 
                         // ── Mirror-Race: bevor der eigentliche Download beginnt, alle Kandidaten
                         // parallel für ~3s antesten und den schnellsten zuerst versuchen (siehe
@@ -311,19 +373,25 @@ namespace ULM.Core.Workers
                             var raced = await HttpService.Instance.RaceMirrorsAsync(urlsToTry, TimeSpan.FromSeconds(3), _cts.Token).ConfigureAwait(false);
                             urlsToTry = raced.Select(r => r.Url).ToList();
                             LogMessage?.Invoke($"   🔎 {entry.Name}: Mirror-Test — " +
-                                string.Join(", ", raced.Select(r => $"{TryGetHost(r.Url)} {(r.Bps > 0 ? $"{r.Bps * 8 / 1_000_000:F1} Mbit/s" : "nicht erreichbar")}")));
+                                string.Join(", ", raced.Select(r => $"{TryGetSourceLabel(r.Url)} {(r.Bps > 0 ? $"{r.Bps * 8 / 1_000_000:F1} Mbit/s" : "nicht erreichbar")}")));
                         }
 
                         string usedUrl = resolvedUrl;
                         int mirrorIdx  = 0;
                         string? slowAbortedUrl = null, slowAbortedHost = null;
+                        // Der ERSTE Mirror, von dem der Anwender per "(schneller)" manuell weggewechselt
+                        // ist — kein Fehlschlag, die Quelle war nachweislich erreichbar und lud die ISO
+                        // (nur eben nicht schnell genug für den Anwender). Dient als stiller Rückfall,
+                        // falls die anschließende Suche keinen schnelleren Mirror findet.
+                        string? manualSkipFallbackUrl = null, manualSkipFallbackHost = null;
 
                         foreach (string tryUrl in urlsToTry)
                         {
                             mirrorIdx++;
-                            string host = TryGetHost(tryUrl);
+                            string host = TryGetSourceLabel(tryUrl);
                             string label = mirrorIdx == 1 ? $"⬇ {host}" : $"⬇ Mirror {mirrorIdx}: {host}";
-                            sa.Status = $"{label} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            bool hasMoreMirrors = mirrorIdx < urlsToTry.Count;
+                            sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = hasMoreMirrors; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
 
                             // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
@@ -338,24 +406,49 @@ namespace ULM.Core.Workers
                             var lastFastEnough = attemptSw.Elapsed;
                             bool abortedForSlowness = false;
 
-                            ok = await HttpService.Instance.DownloadFileAsync(
-                                tryUrl, destPath, mirrorCts.Token,
-                                (p, d) =>
-                                {
-                                    sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
-                                    double bps = ParseSpeedBytesPerSec(d);
-                                    if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
-                                    else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                            // Registriert diesen Versuch für RequestFasterMirror (Anwender-Klick auf
+                            // "(schneller)") — der Server liegt über der Geschwindigkeits-Wächter-
+                            // Schwelle (sonst würde der Wächter selbst schon abbrechen), ist dem
+                            // Anwender aber trotzdem zu langsam.
+                            var active = new ActiveAttempt { Cts = mirrorCts, HasMoreMirrors = hasMoreMirrors };
+                            _activeAttempts[entry.Name] = active;
+                            try
+                            {
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    tryUrl, destPath, mirrorCts.Token,
+                                    (p, d) =>
                                     {
-                                        abortedForSlowness = true;
-                                        LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
-                                            (mirrorIdx < urlsToTry.Count ? " und versuche nächste Quelle …" : "."));
-                                        mirrorCts.Cancel();
-                                    }
-                                })
-                                .ConfigureAwait(false);
+                                        sa.Status = $"{label}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa);
+                                        double bps = ParseSpeedBytesPerSec(d);
+                                        if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
+                                        else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
+                                        {
+                                            abortedForSlowness = true;
+                                            LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
+                                                (hasMoreMirrors ? " und versuche nächste Quelle …" : "."));
+                                            mirrorCts.Cancel();
+                                        }
+                                    })
+                                    .ConfigureAwait(false);
+                            }
+                            finally { _activeAttempts.TryRemove(entry.Name, out _); }
 
                             if (ok) { usedUrl = tryUrl; break; }
+
+                            // Anwender hat manuell "(schneller)" geklickt — kein Fehler, keine
+                            // Langsamkeits-Meldung, einfach weiter zum nächsten (bereits gemessenen)
+                            // Mirror. Zählt bewusst NICHT als slowAbortedUrl: der Server war schnell
+                            // genug (sonst hätte der Wächter selbst schon abgebrochen), es gibt also
+                            // nichts, worüber am Ende noch "trotzdem fortfahren?" gefragt werden müsste.
+                            if (active.ManualSkipRequested)
+                            {
+                                LogMessage?.Invoke($"   ⚡ {entry.Name}: Nutzer fordert schnelleren Mirror an — wechsle von {host} …");
+                                // Nur den ERSTEN merken — das war der von Mirror-Race/Wächter am besten
+                                // bewertete erreichbare Server, also der sinnvollste Rückfall.
+                                manualSkipFallbackUrl ??= tryUrl; manualSkipFallbackHost ??= host;
+                                if (_cts.IsCancellationRequested) break;
+                                continue;
+                            }
 
                             // Nur den ERSTEN Langsamkeits-Abbruch merken — dank Mirror-Race sind die
                             // Kandidaten schon nach gemessener Geschwindigkeit sortiert, der erste
@@ -366,6 +459,33 @@ namespace ULM.Core.Workers
                             else
                                 LogMessage?.Invoke($"   ⚠ {entry.Name}: {host} fehlgeschlagen{(mirrorIdx < urlsToTry.Count ? " — versuche nächsten Mirror …" : ".")}");
                             if (_cts.IsCancellationRequested) break;
+                        }
+                        // Button "(schneller)" ist nur WÄHREND eines laufenden Mirror-Versuchs
+                        // sinnvoll (siehe Schleife oben) — in jeder Folgephase (Nachfrage-Dialog,
+                        // Abschluss) ausblenden.
+                        sa.CanRequestFasterMirror = false;
+
+                        // Die manuelle "(schneller)"-Suche hat keinen besseren Mirror gefunden — kein
+                        // Fehlschlag, stiller Rückfall auf den ursprünglich erreichbaren Server (siehe
+                        // manualSkipFallbackUrl oben). KEINE Rückfrage nötig (der Anwender hat den
+                        // Wechsel selbst angestoßen) — nur ein kurzer Hinweis, dann Fortsetzung.
+                        if (!ok && manualSkipFallbackUrl != null && !_cts.IsCancellationRequested)
+                        {
+                            sa.Status = "⚡ Kein schnellerer Server gefunden — Download wird fortgesetzt …";
+                            sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            LogMessage?.Invoke($"   ↩ {entry.Name}: Kein schnellerer Mirror gefunden — setze mit {manualSkipFallbackHost} fort.");
+                            try { await Task.Delay(3000, _cts.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
+                            if (!_cts.IsCancellationRequested)
+                            {
+                                string fallbackLabel = $"⬇ {manualSkipFallbackHost} (fortgesetzt)";
+                                sa.Status = $"{fallbackLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                ok = await HttpService.Instance.DownloadFileAsync(
+                                    manualSkipFallbackUrl, destPath, _cts.Token,
+                                    (p, d) => { sa.Status = $"{fallbackLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); })
+                                    .ConfigureAwait(false);
+                                if (ok) usedUrl = manualSkipFallbackUrl;
+                                else LogMessage?.Invoke($"   ❌ {entry.Name}: {manualSkipFallbackHost} letztlich doch fehlgeschlagen.");
+                            }
                         }
 
                         // Alle Mirror ausgeschöpft, keiner erfolgreich — aber mindestens einer war
@@ -426,6 +546,16 @@ namespace ULM.Core.Workers
 
         private static string TryGetHost(string url)
         { try { return new Uri(url).Host; } catch { return url.Length > 40 ? url[..40] + "…" : url; } }
+
+        // Für die Protokoll-/Statusanzeige: SourceForge-"?use_mirror=<name>"-Kandidaten haben ALLE
+        // denselben Host (master.dl.sourceforge.net) — der eigentliche Auslieferungs-Server steckt
+        // erst im Redirect. Damit das Race-Protokoll die Kandidaten unterscheidbar zeigt, wird bei
+        // diesen URLs der angeforderte Mirror-Name statt des Hosts angezeigt.
+        private static string TryGetSourceLabel(string url)
+        {
+            var um = Regex.Match(url, @"[?&]use_mirror=([a-z0-9_.-]+)", RegexOptions.IgnoreCase);
+            return um.Success ? $"sourceforge.net→{um.Groups[1].Value}" : TryGetHost(url);
+        }
     }
 
     public sealed class CopyToUsbWorker
@@ -619,7 +749,16 @@ namespace ULM.Core.Workers
                 var e = _entries[i]; string localFn = e.Filename ?? string.Empty;
                 if (!_checkAllEntries && !e.IsAvailableAnywhere(_downloadDir)) { Progress?.Invoke(++processed, count); continue; }
                 bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
-                var (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false);
+                // BUGFIX: Ein unbehandelter Fehler bei EINEM Eintrag ließ bisher den kompletten Scan
+                // als faulted Task enden, OHNE dass Completed je feuert. Bei AutoVersionCheckWorker
+                // (Start-Versionscheck) blieb dadurch MainViewModel._startupPhase dauerhaft auf true
+                // hängen — TriggerUsbScan() wurde für den Rest der Sitzung zu einem stummen No-op,
+                // ganz ohne sichtbaren Fehler (siehe Kommentar dort). Analog zum Fix für DownloadWorker
+                // weiter oben: ein Fehler bei EINEM Eintrag darf den ganzen Batch nicht abwürgen —
+                // einfach als "nicht aufgelöst" behandeln und mit dem nächsten Eintrag weitermachen.
+                string remoteVer = string.Empty, url = string.Empty, fname = string.Empty;
+                try { (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false); }
+                catch (Exception ex) { Debug.WriteLine($"[UpdateScanWorker] {e.Name}: {ex.GetType().Name}: {ex.Message}"); }
                 Progress?.Invoke(++processed, count);
                 bool res = !string.IsNullOrWhiteSpace(remoteVer) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(fname);
                 bool hasUpdate = false;
@@ -628,12 +767,13 @@ namespace ULM.Core.Workers
                     resolved++; e.RemoteVersion = remoteVer; e.RemoteUrl = url; e.RemoteFilename = fname;
                     // WICHTIG: ein anderer Dateiname bedeutet NICHT automatisch eine neuere Version
                     // (Mirror-spezifische Benennung, Groß-/Kleinschreibung, Build-Suffixe …) — nur
-                    // ein echter Versionsvergleich verhindert falsche "Update verfügbar"-Meldungen
-                    // für ISOs, die bereits aktuell sind.
-                    string localVer = HttpService.ExtractVersion(string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn);
-                    hasUpdate = string.IsNullOrWhiteSpace(localFn)
-                        ? !string.IsNullOrWhiteSpace(fname)
-                        : HttpService.IsVersionNewer(remoteVer, localVer);
+                    // ein echter Versionsvergleich verhindert falsche "Update verfügbar"-Meldungen für
+                    // ISOs, die bereits aktuell sind. Die vom Eintrag repräsentierte Version wird aus
+                    // dem Dateinamen ODER (falls leer, z.B. per „ISO suchen“ hinzugefügt) aus dem Namen
+                    // abgeleitet — so gilt "Foo 7.9.1" ohne Dateiname NICHT blind als Update, sobald
+                    // online 7.9.1 gefunden wird (siehe HttpService.IsUpdateAvailable-Tests).
+                    hasUpdate = HttpService.IsUpdateAvailable(
+                        string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn, remoteVer, !string.IsNullOrWhiteSpace(fname));
                     e.UpdateAvailable = hasUpdate;
                     if (hasUpdate) lock (updates) updates.Add(i);
                     if (urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace ULM.Core.Models
 {
@@ -57,6 +58,18 @@ namespace ULM.Core.Models
         /// Gibt alle konfigurierten Download-URLs in Prioritätsreihenfolge zurück.
         /// resolvedUrl (aufgelöst) → RemoteUrl → Url → Mirror1-5.
         /// Duplikate und leere Strings werden herausgefiltert.
+        ///
+        /// BUGFIX: Normalisierte SourceForge-URLs wurden hier bisher nur EINFACH zurückgegeben
+        /// (ein Eintrag pro Feld) — dedupliziert nach dem NORMALISIERTEN String. Trugen Url/Mirror1-5
+        /// mehrere VERSCHIEDENE gepinnte SourceForge-Mirror für dieselbe Datei (z.B. der ausgelieferte
+        /// "Linux Kodachi"-Eintrag: Mirror1 ein Köln-Mirror, Mirror2 bereits die master-URL), normalisierten
+        /// beide auf denselben String und die Deduplizierung verschluckte die zweite Quelle komplett —
+        /// echte, unabhängig konfigurierte Redundanz ging verloren, und zwar für JEDEN Aufrufer
+        /// (UrlCheckWorker, GetExpectedSizeAsync, ResolveGenericAsync), nicht nur den Download-Worker
+        /// (der das bisher separat über ExpandSourceForgeMirrors kompensierte). Jetzt wird jede
+        /// normalisierte SourceForge-URL SOFORT hier aufgefächert (mehrere Mirror-Kandidaten statt nur
+        /// der einen master-URL) — dadurch bleibt die Redundanz für alle Aufrufer erhalten, nicht nur
+        /// für den Download-Worker.
         /// </summary>
         public IEnumerable<string> AllDownloadUrls(string? resolvedUrl = null)
         {
@@ -66,8 +79,75 @@ namespace ULM.Core.Models
             foreach (string? u in new string?[] { resolvedUrl, RemoteUrl, Url, Mirror1, Mirror2, Mirror3, Mirror4, Mirror5 })
             {
                 if (string.IsNullOrWhiteSpace(u)) continue;
-                if (seen.Add(u)) yield return u;
+                string normalized = NormalizeSourceForgeUrl(u);
+                foreach (string candidate in ExpandSourceForgeMirrors(normalized))
+                    if (seen.Add(candidate)) yield return candidate;
             }
+        }
+
+        // BUGFIX: manuell eingetragene SourceForge-Links zeigen gelegentlich auf einen konkret
+        // gepinnten Mirror (z.B. "altushost-bul.dl.sourceforge.net") statt auf SourceForges eigenen
+        // Auto-Redirector "master.dl.sourceforge.net" — typischerweise aus der Browser-Adresszeile
+        // kopiert, NACHDEM der Redirector bereits aufgelöst hat. Ein gepinnter Mirror kann für den
+        // jeweiligen Nutzer deutlich langsamer sein als der automatisch gewählte, und trägt bei
+        // manchen SourceForge-Links zusätzlich signierte, zeitlich begrenzte Parameter (z.B. "e="
+        // als Ablauf-Unixzeit) — die URL kann also nach kurzer Zeit komplett ausfallen. Wird hier
+        // beim Lesen normalisiert (nicht beim Speichern), damit bereits vorhandene Datenbank-
+        // Einträge automatisch mitkorrigiert werden, ohne dass der Nutzer sie manuell nachbearbeiten
+        // muss, und ohne den im DB-Editor sichtbaren Wert zu verfälschen.
+        private static readonly Regex PinnedSourceForgeMirror =
+            new(@"^https?://(?!master\.dl\.sourceforge\.net)[a-z0-9.-]+\.dl\.sourceforge\.net/project/([^?#]+)",
+                RegexOptions.IgnoreCase);
+
+        internal static string NormalizeSourceForgeUrl(string url)
+        {
+            Match m = PinnedSourceForgeMirror.Match(url);
+            return m.Success ? $"https://master.dl.sourceforge.net/project/{m.Groups[1].Value}?viasf=1" : url;
+        }
+
+        // Bekannte, geografisch gestreute SourceForge-Mirror. "?use_mirror=<name>" bittet
+        // SourceForges Redirector, GENAU diesen Mirror zu bevorzugen; ein unbekannter/toter Name
+        // wird gefahrlos ignoriert (SourceForge wählt dann automatisch einen funktionierenden
+        // Mirror — live geprüft: liefert weiterhin 206). Ein veralteter Eintrag hier kann also nie
+        // ein schlechteres Ergebnis liefern als die schlichte master-URL. Zweck: dem Mirror-Race
+        // ECHTE Auswahl geben statt immer nur den EINEN Server zu messen, den master von sich aus
+        // zuteilt — real gemessene Spannweite für dieselbe Datei: 3 vs. 14 Mbit/s je nach Mirror.
+        // Bewusst geografisch gestreut (DE/SE/US), damit auf beliebigen Nutzer-Standorten mindestens
+        // ein naher, schneller Mirror im Rennen ist — welcher es ist, entscheidet das Race selbst.
+        //
+        // BUGFIX: bewusst auf 3 statt ursprünglich 4 Mirror begrenzt — seit AllDownloadUrls() JEDE
+        // SourceForge-Quelle direkt hier auffächert (nicht mehr nur einmalig im Download-Worker),
+        // multipliziert sich diese Zahl mit jedem parallelen Download-Slot UND dem Mirror-Race
+        // (paralleles ~3s-Antesten jedes Kandidaten). Weniger Kandidaten pro Quelle hält die Zahl
+        // gleichzeitig offener echter Verbindungen (und damit die gegenseitige Bandbreiten-Konkurrenz
+        // der Messung) in einem vertretbaren Rahmen, ohne die Mirror-Diversität nennenswert zu senken.
+        private static readonly string[] SourceForgeMirrors =
+            { "deac-fra", "altushost-swe", "phoenixnap" };
+
+        private static readonly Regex SourceForgeMasterProjectPath =
+            new(@"^https?://master\.dl\.sourceforge\.net/project/([^?#]+)", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Fächert eine SourceForge-master-Download-URL in mehrere Kandidaten auf: die schlichte
+        /// master-URL (SourceForges eigene Mirror-Wahl) PLUS je eine "?use_mirror=<name>"-Variante
+        /// pro bekanntem Mirror. Jede Variante ist stabil (kein ablaufendes signiertes Token) und
+        /// landet tendenziell auf einem ANDEREN Auslieferungs-Server — so bekommt das Mirror-Race
+        /// echte Geschwindigkeitsunterschiede zu messen, statt immer nur den einen von master
+        /// zugeteilten Server. URLs, die NICHT dem master-Muster entsprechen (Nicht-SourceForge,
+        /// GitHub, direkte CDN-Links), werden unverändert als Einzelelement zurückgegeben.
+        /// </summary>
+        internal static IReadOnlyList<string> ExpandSourceForgeMirrors(string url)
+        {
+            Match m = SourceForgeMasterProjectPath.Match(url);
+            if (!m.Success) return new[] { url };
+            string path = m.Groups[1].Value;
+            var list = new List<string>(SourceForgeMirrors.Length + 1)
+            {
+                $"https://master.dl.sourceforge.net/project/{path}?viasf=1",
+            };
+            foreach (string mirror in SourceForgeMirrors)
+                list.Add($"https://master.dl.sourceforge.net/project/{path}?use_mirror={mirror}");
+            return list;
         }
 
         // ── Abgeleitete Eigenschaften ───────────────────────────────────

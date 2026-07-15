@@ -234,7 +234,25 @@ namespace ULM.Views.Dialogs
         {
             if (string.IsNullOrWhiteSpace(_tbName.Text) || string.IsNullOrWhiteSpace(_tbFilename.Text))
             { MessageBox.Show("Name und Dateiname sind Pflichtfelder.", "Eingabe unvollständig", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
-            _entry.Name = _tbName.Text.Trim(); _entry.Category = _cbCat.SelectedItem?.ToString() ?? "Einsteiger";
+            // BUGFIX: Bisher gab es keinerlei Prüfung, ob der Name bereits von einem ANDEREN Eintrag
+            // verwendet wird. Zwei Einträge mit identischem Namen sorgten dafür, dass sowohl das
+            // Download-Fortschrittsfenster als auch DownloadWorkers interne Mirror-Verfolgung (beide
+            // nur nach Name schlüsseln) sie nicht mehr unterscheiden konnten — ein Klick auf den
+            // "(schneller)"-Button einer Zeile konnte dadurch den Mirror-Wechsel der falschen, gleich
+            // benannten Distro auslösen. Wird hier an der Quelle verhindert, statt an mehreren
+            // Stellen im Download-Code nachträglich zu versuchen, gleiche Namen zu unterscheiden.
+            string newName = _tbName.Text.Trim();
+            bool nameTaken = IsoDatabaseService.Instance.Entries.Any(other =>
+                !ReferenceEquals(other, _entry) && string.Equals(other.Name, newName, StringComparison.OrdinalIgnoreCase));
+            if (nameTaken)
+            {
+                MessageBox.Show($"Der Name \"{newName}\" wird bereits von einem anderen Eintrag verwendet.\n\n" +
+                    "Bitte einen eindeutigen Namen vergeben — gleiche Namen können beim Download " +
+                    "(z.B. dem \"(schneller)\"-Button) zu Verwechslungen zwischen den Einträgen führen.",
+                    "Name bereits vergeben", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            _entry.Name = newName; _entry.Category = _cbCat.SelectedItem?.ToString() ?? "Einsteiger";
             _entry.Url = _tbUrl.Text.Trim(); _entry.Filename = _tbFilename.Text.Trim();
             _entry.Mirror1 = _tbMirror1.Text.Trim(); _entry.Mirror2 = _tbMirror2.Text.Trim(); _entry.Mirror3 = _tbMirror3.Text.Trim();
             _entry.GithubRepo = _tbGhRepo.Text.Trim(); _entry.GithubAsset = _tbGhAsset.Text.Trim();

@@ -3,10 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using ULM.Core.Models;
 using ULM.Core.Services;
@@ -114,23 +116,47 @@ namespace ULM.Views.Dialogs
     public sealed class DownloadProgressDialog : Window
     {
         public event Action? CancelRequested;
+        // Anwender-Klick auf den "(schneller)"-Button einer Zeile — der Server läuft zwar über der
+        // Geschwindigkeits-Wächter-Schwelle (sonst wäre der Download schon automatisch abgebrochen
+        // worden), ist dem Anwender aber trotzdem zu langsam. Träger ist der Distro-Name.
+        public event Action<string>? FasterMirrorRequested;
 
-        private readonly StackPanel _itemsPanel;
-        private readonly TextBlock  _summaryText;
+        private readonly StackPanel  _itemsPanel;
+        private readonly TextBlock   _summaryText;
+        private readonly StackPanel  _overallPanel;
+        private readonly ProgressBar _overallBar;
+        private readonly TextBlock   _overallText;
+        private readonly int         _total;
+        private readonly bool        _hasDownload;
+        private readonly bool        _hasCopy;
 
         private sealed class Row
         {
+            public required Border      Container;
             public required TextBlock   NameText;
             public required ProgressBar Bar;
             public required TextBlock   PercentText;
             public required TextBlock   StatusText;
+            public required Button      FasterBtn;
             public required string      OriginalName;
         }
 
-        private readonly Dictionary<string, Row> _rows = new(StringComparer.OrdinalIgnoreCase);
-
-        public DownloadProgressDialog(IEnumerable<string> isoNames)
+        // UiRow wird null, sobald die Zeile nach erfolgreichem Abschluss aus der Liste entfernt
+        // wurde — der Zustand bleibt aber für den Gesamt-Fortschritt erhalten.
+        private sealed class ItemState
         {
+            public Row?   UiRow;
+            public double DlFrac;    // 0..1 Download-Anteil
+            public double CopyFrac;  // 0..1 Kopier-Anteil
+            public bool   Done;
+        }
+
+        private readonly Dictionary<string, ItemState> _items = new(StringComparer.OrdinalIgnoreCase);
+
+        public DownloadProgressDialog(IEnumerable<string> isoNames, bool hasDownload = true, bool hasCopy = false)
+        {
+            var names = isoNames.ToList();
+            _total = names.Count; _hasDownload = hasDownload; _hasCopy = hasCopy;
             Title = "Download-Fortschritt";
             Width = 540; Height = 480;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -141,15 +167,28 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _summaryText = new TextBlock { Text = "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 14), Foreground = AppRes.Brush("BrushHeader") };
-            Grid.SetRow(_summaryText, 0); root.Children.Add(_summaryText);
+            var header = new StackPanel();
+            _summaryText = new TextBlock { Text = names.Count == 1 ? "⬇ Download läuft ..." : "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
+            header.Children.Add(_summaryText);
+
+            // Gesamt-Fortschrittsbalken: nur bei mehreren Einträgen sinnvoll (bei einem einzigen
+            // genügt dessen eigener Balken). Läuft auch während der Stick-Kopie weiter, wenn diese
+            // länger dauert als der Download.
+            _overallPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12), Visibility = _total > 1 ? Visibility.Visible : Visibility.Collapsed };
+            _overallText  = new TextBlock { Text = $"Gesamt: 0 %   (0/{_total} fertig)", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), Margin = new Thickness(0, 0, 0, 3) };
+            _overallBar   = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8 };
+            _overallPanel.Children.Add(_overallText);
+            _overallPanel.Children.Add(_overallBar);
+            header.Children.Add(_overallPanel);
+
+            Grid.SetRow(header, 0); root.Children.Add(header);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             _itemsPanel = new StackPanel();
             scroll.Content = _itemsPanel;
             Grid.SetRow(scroll, 1); root.Children.Add(scroll);
 
-            foreach (string name in isoNames) AddRow(name);
+            foreach (string name in names) GetOrCreate(name);
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
             var bCan = new Button { Content = "✕ Abbrechen", Width = 120, Style = AppRes.Style("BtnDanger"), Margin = new Thickness(0, 0, 8, 0) };
@@ -169,11 +208,20 @@ namespace ULM.Views.Dialogs
             var hRow = new Grid();
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var nameText = new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = 12, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = AppRes.Brush("BrushHeader") };
             Grid.SetColumn(nameText, 0); hRow.Children.Add(nameText);
-            var pctText  = new TextBlock { Text = "0%", FontSize = 11, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushBlue") };
-            Grid.SetColumn(pctText, 1); hRow.Children.Add(pctText);
+
+            // Nur sichtbar, während ein Mirror-Versuch läuft, der über der Geschwindigkeits-Wächter-
+            // Schwelle liegt, ABER noch mindestens ein weiterer (bereits gemessener) Mirror übrig ist —
+            // siehe UpdateDownload/DownloadWorker.ActiveAttempt.HasMoreMirrors.
+            var fasterBtn = CreateFasterMirrorButton();
+            fasterBtn.Click += (_, _) => FasterMirrorRequested?.Invoke(name);
+            Grid.SetColumn(fasterBtn, 1); hRow.Children.Add(fasterBtn);
+
+            var pctText  = new TextBlock { Text = "0%", FontSize = 11, Margin = new Thickness(8, 0, 0, 0), Foreground = AppRes.Brush("BrushBlue"), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(pctText, 2); hRow.Children.Add(pctText);
             stack.Children.Add(hRow);
 
             var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8, Margin = new Thickness(0, 5, 0, 3) };
@@ -183,25 +231,124 @@ namespace ULM.Views.Dialogs
 
             border.Child = stack;
             _itemsPanel.Children.Add(border);
-            var row = new Row { NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, OriginalName = name };
-            _rows[name] = row;
-            return row;
+            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, FasterBtn = fasterBtn, OriginalName = name };
         }
 
-        public void UpdateItem(string name, int percent, string status)
+        // Kleiner, pillenförmiger ("runder") Button mit Text "(schneller)" — bricht auf Klick den
+        // aktuellen Mirror-Download-Versuch ab und wechselt zum nächsten, vom Mirror-Race bereits
+        // gemessenen Kandidaten (siehe DownloadWorker.RequestFasterMirror).
+        private static Button CreateFasterMirrorButton()
         {
-            if (!_rows.TryGetValue(name, out var row)) row = AddRow(name);
-            int c = Math.Max(0, Math.Min(100, percent));
-            row.Bar.Value = c; row.PercentText.Text = $"{c}%"; row.StatusText.Text = status;
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "Bd";
+            borderFactory.SetBinding(Border.BackgroundProperty, new System.Windows.Data.Binding(nameof(Button.Background)) { RelativeSource = System.Windows.Data.RelativeSource.TemplatedParent });
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(9));
+            borderFactory.SetValue(Border.PaddingProperty, new Thickness(9, 0, 9, 0));
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            borderFactory.AppendChild(contentFactory);
+
+            var template = new ControlTemplate(typeof(Button)) { VisualTree = borderFactory };
+            template.Triggers.Add(new Trigger { Property = Button.IsMouseOverProperty, Value = true, Setters = { new Setter(Border.OpacityProperty, 0.8, "Bd") } });
+            template.Triggers.Add(new Trigger { Property = Button.IsPressedProperty,   Value = true, Setters = { new Setter(Border.OpacityProperty, 0.6, "Bd") } });
+
+            return new Button
+            {
+                Content = "(schneller)",
+                FontSize = 8, Height = 18,
+                Background = AppRes.Brush("BrushBlue"), Foreground = Brushes.White,
+                BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
+                Template = template,
+                ToolTip = "Aktuellen Server abbrechen und zum nächsten (bereits getesteten) Mirror wechseln",
+                Visibility = Visibility.Collapsed,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+            };
         }
 
+        private ItemState GetOrCreate(string name)
+        {
+            if (_items.TryGetValue(name, out var s)) return s;
+            s = new ItemState { UiRow = AddRow(name) };
+            _items[name] = s;
+            return s;
+        }
+
+        // Download-Fortschritt eines Eintrags. Im reinen Download-Modus (keine Stick-Kopie) gilt der
+        // Eintrag bei 100 % als erfolgreich fertig und wird entfernt.
+        public void UpdateDownload(string name, int percent, string status, bool canFasterMirror = false)
+        {
+            var it = GetOrCreate(name); if (it.Done) return;
+            int c = Math.Max(0, Math.Min(100, percent));
+            it.DlFrac = c / 100.0;
+            if (it.UiRow is { } r)
+            {
+                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.FasterBtn.Visibility = canFasterMirror ? Visibility.Visible : Visibility.Collapsed;
+            }
+            if (!_hasCopy && c >= 100) { MarkDone(name, removeRow: true); return; }
+            RecomputeOverall();
+        }
+
+        // Kopier-Fortschritt eines Eintrags. Erreicht der Wert 100 %, war die Stick-Kopie erfolgreich
+        // (die Worker melden Fehlschläge mit 0 %, nicht mit 100 %) → Eintrag entfernen.
+        public void UpdateCopy(string name, int percent, string status)
+        {
+            var it = GetOrCreate(name); if (it.Done) return;
+            int c = Math.Max(0, Math.Min(100, percent));
+            it.CopyFrac = c / 100.0;
+            if (it.UiRow is { } r)
+            {
+                r.NameText.Text = $"{r.OriginalName}  —  Kopiere auf Stick";
+                r.Bar.Value = c; r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
+                r.FasterBtn.Visibility = Visibility.Collapsed; // Mirror-Wahl betrifft nur den Download, nicht die Stick-Kopie.
+            }
+            if (c >= 100) { MarkDone(name, removeRow: true); return; }
+            RecomputeOverall();
+        }
+
+        // Voranstellbares Phasen-Label (z.B. beim reinen Kopiervorgang bereits vor dem ersten
+        // Fortschritts-Tick).
         public void SetPhaseLabel(string name, string? phaseSuffix)
         {
-            if (!_rows.TryGetValue(name, out var row)) row = AddRow(name);
-            row.NameText.Text = string.IsNullOrWhiteSpace(phaseSuffix) ? row.OriginalName : $"{row.OriginalName}  —  {phaseSuffix}";
+            var it = GetOrCreate(name);
+            if (it.UiRow is { } r)
+                r.NameText.Text = string.IsNullOrWhiteSpace(phaseSuffix) ? r.OriginalName : $"{r.OriginalName}  —  {phaseSuffix}";
         }
 
-        public void SetOverallComplete(string summary) => _summaryText.Text = $"✅ {summary}";
+        private void MarkDone(string name, bool removeRow)
+        {
+            var it = GetOrCreate(name);
+            if (it.Done) return;
+            it.Done = true; it.DlFrac = 1; it.CopyFrac = 1;
+            if (removeRow && it.UiRow is { } r) { _itemsPanel.Children.Remove(r.Container); it.UiRow = null; }
+            RecomputeOverall();
+        }
+
+        private void RecomputeOverall()
+        {
+            if (_total <= 0) return;
+            double sum = 0; int done = 0;
+            foreach (var it in _items.Values)
+            {
+                if (it.Done) { sum += 1.0; done++; }
+                else if (_hasDownload && _hasCopy) sum += 0.5 * it.DlFrac + 0.5 * it.CopyFrac;
+                else if (_hasCopy)                 sum += it.CopyFrac;
+                else                               sum += it.DlFrac;
+            }
+            int pct = (int)Math.Round(sum * 100.0 / _total);
+            pct = Math.Max(0, Math.Min(100, pct));
+            _overallBar.Value = pct;
+            _overallText.Text = $"Gesamt: {pct} %   ({done}/{_total} fertig)";
+        }
+
+        public void SetOverallComplete(string summary)
+        {
+            _summaryText.Text = $"✅ {summary}";
+            _overallBar.Value = 100;
+            _overallText.Text = $"Gesamt: 100 %   ({_total}/{_total} fertig)";
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
