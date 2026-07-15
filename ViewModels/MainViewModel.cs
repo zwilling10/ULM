@@ -482,25 +482,42 @@ namespace ULM.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
             SetBusy(true); StatusText = "🔒 Prüfe Integrität …"; Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
-            var (found, _) = await UsbService.Instance.ScanStickVerifiedAsync(SelectedDriveLetter, _db.Entries).ConfigureAwait(false);
-            var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
-            foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
+            // BUGFIX (finaler Review): try/finally schützt gegen ein hängenbleibendes Busy-UI, falls
+            // ScanStickVerifiedAsync/ComputeSha256Async unerwartet wirft — vorher blieb IsBusy=true
+            // für immer stehen (SetBusy(false) stand nur im Erfolgspfad ganz am Ende), und über den
+            // "async void"-Klick-Handler (BtnVerifyIntegrity_Click) hätte eine Exception zusätzlich
+            // die App zum Absturz gebracht; über den Fire-and-forget-Command-Pfad wäre sie sonst
+            // still verschluckt worden. Stil analog zu StartVentoyInstall (catch + Log + StatusText).
+            try
+            {
+                var (found, _) = await UsbService.Instance.ScanStickVerifiedAsync(SelectedDriveLetter, _db.Entries).ConfigureAwait(false);
+                var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
+                foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
 
-            var mismatches = new List<UsbService.StickIso>(); int checkedCount = 0;
-            foreach (var e in _db.Entries)
-            {
-                if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
-                checkedCount++;
-                string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
-                    mismatches.Add(stick);
+                var mismatches = new List<UsbService.StickIso>(); int checkedCount = 0;
+                foreach (var e in _db.Entries)
+                {
+                    if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
+                    checkedCount++;
+                    string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
+                        mismatches.Add(stick);
+                }
+                _ui.Invoke(() =>
+                {
+                    StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
+                    Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
+                    if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
+                });
             }
-            _ui.Invoke(() =>
+            catch (Exception ex)
             {
-                SetBusy(false); StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
-                Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
-                if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
-            });
+                _ui.Invoke(() => { Log($"❌ Integritätsprüfung fehlgeschlagen: {ex.Message}"); StatusText = "Fehler."; });
+            }
+            finally
+            {
+                _ui.Invoke(() => SetBusy(false));
+            }
         }
 
         internal static bool IsSameDistroDifferentVersion(string a, string b)
