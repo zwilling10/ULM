@@ -73,6 +73,52 @@ public class IsoDatabaseServiceRoundTripTests
         }
     }
 
+    /// <summary>
+    /// Regression: ein Programmabsturz/-Neustart MITTEN in einem laufenden Download hinterließ
+    /// bisher keine gespeicherte Ziel-Größe — der reguläre Save() läuft erst, nachdem der GESAMTE
+    /// Download-Batch fertig ist (MainViewModel.StartDownload). SaveExpectedSize() muss die beim
+    /// Verbindungsaufbau bereits bekannte Content-Length SOFORT persistieren (wie SaveFilenames()),
+    /// damit sie einen Absturz vor Batch-Ende übersteht.
+    /// </summary>
+    [Fact]
+    public void SaveExpectedSize_PersistsImmediately_SurvivesReloadWithoutFullSave()
+    {
+        AppPaths paths = AppPaths.Instance;
+        IsoDatabaseService db = IsoDatabaseService.Instance;
+
+        string originalBase = paths.BaseDirectory;
+        var originalEntries = db.Entries.ToList();
+        string tempDir = Path.Combine(Path.GetTempPath(), $"ulm-db-expsize-{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            paths.SetPaths(tempDir);
+
+            while (db.Count > 0) db.Remove(0);
+
+            var entry = new IsoEntry { Name = "Crash-Mid-Download-Distro", Filename = "crash-test.iso" };
+            db.Add(entry);
+            db.Save(); // Grundzustand (ExpectedSizeBytes=0) liegt bereits auf Platte
+
+            db.SaveExpectedSize(entry, 4_500_000_000L); // Server-Content-Length wird beim Download-Start bekannt
+            // Ab hier: kein weiterer db.Save() — simuliert Prozessabsturz mitten im Download.
+
+            db.Load(); // wie bei echtem App-Neustart
+
+            IsoEntry? reloaded = db.Entries.SingleOrDefault(e => e.Name == "Crash-Mid-Download-Distro");
+            Assert.NotNull(reloaded);
+            Assert.Equal(4_500_000_000L, reloaded!.ExpectedSizeBytes);
+        }
+        finally
+        {
+            while (db.Count > 0) db.Remove(0);
+            foreach (var e in originalEntries) db.Add(e);
+            paths.SetPaths(originalBase);
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* Best-effort Cleanup */ }
+        }
+    }
+
     [Fact]
     public void LoadFromIni_MissingShaKeys_DefaultsToEmpty_BackwardCompatibleWithOldDatabases()
     {

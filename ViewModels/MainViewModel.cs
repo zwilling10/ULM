@@ -357,9 +357,12 @@ namespace ULM.ViewModels
                 _ = Task.Run(async () =>
                 {
                     var mismatches = await DetectVersionlessHashMismatchesAsync(found).ConfigureAwait(false);
-                    if (mismatches.Count == 0) return;
+                    // Immer aktualisieren, nicht nur bei Treffern — HashMismatchDetected kann sich auch
+                    // von true zurück auf false geändert haben (z.B. nach einem erneuten Download).
                     _ui.Invoke(() =>
                     {
+                        RefreshAllEntries();
+                        if (mismatches.Count == 0) return;
                         Log($"⚠ Stick-Scan {ltr}: {mismatches.Count} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.");
                         foreach (var m in mismatches) Log($"   ⚠ {m.Filename} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.");
                         IncompleteIsosOnStickDetected?.Invoke(mismatches, ltr);
@@ -467,8 +470,10 @@ namespace ULM.ViewModels
                 if (string.IsNullOrEmpty(e.Sha256) || !HasVersionlessFilename(e.Filename)) continue;
                 if (!byFn.TryGetValue(e.Filename, out var stick)) continue;
                 string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
-                    mismatches.Add(stick);
+                if (string.IsNullOrEmpty(actual)) continue;
+                bool mismatch = !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase);
+                e.HashMismatchDetected = mismatch;
+                if (mismatch) mismatches.Add(stick);
             }
             return mismatches;
         }
@@ -500,13 +505,16 @@ namespace ULM.ViewModels
                     if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
                     checkedCount++;
                     string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
-                    if (!string.IsNullOrEmpty(actual) && !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase))
-                        mismatches.Add(stick);
+                    if (string.IsNullOrEmpty(actual)) continue;
+                    bool mismatch = !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase);
+                    e.HashMismatchDetected = mismatch;
+                    if (mismatch) mismatches.Add(stick);
                 }
                 _ui.Invoke(() =>
                 {
                     StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
                     Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
+                    RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
                     if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
                 });
             }
@@ -735,7 +743,7 @@ namespace ULM.ViewModels
                     if (success) _ui.Invoke(() => { entry.IsSelected = false; RefreshEntry(GetEntryIndex(entry.Name)); });
                 };
 
-            Channel<IsoEntry>? pipelineChannel = null; Task? pipelineTask = null;
+            Channel<IsoEntry>? pipelineChannel = null; Task<(int Ok, int Failed)>? pipelineTask = null;
             if (usePipeline)
             {
                 pipelineChannel = Channel.CreateUnbounded<IsoEntry>(new UnboundedChannelOptions { SingleReader = true });
@@ -765,22 +773,35 @@ namespace ULM.ViewModels
                     pipelineChannel.Writer.Complete();
                     StatusText = ok > 0 ? $"⬇ {ok} Downloads fertig — Stick-Kopie läuft …" : "⬇ 0 Downloads …";
                     if (ok > 0) Log("⬇ Downloads fertig. Pipeline-Kopiervorgang läuft weiter …");
-                    var capDrive = drive; int okC = ok; int failedC = failed;
-                    pipelineTask.ContinueWith(_ => _ui.Invoke(() =>
+                    var capDrive = drive; int totalQueued = queue.Count;
+                    pipelineTask.ContinueWith(t => _ui.Invoke(() =>
                     {
+                        // BUGFIX (Review): t.Result wirft, wenn RunPipelineCopyConsumerAsync mit einer
+                        // unbehandelten Exception endet (z.B. Stick währenddessen abgezogen). Diese
+                        // Continuation wird nirgends awaited — ein ungeschütztes t.Result würde die
+                        // Exception hier lautlos verschlucken UND verhindern, dass SetBusy(false)/
+                        // RefreshAllEntries/DownloadBatchCompleted überhaupt laufen — die UI bliebe
+                        // dauerhaft im Busy-Zustand hängen, ohne jede Fehlermeldung.
+                        var (copyOk, _) = t.IsFaulted ? (0, 0) : t.Result;
+                        if (t.IsFaulted)
+                            Log($"❌ Stick-Kopie abgebrochen: {t.Exception?.GetBaseException().Message}");
+                        int totalFailed = totalQueued - copyOk;
                         SetBusy(false); RefreshAllEntries(); ProgressPercent = 100;
                         TriggerVentoyMenuUpdate(capDrive); TriggerUsbScan();
-                        DownloadBatchCompleted?.Invoke(okC, failedC, 0);
-                        if (okC > 0)
+                        // BUGFIX: bisher wurden hier die DOWNLOAD-Erfolgszahlen (okC/failedC) gemeldet —
+                        // eine komplett fehlgeschlagene Stick-Kopie nach erfolgreichem Download zeigte
+                        // trotzdem "X ISO(s) heruntergeladen und kopiert." Jetzt zählen die ECHTEN
+                        // Kopier-Ergebnisse (siehe BuildPipelineCompletionMessage/RunPipelineCopyConsumerAsync);
+                        // totalFailed erfasst JEDEN nicht vollständig erfolgreichen Eintrag, egal ob der
+                        // Download oder erst die anschließende Stick-Kopie fehlschlug.
+                        DownloadBatchCompleted?.Invoke(copyOk, totalFailed, 0);
+                        string msg = BuildPipelineCompletionMessage(copyOk, totalQueued, capDrive);
+                        if (copyOk > 0)
                         {
-                            string msg = $"{okC} ISO(s) heruntergeladen und auf {capDrive} kopiert.\n\n" +
-                                         "Jede ISO wurde direkt nach dem Download kopiert und lokal gelöscht.\n" +
-                                         "Das Ventoy-Bootmenü wurde automatisch aktualisiert.";
-                            if (failedC > 0) msg += $"\n\n⚠ {failedC} ISO(s) fehlgeschlagen.";
-                            StatusText = $"✅ {okC} heruntergeladen und auf {capDrive} kopiert.";
+                            StatusText = $"✅ {copyOk} heruntergeladen und auf {capDrive} kopiert.";
                             Log(StatusText); OperationSucceeded?.Invoke(msg);
                         }
-                        else { StatusText = failedC > 0 ? $"❌ {failedC} Download(s) fehlgeschlagen." : "⬇ Keine Downloads."; Log(StatusText); }
+                        else { StatusText = totalFailed > 0 ? $"❌ {totalFailed} ISO(s) fehlgeschlagen (Download oder Stick-Kopie)." : "⬇ Keine Downloads."; Log(StatusText); }
                     }));
                 }
                 else if (!string.IsNullOrEmpty(drive) && copyAfter && ok > 0)
@@ -803,18 +824,48 @@ namespace ULM.ViewModels
             await worker.RunAsync();
         }
 
-        private async Task RunPipelineCopyConsumerAsync(ChannelReader<IsoEntry> reader, string drive)
+        /// <summary>
+        /// Baut die Abschluss-Meldung des kombinierten "Download → Stick-Kopie"-Modus AUS DEN ECHTEN
+        /// Kopier-Erfolgszahlen, nicht aus den Download-Erfolgszahlen. BUGFIX: bisher meldete die App
+        /// z.B. "8 ISO(s) heruntergeladen und kopiert.", obwohl nur der Download erfolgreich war und
+        /// die anschließende Stick-Kopie komplett fehlschlug (RunPipelineCopyConsumerAsync zählte
+        /// Kopier-Fehlschläge bis dahin gar nicht mit). Leerer String = kein einziger Erfolg — der
+        /// Aufrufer zeigt dann einen Fehlschlag-Status statt einer Erfolgs-Box.
+        /// </summary>
+        internal static string BuildPipelineCompletionMessage(int copyOk, int totalQueued, string drive)
+        {
+            if (copyOk <= 0) return string.Empty;
+            int failed = totalQueued - copyOk;
+            string msg = $"{copyOk} ISO(s) heruntergeladen und auf {drive} kopiert.\n\n" +
+                         "Jede ISO wurde direkt nach dem Download kopiert und lokal gelöscht.\n" +
+                         "Das Ventoy-Bootmenü wurde automatisch aktualisiert.";
+            if (failed > 0) msg += $"\n\n⚠ {failed} ISO(s) fehlgeschlagen.";
+            return msg;
+        }
+
+        private async Task<(int Ok, int Failed)> RunPipelineCopyConsumerAsync(ChannelReader<IsoEntry> reader, string drive)
         {
             const int bufSize = 4 * 1024 * 1024;
             byte[] buf = new byte[bufSize];
+            int copyOkCount = 0, copyFailedCount = 0;
             await foreach (var entry in reader.ReadAllAsync().ConfigureAwait(false))
             {
                 string? srcPath = entry.FindLocalPath(_paths.DownloadDir);
+                // BUGFIX (Review): diese frühen Fehlschläge zählten bisher nur intern mit
+                // (copyFailedCount++), meldeten dem Fortschritts-Dialog aber nie CopyItemProgress —
+                // die Zeile blieb dadurch dauerhaft bei "⏳ Warte auf Kopierslot …" hängen, obwohl die
+                // Abschluss-Meldung den Eintrag schon korrekt als fehlgeschlagen zählte.
                 if (srcPath is null || !File.Exists(srcPath))
-                { _ui.Invoke(() => Log($"   ⚠ {entry.Name}: Quelldatei nicht gefunden.")); continue; }
+                {
+                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Quelldatei nicht gefunden"); Log($"   ⚠ {entry.Name}: Quelldatei nicht gefunden."); });
+                    copyFailedCount++; continue;
+                }
                 long fileSize = IsoEntry.GetRobustLength(srcPath);
                 if (fileSize < Constants.MinIsoSizeBytes)
-                { _ui.Invoke(() => Log($"   ⚠ {entry.Name}: zu klein ({fileSize / 1_048_576} MB).")); continue; }
+                {
+                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Datei zu klein"); Log($"   ⚠ {entry.Name}: zu klein ({fileSize / 1_048_576} MB)."); });
+                    copyFailedCount++; continue;
+                }
                 string targetDir = Path.Combine(UsbService.DriveRoot(drive), entry.NormalizedCategory);
                 Directory.CreateDirectory(targetDir);
                 string targetPath = Path.Combine(targetDir, entry.Filename);
@@ -828,8 +879,12 @@ namespace ULM.ViewModels
                     var drv = new DriveInfo(Path.GetPathRoot(targetDir) ?? UsbService.DriveRoot(drive));
                     if (drv.IsReady && drv.AvailableFreeSpace < fileSize)
                     {
-                        _ui.Invoke(() => Log($"   ❌ {entryName}: nicht genug Speicherplatz auf {drive} (benötigt {fileSize / 1_073_741_824.0:F2} GB, frei {drv.AvailableFreeSpace / 1_073_741_824.0:F2} GB)."));
-                        continue;
+                        _ui.Invoke(() =>
+                        {
+                            CopyItemProgress?.Invoke(entryName, 0, "❌ Nicht genug Speicherplatz");
+                            Log($"   ❌ {entryName}: nicht genug Speicherplatz auf {drive} (benötigt {fileSize / 1_073_741_824.0:F2} GB, frei {drv.AvailableFreeSpace / 1_073_741_824.0:F2} GB).");
+                        });
+                        copyFailedCount++; continue;
                     }
                 }
                 catch { /* Freispeicher-Check ist best-effort */ }
@@ -884,9 +939,10 @@ namespace ULM.ViewModels
                         CopyItemProgress?.Invoke(nm, 0, $"Fehler: {ex.Message}");
                         Log($"   ✗ {nm}: {ex.Message}");
                     });
-                    continue;
+                    copyFailedCount++; continue;
                 }
-                if (!copyOk) continue;
+                if (!copyOk) { copyFailedCount++; continue; }
+                copyOkCount++;
                 long sz = fileSize;
                 entry.UsbStatus = Core.Models.UsbStatus.Ok;
                 entry.UsbSize   = FormatGb(sz);
@@ -907,6 +963,7 @@ namespace ULM.ViewModels
                         (localDeleted ? ", lokal gelöscht." : "."));
                 });
             }
+            return (copyOkCount, copyFailedCount);
         }
 
         private static string BuildTransferDetail(double bps, long done, long total)

@@ -84,6 +84,7 @@ namespace ULM.Core.Services
                     // klaglos string.Empty zurueck — kein Migrationsschritt noetig.
                     Sha256       = d.GetValueOrDefault("Sha256",       string.Empty),
                     Sha256Source = d.GetValueOrDefault("Sha256Source", string.Empty),
+                    ExpectedSizeBytes = long.TryParse(d.GetValueOrDefault("ExpectedSizeBytes", "0"), out long esb) ? esb : 0L,
                 });
             }
 
@@ -131,6 +132,7 @@ namespace ULM.Core.Services
                 // Gegenseite.
                 sb.AppendLine($"Sha256      = {e.Sha256}");
                 sb.AppendLine($"Sha256Source = {e.Sha256Source}");
+                sb.AppendLine($"ExpectedSizeBytes = {e.ExpectedSizeBytes}");
                 sb.AppendLine();
             }
 
@@ -142,6 +144,31 @@ namespace ULM.Core.Services
             for (int i = 0; i < _entries.Count; i++)
                 if (!string.IsNullOrWhiteSpace(_entries[i].Filename))
                     IniService.Write(_paths.DatabaseIni, $"ISO_{i}", "Filename", _entries[i].Filename);
+        }
+
+        // BUGFIX (Review): IniService ist laut eigener Dokumentation "thread-unsicher" (Read-Modify-
+        // Write der GESAMTEN Datei, kein atomares Einzelfeld-Update). SaveExpectedSize wird aber aus
+        // DownloadWorker heraus aufgerufen, sobald ein einzelner Mirror-Versuch die Content-Length
+        // meldet — bei mehreren parallelen Download-Slots (Standard-Einstellung, bis zu
+        // Constants.MaxParallelSlots) verbinden sich mehrere Slots nahezu gleichzeitig, wodurch
+        // konkurrierende Aufrufe hier real und nicht nur theoretisch sind: ohne Sperre kann ein
+        // Schreibvorgang den anderen stillschweigend überschreiben (verlorene ExpectedSizeBytes) oder
+        // beide Streams kollidieren auf derselben Datei.
+        private static readonly object _iniWriteLock = new();
+
+        /// <summary>
+        /// Schreibt NUR ExpectedSizeBytes sofort auf Platte (wie SaveFilenames — kein voller Save()).
+        /// Wird beim Download-Start aufgerufen, sobald der Server die Content-Length meldet, damit die
+        /// erwartete Zielgröße einen Prozessabsturz MITTEN im Download übersteht — der reguläre Save()
+        /// läuft sonst erst nach Abschluss des gesamten Download-Batches.
+        /// </summary>
+        public void SaveExpectedSize(IsoEntry entry, long bytes)
+        {
+            entry.ExpectedSizeBytes = bytes;
+            int i = _entries.IndexOf(entry);
+            if (i < 0) return;
+            lock (_iniWriteLock)
+                IniService.Write(_paths.DatabaseIni, $"ISO_{i}", "ExpectedSizeBytes", bytes.ToString());
         }
 
         // ── CRUD ─────────────────────────────────────────────────────────

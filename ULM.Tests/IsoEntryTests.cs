@@ -177,3 +177,87 @@ public class IsoEntryComputeSha256Tests
         => Assert.Equal(string.Empty, await IsoEntry.ComputeSha256Async(
             Path.Combine(Path.GetTempPath(), $"ulm-does-not-exist-{Guid.NewGuid():N}.iso")));
 }
+
+/// <summary>
+/// Regression: ein bei einem Programmabsturz/-Neustart mitten im Download hinterlassenes ISO lag
+/// bisher oft ÜBER der pauschalen 300-MB-Mindestgröße (Constants.MinIsoSizeBytes) und galt dadurch
+/// fälschlich als "lokal vorhanden" — IsLocallyAvailable() prüfte nur diese grobe Schwelle, nie die
+/// tatsächlich erwartete Zielgröße. Der Kopiervorgang auf den Stick (StartCopyToStick/
+/// CopyToUsbWorker) filtert genau über IsLocallyAvailable() und hätte so eine unvollständige ISO
+/// ungeprüft auf den Stick kopiert. IsoEntry.ExpectedSizeBytes speichert jetzt die beim Download
+/// bereits bekannte Content-Length, damit hier der exakte Bytevergleich greift statt der Schwelle.
+/// </summary>
+public class IsoEntryLocalAvailabilityTests
+{
+    private static string CreateSparseFile(string dir, long size)
+    {
+        string name = $"ulm-avail-test-{Guid.NewGuid():N}.iso";
+        string path = Path.Combine(dir, name);
+        using (var fs = new FileStream(path, FileMode.Create)) fs.SetLength(size);
+        return name;
+    }
+
+    [Fact]
+    public void IsLocallyAvailable_ExpectedSizeKnown_IncompleteDownloadAboveMinFloor_IsNotAvailable()
+    {
+        string dir = Path.GetTempPath();
+        string name = CreateSparseFile(dir, 500_000_000L); // > 300 MB, aber weit unter dem Ziel
+        string path = Path.Combine(dir, name);
+        try
+        {
+            var entry = new IsoEntry { Filename = name, ExpectedSizeBytes = 3_000_000_000L };
+            Assert.False(entry.IsLocallyAvailable(dir));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void IsLocallyAvailable_ExpectedSizeKnown_CompleteDownload_IsAvailable()
+    {
+        string dir = Path.GetTempPath();
+        long expected = 3_000_000_000L;
+        string name = CreateSparseFile(dir, expected);
+        string path = Path.Combine(dir, name);
+        try
+        {
+            var entry = new IsoEntry { Filename = name, ExpectedSizeBytes = expected };
+            Assert.True(entry.IsLocallyAvailable(dir));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void IsLocallyAvailable_ExpectedSizeKnown_ButBelowMinFloor_IsNotAvailable()
+    {
+        // Regression (Review-Fund): OHNE die 300-MB-Mindestgröße als ZUSÄTZLICHE (nicht nur
+        // ersatzweise) Schranke würde ein Mirror, der statt der ISO nur eine winzige Fehlerseite mit
+        // HTTP 200 liefert, als "vollständig heruntergeladen" durchgehen — Content-Length und
+        // tatsächliche Größe stimmen trivial überein (beide winzig), DownloadAsync behält die Datei,
+        // ExpectedSizeBytes wird auf denselben winzigen Wert gesetzt. Die 300-MB-Schranke muss daher
+        // IMMER zusätzlich gelten, nicht nur wenn ExpectedSizeBytes unbekannt ist.
+        string dir = Path.GetTempPath();
+        long expected = 16_000_000L; // deutlich unter der 300-MB-ISO-Schwelle
+        string name = CreateSparseFile(dir, expected);
+        string path = Path.Combine(dir, name);
+        try
+        {
+            var entry = new IsoEntry { Filename = name, ExpectedSizeBytes = expected };
+            Assert.False(entry.IsLocallyAvailable(dir));
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public void IsLocallyAvailable_NoExpectedSizeKnown_FallsBackToMinIsoSizeBytesFloor()
+    {
+        string dir = Path.GetTempPath();
+        string name = CreateSparseFile(dir, 200_000_000L); // < 300 MB
+        string path = Path.Combine(dir, name);
+        try
+        {
+            var entry = new IsoEntry { Filename = name }; // ExpectedSizeBytes bleibt 0 (unbekannt)
+            Assert.False(entry.IsLocallyAvailable(dir));
+        }
+        finally { File.Delete(path); }
+    }
+}

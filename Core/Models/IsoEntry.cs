@@ -57,12 +57,39 @@ namespace ULM.Core.Models
         public string    DownloadStatus    { get; set; } = string.Empty;
         public bool      ImportedFromStick { get; set; }
 
+        // Laufzeit-Ergebnis der letzten Integritätsprüfung (DetectVersionlessHashMismatchesAsync /
+        // VerifyStickIntegrityAsync in dieser Sitzung) — treibt das Hash-Status-Symbol in der
+        // Hauptliste (IsoEntryViewModel.HashStatusBrush). Bewusst NICHT persistent: nur ein aktueller
+        // Fund soll rot anzeigen, kein alter Zustand aus einer früheren Sitzung.
+        public bool      HashMismatchDetected { get; set; }
+
         // SHA-256-Referenzhash: einmalig nach erfolgreichem Download oder Stick-Import gesetzt
         // (siehe DownloadWorker/ImportStickIsosDialog-Flow). Sha256Source zeigt die Vertrauensstufe:
         // "LocalDownload" = nur lokal berechnet, "OfficialChecksum" = zusätzlich gegen die vom
         // Anbieter veröffentlichte Prüfsumme verifiziert (siehe HttpService.ResolveOfficialChecksumAsync).
-        public string Sha256       { get; set; } = string.Empty;
+        //
+        // BUGFIX (Review): ResetRuntimeState() wird an KEINER Stelle im Programm aufgerufen (toter
+        // Code) — ein einmal gesetztes HashMismatchDetected=true (rotes Symbol) hätte sich dadurch nie
+        // wieder von selbst zurückgesetzt, auch nicht nach einem frischen, nachweislich korrekten
+        // Re-Download. Ein neu zugewiesener Hash bezieht sich per Definition auf einen ANDEREN
+        // Referenzwert als eine frühere Mismatch-Meldung — die Property setzt das Flag deshalb direkt
+        // hier zurück, statt sich auf den toten ResetRuntimeState()-Aufruf zu verlassen.
+        private string _sha256 = string.Empty;
+        public string Sha256
+        {
+            get => _sha256;
+            set { if (_sha256 != value) HashMismatchDetected = false; _sha256 = value ?? string.Empty; }
+        }
         public string Sha256Source { get; set; } = string.Empty;
+
+        // Beim letzten Download bekannte Server-Content-Length dieser Datei (0 = unbekannt, z.B. bei
+        // von Stick importierten Einträgen). Wird sofort geschrieben, sobald der Server sie beim
+        // Verbindungsaufbau meldet (siehe HttpService.DownloadAsync/IsoDatabaseService.SaveExpectedSize)
+        // — noch bevor der Download selbst fertig ist. IsLocallyAvailable() nutzt sie für einen exakten
+        // Bytevergleich statt der groben Constants.MinIsoSizeBytes-Schwelle, damit ein mitten im
+        // Download abgebrochener/abgestürzter Prozess nach einem Neustart nicht fälschlich als
+        // "vollständig vorhanden" gilt und ungeprüft auf den Stick kopiert wird.
+        public long ExpectedSizeBytes { get; set; }
 
         /// <summary>
         /// Gibt alle konfigurierten Download-URLs in Prioritätsreihenfolge zurück.
@@ -190,7 +217,17 @@ namespace ULM.Core.Models
         public bool IsLocallyAvailable(string downloadDirectory)
         {
             string? path = FindLocalPath(downloadDirectory);
-            return path is not null && GetRobustLength(path) >= Constants.MinIsoSizeBytes;
+            if (path is null) return false;
+            long size = GetRobustLength(path);
+            // BUGFIX (Review): die 300-MB-Mindestgröße MUSS immer zusätzlich gelten, nicht nur als
+            // Rückfallebene wenn ExpectedSizeBytes unbekannt ist. Sonst würde z.B. ein Mirror, der
+            // statt der ISO nur eine winzige Fehlerseite mit HTTP 200 liefert (Content-Length einiger
+            // KB), als "erfolgreich vollständig heruntergeladen" durchgehen: written==total(=paar KB)
+            // lässt DownloadAsync die Datei behalten, ExpectedSizeBytes wird auf denselben winzigen
+            // Wert gesetzt — ohne diese untere Schranke würde IsLocallyAvailable() so eine Datei
+            // fälschlich als kopierbereit einstufen.
+            if (size < Constants.MinIsoSizeBytes) return false;
+            return ExpectedSizeBytes <= 0 || size >= ExpectedSizeBytes * 0.98;
         }
 
         /// <summary>
@@ -248,6 +285,7 @@ namespace ULM.Core.Models
             UrlOk = false; UrlChecked = false; RemoteVersion = string.Empty;
             RemoteUrl = string.Empty; RemoteFilename = string.Empty;
             UpdateAvailable = false; DownloadStatus = string.Empty; VerifiedComplete = false;
+            HashMismatchDetected = false;
         }
 
         /// <summary>

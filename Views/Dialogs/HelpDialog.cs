@@ -212,6 +212,18 @@ namespace ULM.Views.Dialogs
                 "  '?'                 = noch nicht geprüft"));
             content.Children.Add(Spacer(6));
 
+            content.Children.Add(MakeSubhead("Hash-Status-Symbol (schmale Spalte links vom Namen)"));
+            content.Children.Add(MakeText(
+                "Ein kleiner, selbst gezeichneter Smiley zeigt den Integritäts-Status der lokal " +
+                "gespeicherten SHA-256-Prüfsumme (siehe 🔒 Integrität prüfen weiter unten):\n" +
+                "  Grün  = Referenz-Hash vorhanden (lokal berechnet oder offiziell verifiziert)\n" +
+                "  Rot   = bei der letzten Integritätsprüfung eine Abweichung gefunden — Datei " +
+                "vermutlich beschädigt oder ersetzt\n" +
+                "  Kein Symbol = noch kein Hash vorhanden (ISO noch nie heruntergeladen/importiert) — " +
+                "absichtlich neutral, nicht rot, damit unberührte ISOs nicht wie ein Problem aussehen\n" +
+                "Mouseover auf dem Symbol zeigt den genauen Grund an."));
+            content.Children.Add(Spacer(6));
+
             content.Children.Add(MakeSubhead("Symbole im Distro-Namen (Mouseover zeigt Erklärung)"));
             content.Children.Add(MakeItem("📥 (Präfix)",
                 "Vom USB-Stick importiert — diese ISO wurde beim Stick-Scan entdeckt " +
@@ -323,7 +335,11 @@ namespace ULM.Views.Dialogs
                 "Wenn ein Ventoy-Stick erkannt wird, kann jede ISO direkt nach dem Download " +
                 "auf den Stick kopiert werden. Die lokale Datei wird danach gelöscht. " +
                 "Downloads und Kopieren laufen parallel. Im Fortschritts-Dialog wechselt die Zeile " +
-                "einer ISO von 'Kopiere auf Stick' zu 'Fertig', sobald sie vollständig kopiert ist."));
+                "einer ISO von 'Kopiere auf Stick' zu 'Fertig', sobald sie vollständig kopiert ist. " +
+                "Der Gesamt-Fortschrittsbalken (Amber → Blau → Grün je nach Prozent) sowie die " +
+                "Abschluss-Meldung spiegeln dabei den tatsächlichen Kopier-Erfolg wider — schlägt die " +
+                "Stick-Kopie fehl, wird das jetzt klar als Fehlschlag gemeldet, statt fälschlich " +
+                "'erfolgreich heruntergeladen und kopiert' anzuzeigen, nur weil der Download geklappt hat."));
             content.Children.Add(MakeItem("Mirror-Race (bis zu 8 Quellen)",
                 "Bevor der eigentliche Download beginnt, testet ULM alle konfigurierten Mirror-URLs " +
                 "einer Distro parallel für ca. 3 Sekunden und startet dann mit der schnellsten Quelle " +
@@ -343,14 +359,17 @@ namespace ULM.Views.Dialogs
                 "  ⚠ Kein schnellerer Mirror gefunden — trotzdem mit dieser Quelle fortfahren?\n" +
                 "Bestätigt man das, läuft der Download ohne weitere Geschwindigkeitsprüfung zu Ende."));
             content.Children.Add(MakeItem("„(schneller)“-Button",
-                "Erscheint im Download-Fortschrittsfenster neben einer laufenden Übertragung, sobald " +
-                "noch mindestens ein weiterer, vom Mirror-Race bereits gemessener Kandidat übrig ist — " +
-                "auch dann, wenn der aktuelle Server über der Geschwindigkeits-Wächter-Schwelle liegt " +
-                "(also selbst gar nicht automatisch abbrechen würde), einem aber trotzdem zu langsam " +
-                "vorkommt. Klick bricht den aktuellen Versuch ab und wechselt sofort zum nächsten " +
-                "Kandidaten. Findet sich dabei kein schnellerer Server, kehrt ULM automatisch — ohne " +
-                "Nachfrage — zum ursprünglichen, nachweislich erreichbaren Server zurück " +
-                "('Kein schnellerer Server gefunden — Download wird fortgesetzt')."));
+                "Erscheint im Download-Fortschrittsfenster neben einer laufenden Übertragung — aber " +
+                "erst nach ca. 20 Sekunden Anlaufzeit UND nur, solange die tatsächlich gemessene " +
+                "Geschwindigkeit spürbar mittelmäßig ist (unter ca. 3 MB/s), selbst wenn der Server " +
+                "damit noch über der Geschwindigkeits-Wächter-Schwelle liegt (also gar nicht automatisch " +
+                "abbrechen würde). Bei bereits guter Geschwindigkeit bleibt der Button versteckt — es " +
+                "gibt dann nichts, wozu ein Wechsel sinnvoll wäre. Voraussetzung ist außerdem immer " +
+                "mindestens ein weiterer, vom Mirror-Race bereits gemessener Kandidat. Klick bricht den " +
+                "aktuellen Versuch ab und wechselt sofort zum nächsten Kandidaten. Findet sich dabei " +
+                "kein schnellerer Server, kehrt ULM automatisch — ohne Nachfrage — zum ursprünglichen, " +
+                "nachweislich erreichbaren Server zurück ('Kein schnellerer Server gefunden — Download " +
+                "wird fortgesetzt')."));
             content.Children.Add(MakeItem("Verbleibende Zeit (ETA)",
                 "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe auch die geschätzte " +
                 "Restzeit an, z.B.:\n  12.4 MB/s  ·  noch 2m 14s  ·  1.2 GB / 3.5 GB\n" +
@@ -390,6 +409,13 @@ namespace ULM.Views.Dialogs
             content.Children.Add(MakeItem("Ventoy-Bootmenü",
                 "Wird automatisch nach jedem Kopiervorgang UND nach jedem ISO-Import vom Stick aktualisiert. " +
                 "Enthält leserliche Namen, Beschreibungen und Kategorien aus der Datenbank."));
+            content.Children.Add(MakeItem("🔁 Verpasste Kopien nachholen",
+                "Manuelles Sicherheitsnetz (Expert-Modus): kopiert bereits lokal vollständig " +
+                "heruntergeladene, ausgewählte ISOs (erneut) auf den Stick. ULM bietet das normalerweise " +
+                "automatisch an, sobald eine vollständige ISO auf dem Stick fehlt — dieses automatische " +
+                "'Jetzt kopieren?'-Angebot erscheint aber pro Stick und Datei nur EINMAL je Sitzung, egal " +
+                "ob mit Ja oder Nein geantwortet wurde. Wurde es abgelehnt, oder ist eine vorherige Kopie " +
+                "fehlgeschlagen, ist dieser Button ohne Neustart der einzige Weg, es erneut zu versuchen."));
             content.Children.Add(Spacer());
 
             // ── Datenmüll-Schutz ──────────────────────────────────────────
