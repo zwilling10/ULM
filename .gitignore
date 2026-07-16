@@ -10,10 +10,21 @@ release/*.zip
 # Laufzeit-Daten (ISOs, Datenbank, Logs — nicht Teil des Quellcodes)
 ISOs/
 *.iso
-ulm.log
+ulm_log.txt
+
+# SICHERHEIT: ulm_settings.ini kann ein vom Nutzer hinterlegtes GitHub Personal Access Token
+# enthalten (siehe MainViewModel.GitHubToken/HttpService.GitHubToken); ULM_Data/ enthält die
+# lokale ISO-Datenbank + Discovery-Cache + Log (siehe Infrastructure/AppPaths.cs). Beide landen bei
+# portablem Betrieb NEBEN der EXE — läuft ULM aus dem Repo-Wurzelverzeichnis heraus (z.B. per
+# "dotnet run"), entstehen sie direkt hier und dürfen NIE versehentlich committet werden.
+ulm_settings.ini
+ULM_Data/
 
 # graphify Wissensgraph (lokales Analyse-Tool-Ausgabe, kein Teil des Quellcodes/der App)
 graphify-out/
+
+# Lokaler Scratch-/Testbereich (siehe UniversalLinuxManager.csproj Compile-Remove-Ausschluss)
+scratch_test/
 
 # Claude Code lokale Einstellungen (enthalten lokale Rechner-Pfade, nicht für GitHub)
 .claude/
