@@ -487,6 +487,12 @@ namespace ULM.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
             SetBusy(true); StatusText = "🔒 Prüfe Integrität …"; Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
+            // BUGFIX: bislang kein CancellationToken verdrahtet — "Abbrechen" loggte "⛔ Abbruch.",
+            // hatte aber keine Wirkung auf diese Schleife, da _activeWorker hier nie gesetzt wurde
+            // und OnCancel() nur DownloadWorker/CopyToUsbWorker/UrlCheckWorker/UpdateScanWorker kennt.
+            // Frischen Token setzen (analog StartDownload) und in der Hash-Schleife abfragen.
+            _workerCts = new CancellationTokenSource(); _activeWorker = null;
+            var ct = _workerCts.Token;
             // BUGFIX (finaler Review): try/finally schützt gegen ein hängenbleibendes Busy-UI, falls
             // ScanStickVerifiedAsync/ComputeSha256Async unerwartet wirft — vorher blieb IsBusy=true
             // für immer stehen (SetBusy(false) stand nur im Erfolgspfad ganz am Ende), und über den
@@ -502,16 +508,23 @@ namespace ULM.ViewModels
                 var mismatches = new List<UsbService.StickIso>(); int checkedCount = 0;
                 foreach (var e in _db.Entries)
                 {
+                    if (ct.IsCancellationRequested) break;
                     if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
                     checkedCount++;
-                    string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
-                    if (string.IsNullOrEmpty(actual)) continue;
+                    string actual = await IsoEntry.ComputeSha256Async(stick.FullPath, ct).ConfigureAwait(false);
+                    if (ct.IsCancellationRequested || string.IsNullOrEmpty(actual)) continue;
                     bool mismatch = !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase);
                     e.HashMismatchDetected = mismatch;
                     if (mismatch) mismatches.Add(stick);
                 }
                 _ui.Invoke(() =>
                 {
+                    if (ct.IsCancellationRequested)
+                    {
+                        StatusText = "Abbruch …";
+                        Log($"⛔ Integritätsprüfung {SelectedDriveLetter} abgebrochen ({checkedCount} geprüft).");
+                        return;
+                    }
                     StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
                     Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
