@@ -400,55 +400,79 @@
 
                         <TextBlock Text="Aktueller Vorgang" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
-                        <TextBlock Margin="0,0,0,12" FontSize="12">
+                        <TextBlock Margin="0,0,0,12" FontSize="12" Text="Kein Vorgang aktiv.">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="Kein Vorgang aktiv."/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding OnlineScanActive}" Value="True">
-                                            <Setter Property="Text" Value="🌐 Automatischer Online-Versionscheck läuft …"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding UsbScanActive}" Value="True">
-                                            <Setter Property="Text" Value="💾 Automatische Stick-Prüfung läuft …"/>
-                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusy}" Value="True">
-                                            <Setter Property="Text" Value="{Binding StatusText}"/>
+                                            <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </TextBlock.Style>
                         </TextBlock>
+                        <StackPanel Margin="0,0,0,12">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <!-- Bis zu 6 Zeilen — welche davon Inhalt haben, hängt vom Vorgangstyp ab
+                                 (z.B. liefert eine Ventoy-Installation keine Datei-/Zähler-Info, siehe
+                                 CurrentOperationItem/-Detail/-Counter-Reset in SetBusy). -->
+                            <TextBlock FontSize="12"><Run Text="Vorgang: "/><Run Text="{Binding StatusText, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            <TextBlock FontSize="12"><Run Text="Datei: "/><Run Text="{Binding CurrentOperationItem, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run Text="Fortschritt: "/><Run Text="{Binding ProgressPercent, Mode=OneWay}"/><Run Text="%"/></TextBlock>
+                            <TextBlock FontSize="12"><Run Text="Detail: "/><Run Text="{Binding CurrentOperationDetail, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run Text="Zähler: "/><Run Text="{Binding CurrentOperationCounter, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run Text="Ziel-Laufwerk: "/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/></TextBlock>
+                        </StackPanel>
 
                         <TextBlock Text="Automatische Hintergrund-Scans" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
-                        <TextBlock Margin="0,0,0,2" FontSize="12">
-                            <Run Text="🌐 Online-Versionscheck: "/>
-                            <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
-                                <Run.Style>
-                                    <Style TargetType="Run">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding OnlineScanActive}" Value="False">
-                                                <Setter Property="Text" Value="inaktiv"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Run.Style>
-                            </Run>
-                        </TextBlock>
-                        <TextBlock Margin="0,0,0,12" FontSize="12">
-                            <Run Text="💾 Stick-Prüfung: "/>
-                            <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
-                                <Run.Style>
-                                    <Style TargetType="Run">
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding UsbScanActive}" Value="False">
-                                                <Setter Property="Text" Value="inaktiv"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Run.Style>
-                            </Run>
-                        </TextBlock>
+                        <StackPanel Margin="0,0,0,12">
+                            <TextBlock FontSize="12">
+                                <Run Text="🌐 Online-Versionscheck: "/>
+                                <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
+                                    <Run.Style>
+                                        <Style TargetType="Run">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding OnlineScanActive}" Value="False">
+                                                    <Setter Property="Text" Value="inaktiv"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Run.Style>
+                                </Run>
+                                <Run Text=" ("/><Run Text="{Binding OnlineScanPercent, Mode=OneWay}"/><Run Text="%)"/>
+                            </TextBlock>
+                            <TextBlock FontSize="12" Margin="16,0,0,6">
+                                <Run Text="↳ zuletzt geprüft: "/><Run Text="{Binding OnlineScanCurrentItem, Mode=OneWay}"/>
+                            </TextBlock>
+                            <TextBlock FontSize="12">
+                                <Run Text="💾 Stick-Prüfung: "/>
+                                <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
+                                    <Run.Style>
+                                        <Style TargetType="Run">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding UsbScanActive}" Value="False">
+                                                    <Setter Property="Text" Value="inaktiv"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Run.Style>
+                                </Run>
+                                <Run Text=" ("/><Run Text="{Binding UsbScanPercent, Mode=OneWay}"/><Run Text="%)"/>
+                            </TextBlock>
+                            <TextBlock FontSize="12" Margin="16,0,0,0">
+                                <Run Text="↳ Laufwerk: "/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/>
+                            </TextBlock>
+                        </StackPanel>
 
                         <TextBlock Text="Geplante automatische Aktionen" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
