@@ -394,6 +394,87 @@
                 </Grid>
             </TabItem>
 
+            <TabItem Header="Status" x:Name="StatusTab">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource BrushWhite}">
+                    <StackPanel Margin="12">
+
+                        <TextBlock Text="Aktueller Vorgang" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
+                        <TextBlock Margin="0,0,0,12" FontSize="12">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="{Binding StatusText}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBusy}" Value="False">
+                                            <Setter Property="Text" Value="Kein manueller Vorgang aktiv."/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+
+                        <TextBlock Text="Automatische Hintergrund-Scans" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
+                        <TextBlock Margin="0,0,0,2" FontSize="12">
+                            <Run Text="🌐 Online-Versionscheck: "/>
+                            <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
+                                <Run.Style>
+                                    <Style TargetType="Run">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding OnlineScanActive}" Value="False">
+                                                <Setter Property="Text" Value="inaktiv"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Run.Style>
+                            </Run>
+                        </TextBlock>
+                        <TextBlock Margin="0,0,0,12" FontSize="12">
+                            <Run Text="💾 Stick-Prüfung: "/>
+                            <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
+                                <Run.Style>
+                                    <Style TargetType="Run">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding UsbScanActive}" Value="False">
+                                                <Setter Property="Text" Value="inaktiv"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Run.Style>
+                            </Run>
+                        </TextBlock>
+
+                        <TextBlock Text="Geplante automatische Aktionen" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
+                        <TextBlock Margin="0,0,0,2" FontSize="12">
+                            <Run Text="🌐 Nächster automatischer Online-Versionscheck: "/>
+                            <Run Text="{Binding NextAutoCheckText}"/>
+                        </TextBlock>
+                        <TextBlock Margin="0,0,0,12" FontSize="12" Foreground="{DynamicResource BrushMid}"
+                                   Text="🔌 Laufwerks-Überwachung: läuft laufend im Hintergrund (Prüfung alle 4 Sekunden)."/>
+
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Verlauf" FontWeight="Bold" FontSize="13"
+                                       Foreground="{DynamicResource BrushMid}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Verlauf leeren" Style="{DynamicResource BtnGhost}"
+                                    Click="BtnClearHistory_Click"/>
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding ActivityHistory}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" FontFamily="Consolas, Courier New" FontSize="11" Margin="0,1"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
 
         <!-- ── Aktions-Leiste ──────────────────────────────────────────── -->

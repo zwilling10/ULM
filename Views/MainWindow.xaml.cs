@@ -242,6 +242,7 @@ namespace ULM.Views
             BtnModeToggle.Content = _vm.ExpertMode ? "Modus: Experte 🛠" : "Modus: Anwender 👤";
             Visibility vis = _vm.ExpertMode ? Visibility.Visible : Visibility.Collapsed;
             BtnVentoy.Visibility = vis; ChkSecureBoot.Visibility = vis; ExpertBar.Visibility = vis; LogTab.Visibility = Visibility.Visible;
+            StatusTab.Visibility = vis;
         }
 
         private void BtnModeToggle_Click(object sender, RoutedEventArgs e) { _vm.ExpertMode = !_vm.ExpertMode; UpdateUiMode(); }
@@ -630,6 +631,7 @@ namespace ULM.Views
 
         private void BtnCancel_Click(object sender, RoutedEventArgs e) { AppendLog("⛔ Vorgang wird abgebrochen …"); _vm.CancelCommand.Execute(null); }
         private void BtnClearLog_Click(object sender, RoutedEventArgs e) => LogBox.Clear();
+        private void BtnClearHistory_Click(object sender, RoutedEventArgs e) => _vm.ActivityHistory.Clear();
 
         private void SetBusyUi(bool busy)
         {
