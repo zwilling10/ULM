@@ -18,6 +18,13 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.33.0", new[]
+            {
+                "Fehlerbehebung: „Abbrechen“ während einer laufenden Stick-Integritätsprüfung zeigte zwar sofort „Abbruch.“ im Protokoll, die Prüfung lief im Hintergrund aber unbeeinflusst bis zum Ende weiter (bei mehreren ISOs über USB teils mehrere Minuten) — wirkt jetzt sofort.",
+                "Neu: Reiter „Status“ (nur im Experten-Modus) — zeigt den aktuell laufenden Vorgang mit Datei/Fortschritt/Zähler, automatische Hintergrund-Scans, die nächste geplante automatische Aktion sowie einen Verlauf der letzten Hintergrund-Ereignisse. Ziel: volle Transparenz ohne einen Blick in den Task-Manager.",
+                "Neu: optionaler Windows-Installer (Setup.exe) als Alternative zur portablen EXE — mit Startmenü-Eintrag und Deinstaller; fragt beim Deinstallieren nach, bevor heruntergeladene ISOs/Einstellungen mitgelöscht werden.",
+                "Laufwerks-Überwachung von 4 auf 8 Sekunden verlangsamt — Erkennung von Stick-Wechseln bleibt aktiv, pollt aber seltener.",
+            }),
             ("2.32.0", new[]
             {
                 "Fehlerbehebung: ein durch Programmabsturz oder harten Kill mitten im Download unterbrochenes ISO konnte nach dem Neustart ungeprüft auf den Stick kopiert werden — die erwartete Zielgröße wird jetzt schon beim Download-Start gespeichert (nicht erst am Ende) und übersteht damit auch einen Absturz.",
