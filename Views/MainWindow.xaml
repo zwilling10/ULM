@@ -404,6 +404,12 @@
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Style.Triggers>
+                                        <DataTrigger Binding="{Binding OnlineScanActive}" Value="True">
+                                            <Setter Property="Text" Value="🌐 Automatischer Online-Versionscheck läuft — Details siehe „Automatische Hintergrund-Scans” unten."/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding UsbScanActive}" Value="True">
+                                            <Setter Property="Text" Value="💾 Automatische Stick-Prüfung läuft — Details siehe „Automatische Hintergrund-Scans” unten."/>
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding IsBusy}" Value="True">
                                             <Setter Property="Visibility" Value="Collapsed"/>
                                         </DataTrigger>
@@ -453,6 +459,7 @@
                             </TextBlock>
                             <TextBlock FontSize="12" Margin="16,0,0,6">
                                 <Run Text="↳ zuletzt geprüft: "/><Run Text="{Binding OnlineScanCurrentItem, Mode=OneWay}"/>
+                                <Run Text="  (abgeschlossen: "/><Run Text="{Binding LastAutoCheckText, Mode=OneWay}"/><Run Text=")"/>
                             </TextBlock>
                             <TextBlock FontSize="12">
                                 <Run Text="💾 Stick-Prüfung: "/>
