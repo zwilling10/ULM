@@ -180,6 +180,12 @@ namespace ULM.Views
             _vm.RefreshScheduleStatus();
             ShowChangelogIfUpdated();
             _lastDriveSignatureUi = string.Join(";", _vm.Drives.Select(d => d.Letter));
+            // Stecken beim Programmstart bereits mehrere Sticks, wählt RefreshDrives() (aufgerufen
+            // aus _vm.Initialize() oben) stillschweigend Drives[0] als SelectedDrive — derselbe
+            // "welchen Stick meinte ich eigentlich?"-Fall wie beim Hinzustecken eines zweiten Sticks
+            // während der Laufzeit (siehe OnNewDriveInserted), nur dass hier nie ein "neuer Stick"-
+            // Ereignis feuert, das den Auswahldialog auslösen könnte.
+            OfferDriveChoiceIfMultiple();
             FooterLbl.Text = $"ISO-Ordner: {AppPaths.Instance.DownloadDir}";
             _driveTimer.Start();
             _autoCheckTimer.Start();
@@ -461,10 +467,36 @@ namespace ULM.Views
         private void OnNewDriveInserted()
         {
             UsbDrive? nd = _vm.Drives.Count == 1 ? _vm.Drives[0] : null;
-            if (nd is null) { AppendLog($"🔌 {_vm.Drives.Count} USB-Laufwerke erkannt: " + string.Join(", ", _vm.Drives.Select(d => $"{d.Letter} ({d.Label})"))); _vm.SelectedDrive = _vm.Drives[0]; return; }
+            if (nd is null)
+            {
+                AppendLog($"🔌 {_vm.Drives.Count} USB-Laufwerke erkannt: " + string.Join(", ", _vm.Drives.Select(d => $"{d.Letter} ({d.Label})")));
+                // BUGFIX: bisher wurde hier stillschweigend Drives[0] übernommen (RefreshDrives()
+                // oben hat das bereits als Vorbelegung getan) — der Nutzer erfuhr nie, WELCHEN der
+                // mehreren Sticks ULM gerade als Ziel gewählt hat, bevor er z.B. auf "Ventoy
+                // einrichten" oder "Auf Stick kopieren" klickte. Jetzt aktiv nachfragen.
+                OfferDriveChoiceIfMultiple();
+                return;
+            }
             if (UsbService.IsVentoyInstalled(nd.Letter)) { StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return; }
             if (MessageBox.Show($"Neuer USB-Stick: {nd.Letter}\nLabel: {(string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label)}   Größe: {nd.SizeBytes / 1_073_741_824.0:F0} GB\n\nAutomatisch als Ventoy-Stick einrichten?\n\n⚠ ALLE DATEN AUF DIESEM STICK WERDEN GELÖSCHT!", "USB-Stick erkannt — Datenverlust!", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             _vm.SelectedDrive = nd; AppendLog($"⚡ Ventoy-Installation auf {nd.Letter} wird gestartet …"); _vm.StartVentoyInstall(updateMode: false);
+        }
+
+        /// <summary>
+        /// Fragt aktiv nach, mit welchem Stick gearbeitet werden soll, wenn mehr als einer erkannt
+        /// wird — sowohl beim Programmstart (bereits mehrere Sticks angeschlossen, siehe OnLoaded)
+        /// als auch während der Laufzeit (siehe OnNewDriveInserted). Vorbelegt mit der aktuellen
+        /// SelectedDrive (von RefreshDrives() bereits auf Drives[0] gesetzt), damit "Abbrechen" bzw.
+        /// direktes Bestätigen ohne Umschalten schlicht bei der bisherigen Auswahl bleibt.
+        /// </summary>
+        private void OfferDriveChoiceIfMultiple()
+        {
+            if (_vm.Drives.Count <= 1) return;
+            var dlg = new DriveSelectDialog(_vm.Drives,
+                headerText: $"Es sind {_vm.Drives.Count} USB-Sticks angeschlossen. Mit welchem möchtest du arbeiten?",
+                preselect: _vm.SelectedDrive)
+            { Owner = this };
+            if (dlg.ShowDialog() == true && dlg.SelectedDrive is not null) _vm.SelectedDrive = dlg.SelectedDrive;
         }
 
         private void BtnVentoy_Click(object sender, RoutedEventArgs e)

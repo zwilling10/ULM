@@ -447,10 +447,20 @@ namespace ULM.Views.Dialogs
 
         private readonly ComboBox _combo;
 
-        public DriveSelectDialog(IReadOnlyList<UsbDrive> drives)
+        /// <summary>
+        /// headerText: null = Standardtext für die Ventoy-Installation (bisheriges Verhalten).
+        /// preselect: welches Laufwerk im ComboBox vorausgewählt sein soll (z.B. das aktuell aktive
+        /// SelectedDrive) statt immer Index 0 — wichtig für den "bleiben oder wechseln?"-Anwendungsfall,
+        /// bei dem "Abbrechen"/direkt "Auswählen" ohne Umschalten die bisherige Auswahl behalten soll.
+        /// </summary>
+        public DriveSelectDialog(IReadOnlyList<UsbDrive> drives, string? headerText = null, UsbDrive? preselect = null)
         {
             Title  = "Ziel-USB-Stick auswählen";
-            Width  = 440; Height = 240;
+            // BUGFIX: feste Height=240 reichte bei längeren Überschriften (z.B. dem neuen "Es sind
+            // N USB-Sticks angeschlossen …"-Text) nicht aus — der untere Bereich inkl. der Buttons
+            // wurde vom Fensterrand abgeschnitten, da kein ScrollViewer und kein Auto-Sizing vorhanden
+            // war. SizeToContent lässt das Fenster immer exakt so hoch werden wie sein Inhalt.
+            Width  = 440; SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
             Background = AppRes.Brush("BrushBg");
@@ -459,8 +469,8 @@ namespace ULM.Views.Dialogs
 
             root.Children.Add(new TextBlock
             {
-                Text         = $"Es wurden {drives.Count} USB-Laufwerke erkannt.\n" +
-                               "Bitte das Ziel-Laufwerk für die Ventoy-Installation auswählen:",
+                Text         = headerText ?? ($"Es wurden {drives.Count} USB-Laufwerke erkannt.\n" +
+                               "Bitte das Ziel-Laufwerk für die Ventoy-Installation auswählen:"),
                 TextWrapping = TextWrapping.Wrap,
                 FontSize     = 12.5,
                 Margin       = new Thickness(0, 0, 0, 18),
@@ -488,7 +498,8 @@ namespace ULM.Views.Dialogs
                     FontWeight = isV ? FontWeights.SemiBold : FontWeights.Normal,
                 });
             }
-            _combo.SelectedIndex = 0;
+            int preselectIndex = preselect is null ? -1 : drives.ToList().FindIndex(d => d.Letter == preselect.Letter);
+            _combo.SelectedIndex = preselectIndex >= 0 ? preselectIndex : 0;
             root.Children.Add(_combo);
 
             // Hinweis-Text unter dem ComboBox
@@ -503,7 +514,10 @@ namespace ULM.Views.Dialogs
             });
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var bCancel = new Button { Content = "Abbrechen", Width = 100, Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 8, 0) };
+            // BUGFIX: BtnGhost (nur 1px Rand, kein Hintergrund) hob sich auf diesem Dialog kaum vom
+            // Fenster-Hintergrund (BrushBg) ab — der Button war praktisch nicht als solcher erkennbar.
+            // BtnSecondary (gefüllter BrushCard-Hintergrund) ist deutlich sichtbarer.
+            var bCancel = new Button { Content = "Abbrechen", Width = 100, Style = AppRes.Style("BtnSecondary"), Margin = new Thickness(0, 0, 8, 0) };
             bCancel.Click += (_, _) => { DialogResult = false; Close(); };
             var bOk = new Button { Content = "✔ Auswählen", Width = 130, Style = AppRes.Style("BtnPrimary") };
             bOk.Click += (_, _) =>
