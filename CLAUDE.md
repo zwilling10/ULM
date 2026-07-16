@@ -1,9 +1,11 @@
 ## Release-Prozess
 
-Bei "veröffentliche das"/"erstelle einen Release" o.ä.: `docs/RELEASE.md`
-Schritt für Schritt befolgen, ohne die dort bereits geklärten Punkte
-(Versionsnummer-Logik, SmartScreen-Hinweis, Alte-Releases-Policy) erneut zu
-erfragen. Nur bei den dort explizit gelisteten Sonderfällen nachfragen.
+Bei "veröffentliche das"/"erstelle einen Release" o.ä.: zuerst fragen, ob
+der Fahrplan in `docs/RELEASE.md` jetzt abgearbeitet werden soll (dessen
+Schritt 0). Nach Bestätigung Schritt für Schritt befolgen, ohne die dort
+bereits geklärten Punkte (Versionsnummer-Logik, SmartScreen-Hinweis,
+Alte-Releases-Policy) erneut einzeln zu erfragen. Nur bei den dort
+explizit gelisteten Sonderfällen nachfragen.
 
 ## graphify
 
