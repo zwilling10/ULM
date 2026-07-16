@@ -79,6 +79,9 @@ namespace ULM.ViewModels
         private string _nextAutoCheckText = "wird berechnet …";
         public string NextAutoCheckText { get => _nextAutoCheckText; private set => SetField(ref _nextAutoCheckText, value); }
 
+        public ObservableCollection<string> ActivityHistory { get; } = new();
+        private const int MaxActivityHistoryEntries = 30;
+
         // Für den Startphasen-Hinweis (rotierender Spinner + pulsierender Text): sichtbar, solange
         // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
         // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
@@ -489,7 +492,8 @@ namespace ULM.ViewModels
         public async Task VerifyStickIntegrityAsync()
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
-            SetBusy(true); StatusText = "🔒 Prüfe Integrität …"; Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
+            SetBusy(true); StatusText = "🔒 Prüfe Integrität …";
+            RecordHistory($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …"); Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
             // BUGFIX: bislang kein CancellationToken verdrahtet — "Abbrechen" loggte "⛔ Abbruch.",
             // hatte aber keine Wirkung auf diese Schleife, da _activeWorker hier nie gesetzt wurde
             // und OnCancel() nur DownloadWorker/CopyToUsbWorker/UrlCheckWorker/UpdateScanWorker kennt.
@@ -525,10 +529,12 @@ namespace ULM.ViewModels
                     if (ct.IsCancellationRequested)
                     {
                         StatusText = "Abbruch …";
+                        RecordHistory($"⛔ Integritätsprüfung {SelectedDriveLetter} abgebrochen ({checkedCount} geprüft).");
                         Log($"⛔ Integritätsprüfung {SelectedDriveLetter} abgebrochen ({checkedCount} geprüft).");
                         return;
                     }
                     StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
+                    RecordHistory($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
                     if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
@@ -627,7 +633,7 @@ namespace ULM.ViewModels
 
         public void TriggerAutoVersionCheck()
         {
-            Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
+            RecordHistory($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …"); Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
             StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0;
             var worker = new AutoVersionCheckWorker(_db.Entries);
             worker.Progress += (c, t) => _ui.Invoke(() => OnlineScanPercent = t > 0 ? (c * 100) / t : 0);
@@ -686,7 +692,7 @@ namespace ULM.ViewModels
                     _startupPhase = false;
                     StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
                                : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
-                    Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
+                    RecordHistory($"🌐 Versionscheck: {StatusText}"); Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
                 });
                 // BUGFIX: Der zu scannende Stick wurde bisher als "capturedDrive" VOR dem
                 // Versionscheck erfasst — steckte der Anwender einen Stick erst WÄHREND des Checks
@@ -710,6 +716,7 @@ namespace ULM.ViewModels
                         _ui.Invoke(() =>
                         {
                             ApplyStickResults(si); UsbScanActive = false; UsbScanPercent = 100; RefreshAllEntries();
+                            RecordHistory($"💾 Stick-Prüfung {driveToScan} abgeschlossen ({si.Count} ISO(s) erkannt).");
                             if (incomplete.Count > 0)
                             {
                                 Log($"⚠ Stick-Prüfung {driveToScan}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
@@ -871,6 +878,8 @@ namespace ULM.ViewModels
             if (remainingDays <= 0) return "jetzt fällig";
             return $"in ca. {Math.Ceiling(remainingDays):0} Tag(en)";
         }
+
+        internal static string FormatHistoryEntry(string message, DateTime now) => $"[{now:HH:mm:ss}] {message}";
 
         private async Task<(int Ok, int Failed)> RunPipelineCopyConsumerAsync(ChannelReader<IsoEntry> reader, string drive)
         {
@@ -1218,6 +1227,12 @@ namespace ULM.ViewModels
             DateTime? last = DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.RoundtripKind, out DateTime parsed) ? parsed : null;
             NextAutoCheckText = FormatNextAutoCheckText(last, Constants.AutoCheckIntervalDays, DateTime.UtcNow);
+        }
+
+        private void RecordHistory(string msg)
+        {
+            ActivityHistory.Insert(0, FormatHistoryEntry(msg, DateTime.Now));
+            while (ActivityHistory.Count > MaxActivityHistoryEntries) ActivityHistory.RemoveAt(ActivityHistory.Count - 1);
         }
 
         public void SaveAndClose()
