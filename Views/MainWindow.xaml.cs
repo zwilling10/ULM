@@ -170,6 +170,7 @@ namespace ULM.Views
         {
             Loaded -= OnLoaded;
             LoadSettings(); _vm.Initialize();
+            _vm.RefreshScheduleStatus();
             ShowChangelogIfUpdated();
             _lastDriveSignatureUi = string.Join(";", _vm.Drives.Select(d => d.Letter));
             FooterLbl.Text = $"ISO-Ordner: {AppPaths.Instance.DownloadDir}";
@@ -201,6 +202,7 @@ namespace ULM.Views
         // greift der nächste 30-Minuten-Tick.
         private void CheckAutoRecheckDue()
         {
+            _vm.RefreshScheduleStatus();
             if (_vm.IsBusy) return;
             string raw = IniService.Read(AppPaths.Instance.SettingsIni, "App", "LastAutoCheckUtc", string.Empty);
             if (!DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime last)) return;
