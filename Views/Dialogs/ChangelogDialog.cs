@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.34.0", new[]
+            {
+                "Neu: Sind mehrere USB-Sticks gleichzeitig angeschlossen, fragt ULM jetzt aktiv nach, mit welchem gearbeitet werden soll — sowohl beim Programmstart als auch beim Einstecken eines weiteren Sticks während der Laufzeit. Vorher wurde stillschweigend der erste erkannte Stick gewählt.",
+                "Die Hilfe (❔) wurde um die neue Mehrfach-Stick-Auswahl und den Status-Reiter ergänzt.",
+            }),
             ("2.33.0", new[]
             {
                 "Fehlerbehebung: „Abbrechen“ während einer laufenden Stick-Integritätsprüfung zeigte zwar sofort „Abbruch.“ im Protokoll, die Prüfung lief im Hintergrund aber unbeeinflusst bis zum Ende weiter (bei mehreren ISOs über USB teils mehrere Minuten) — wirkt jetzt sofort.",
