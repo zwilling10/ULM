@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Arbeitsverzeichnis: ausschließlich `<Projektverzeichnis>` (Worktree), Branch `fix/stick-outdated-false-positive`.
 - Konvention: nur reine/statische Logik bekommt Unit-Tests, Worker-Orchestrierung und Live-Netzwerkzugriffe nicht (siehe bestehende `HttpServiceTests.cs`).
 - Kein automatisches Rehashing bei jedem Stick-Scan (Performance — siehe Spec Nicht-Ziele).
 - Deutsche Kommentare nur dort, wo das WARUM nicht aus dem Code selbst hervorgeht (Projektkonvention).

@@ -82,6 +82,23 @@ namespace ULM.ViewModels
         public ObservableCollection<string> ActivityHistory { get; } = new();
         private const int MaxActivityHistoryEntries = 30;
 
+        // Für die "Aktueller Vorgang"-Karte im Status-Reiter (Experten-Modus): Detailinfo zum
+        // gerade laufenden manuellen Vorgang (Download/Kopieren/Integritätsprüfung/Ventoy/
+        // URL-Check/Update-Check). "—" = keine Angabe für den aktuell laufenden Vorgangstyp
+        // verfügbar (z.B. Ventoy-Installation liefert keine Datei-/Zähler-Info).
+        private string _currentOperationItem = "—";
+        public string CurrentOperationItem { get => _currentOperationItem; private set => SetField(ref _currentOperationItem, value); }
+        private string _currentOperationDetail = "—";
+        public string CurrentOperationDetail { get => _currentOperationDetail; private set => SetField(ref _currentOperationDetail, value); }
+        private string _currentOperationCounter = "—";
+        public string CurrentOperationCounter { get => _currentOperationCounter; private set => SetField(ref _currentOperationCounter, value); }
+
+        // Für die "Automatische Hintergrund-Scans"-Karte: welcher Distro-Eintrag der automatische
+        // Online-Versionscheck gerade prüft (Stick-Prüfung liefert keine Pro-Datei-Zwischenstände,
+        // siehe UsbService.ScanStickVerifiedAsync — deshalb kein Pendant dafür).
+        private string _onlineScanCurrentItem = "—";
+        public string OnlineScanCurrentItem { get => _onlineScanCurrentItem; private set => SetField(ref _onlineScanCurrentItem, value); }
+
         // Für den Startphasen-Hinweis (rotierender Spinner + pulsierender Text): sichtbar, solange
         // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
         // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
@@ -162,6 +179,13 @@ namespace ULM.ViewModels
             _secureBoot = IniService.Read(_paths.SettingsIni, "App", "SecureBoot", "1") != "0";
             _gitHubToken = IniService.Read(_paths.SettingsIni, "App", "GitHubToken", string.Empty);
             _http.GitHubToken = _gitHubToken;
+
+            // Speist die "Aktueller Vorgang"-Karte im Status-Reiter aus den bereits vorhandenen
+            // Fortschritts-Events, statt jede der zahlreichen DownloadItemProgress/CopyItemProgress-
+            // Aufrufstellen einzeln anzufassen — beide Events feuern bereits über _ui.Invoke, hier
+            // also kein zusätzliches Thread-Marshalling nötig.
+            DownloadItemProgress += (name, _, detail, _) => { CurrentOperationItem = name; CurrentOperationDetail = detail; };
+            CopyItemProgress     += (name, _, detail)    => { CurrentOperationItem = name; CurrentOperationDetail = detail; };
         }
 
         public void Initialize()
@@ -512,12 +536,23 @@ namespace ULM.ViewModels
                 var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
                 foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
 
+                int totalToCheck = _db.Entries.Count(e => !string.IsNullOrEmpty(e.Sha256) && byFn.ContainsKey(e.Filename));
                 var mismatches = new List<UsbService.StickIso>(); int checkedCount = 0;
                 foreach (var e in _db.Entries)
                 {
                     if (ct.IsCancellationRequested) break;
                     if (string.IsNullOrEmpty(e.Sha256) || !byFn.TryGetValue(e.Filename, out var stick)) continue;
                     checkedCount++;
+                    // Live-Fortschritt für die "Aktueller Vorgang"-Karte im Status-Reiter: vorher
+                    // erfuhr der Nutzer den Zwischenstand ("X von Y geprüft") erst nach Abschluss der
+                    // GESAMTEN Prüfung — bei mehreren GB-ISOs über USB potenziell mehrere Minuten ohne
+                    // jede Rückmeldung (siehe den ursprünglichen Abbruch-Bug dieser Funktion).
+                    _ui.Invoke(() =>
+                    {
+                        CurrentOperationItem = e.Name;
+                        CurrentOperationCounter = $"{checkedCount} von {totalToCheck} geprüft";
+                        ProgressPercent = totalToCheck > 0 ? (checkedCount * 100) / totalToCheck : 0;
+                    });
                     string actual = await IsoEntry.ComputeSha256Async(stick.FullPath, ct).ConfigureAwait(false);
                     if (ct.IsCancellationRequested || string.IsNullOrEmpty(actual)) continue;
                     bool mismatch = !string.Equals(actual, e.Sha256, StringComparison.OrdinalIgnoreCase);
@@ -634,11 +669,12 @@ namespace ULM.ViewModels
         public void TriggerAutoVersionCheck()
         {
             RecordHistory($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …"); Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
-            StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0;
+            StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0; OnlineScanCurrentItem = "—";
             var worker = new AutoVersionCheckWorker(_db.Entries);
             worker.Progress += (c, t) => _ui.Invoke(() => OnlineScanPercent = t > 0 ? (c * 100) / t : 0);
             worker.EntryChecked += result => _ui.Invoke(() =>
             {
+                OnlineScanCurrentItem = result.Name;
                 if (!result.Resolved) { Log($"   ⚠ {result.Name}: nicht erreichbar."); return; }
                 Log(result.HasUpdate
                     ? $"   🆕 {result.Name}: v{result.LocalVersion} → v{result.RemoteVersion}"
@@ -686,7 +722,7 @@ namespace ULM.ViewModels
                     // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
                     else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
-                    OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
+                    OnlineScanActive = false; OnlineScanPercent = 100; OnlineScanCurrentItem = "—"; RefreshAllEntries();
                     // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
                     // sofort scannen. Der Start-Stick-Scan selbst folgt unten (capturedDrive).
                     _startupPhase = false;
@@ -1208,7 +1244,15 @@ namespace ULM.ViewModels
             if (_activeWorker is DownloadWorker dw) dw.RequestFasterMirror(entryName);
         }
 
-        private void SetBusy(bool busy) { IsBusy = busy; if (busy) ProgressPercent = 0; }
+        private void SetBusy(bool busy)
+        {
+            IsBusy = busy;
+            if (busy)
+            {
+                ProgressPercent = 0;
+                CurrentOperationItem = "—"; CurrentOperationDetail = "—"; CurrentOperationCounter = "—";
+            }
+        }
 
         private void RefreshEntry(int index)
         {
