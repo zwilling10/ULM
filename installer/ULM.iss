@@ -58,3 +58,35 @@ Name: "{autodesktop}\Universal Linux Manager"; Filename: "{app}\UniversalLinuxMa
 
 [Run]
 Filename: "{app}\UniversalLinuxManager.exe"; Description: "{cm:LaunchProgram,Universal Linux Manager}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+// ULM ist portabel: Einstellungen (ulm_settings.ini) UND, bei nicht-elevierter Installation nach
+// {autopf}=LocalAppData\Programs, auch der komplette Datenordner "ULM_Data" (heruntergeladene
+// ISOs, Datenbank, Log) landen NEBEN der EXE, siehe Infrastructure/AppPaths.cs — der Deinstaller
+// entfernt aus [Files] nur die EXE selbst. Ohne diese Rückfrage blieben mehrere GB heruntergeladene
+// ISOs nach dem Deinstallieren unbemerkt liegen; ein automatisches, ungefragtes Löschen wäre aber
+// ebenso falsch (stiller Datenverlust). Deshalb: nachfragen, Standard = NEIN (Daten behalten), und
+// bei stiller/automatisierter Deinstallation (UninstallSilent) gar nicht erst fragen bzw. löschen.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  DataDir, SettingsFile: String;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    DataDir := ExpandConstant('{app}\ULM_Data');
+    SettingsFile := ExpandConstant('{app}\ulm_settings.ini');
+    if (not UninstallSilent) and DirExists(DataDir) then
+    begin
+      if MsgBox('Auch alle heruntergeladenen ISOs und gespeicherten Einstellungen löschen?' + #13#10#13#10 +
+                DataDir + #13#10#13#10 +
+                'Dies entfernt unwiderruflich alle heruntergeladenen Linux-ISOs sowie die ' +
+                'gespeicherte Konfiguration. Bei "Nein" bleiben diese Daten erhalten (z.B. für ' +
+                'eine spätere Neuinstallation ohne erneuten Download).',
+                mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      begin
+        DelTree(DataDir, True, True, True);
+        if FileExists(SettingsFile) then DeleteFile(SettingsFile);
+      end;
+    end;
+  end;
+end;
