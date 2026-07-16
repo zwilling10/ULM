@@ -147,6 +147,11 @@ namespace ULM.Views
                 // Zeitstempel bei JEDEM abgeschlossenen Check aktualisieren (Start-Check UND
                 // spätere Hintergrund-Checks) — Grundlage für CheckAutoRecheckDue().
                 IniService.Write(AppPaths.Instance.SettingsIni, "App", "LastAutoCheckUtc", DateTime.UtcNow.ToString("o"));
+                // BUGFIX: RefreshScheduleStatus() lief bisher nur beim Programmstart (VOR dem ersten
+                // Check) und alle 30 Minuten per Timer — der Status-Reiter zeigte deshalb nach dem
+                // automatischen Start-Check trotzdem weiter "unbekannt (noch kein Check gelaufen)",
+                // bis zu 30 Minuten lang, obwohl der Zeitstempel oben längst geschrieben war.
+                _vm.RefreshScheduleStatus();
                 if (_orphanCheckDone) return;
                 _orphanCheckDone = true;
                 await RunLocalFileMaintenanceAsync();

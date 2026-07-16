@@ -78,6 +78,8 @@ namespace ULM.ViewModels
 
         private string _nextAutoCheckText = "wird berechnet …";
         public string NextAutoCheckText { get => _nextAutoCheckText; private set => SetField(ref _nextAutoCheckText, value); }
+        private string _lastAutoCheckText = "wird berechnet …";
+        public string LastAutoCheckText { get => _lastAutoCheckText; private set => SetField(ref _lastAutoCheckText, value); }
 
         public ObservableCollection<string> ActivityHistory { get; } = new();
         private const int MaxActivityHistoryEntries = 30;
@@ -722,7 +724,10 @@ namespace ULM.ViewModels
                     // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
                     else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
-                    OnlineScanActive = false; OnlineScanPercent = 100; OnlineScanCurrentItem = "—"; RefreshAllEntries();
+                    // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
+                    // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
+                    // nachdem der Scan fertig ist; wird erst beim Start des NÄCHSTEN Scans geleert.
+                    OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
                     // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
                     // sofort scannen. Der Start-Stick-Scan selbst folgt unten (capturedDrive).
                     _startupPhase = false;
@@ -913,6 +918,16 @@ namespace ULM.ViewModels
             double remainingDays = intervalDays - (nowUtc - lastCheckUtc.Value).TotalDays;
             if (remainingDays <= 0) return "jetzt fällig";
             return $"in ca. {Math.Ceiling(remainingDays):0} Tag(en)";
+        }
+
+        /// <summary>
+        /// Reine Formatierungslogik für "zuletzt abgeschlossen" im Status-Reiter — dasselbe
+        /// lastCheckUtc wie FormatNextAutoCheckText, nur als lokale Uhrzeit statt Restdauer.
+        /// </summary>
+        internal static string FormatLastAutoCheckText(DateTime? lastCheckUtc)
+        {
+            if (lastCheckUtc is null) return "noch nie";
+            return lastCheckUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.CurrentCulture);
         }
 
         internal static string FormatHistoryEntry(string message, DateTime now) => $"[{now:HH:mm:ss}] {message}";
@@ -1271,6 +1286,7 @@ namespace ULM.ViewModels
             DateTime? last = DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.RoundtripKind, out DateTime parsed) ? parsed : null;
             NextAutoCheckText = FormatNextAutoCheckText(last, Constants.AutoCheckIntervalDays, DateTime.UtcNow);
+            LastAutoCheckText = FormatLastAutoCheckText(last);
         }
 
         private void RecordHistory(string msg)
