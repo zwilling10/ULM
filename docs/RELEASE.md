@@ -1,8 +1,16 @@
 # Release-Fahrplan
 
-Checkliste für "veröffentliche das" / "erstelle einen Release" — wird ohne
-Rückfragen befolgt, solange keiner der Sonderfälle unten zutrifft (dann
-anhalten und den Nutzer fragen statt zu raten).
+Checkliste für "veröffentliche das" / "erstelle einen Release".
+
+**Schritt 0 — immer zuerst:** Bevor der Fahrplan tatsächlich ausgeführt
+wird, aktiv nachfragen, ob er jetzt abgearbeitet werden soll (z.B. "Soll
+ich den Release-Fahrplan jetzt ausführen?"). Erst nach Bestätigung mit
+Schritt 1 beginnen. Innerhalb des Fahrplans selbst dann OHNE weitere
+Rückfragen durchlaufen, solange keiner der Sonderfälle unten zutrifft
+(dann anhalten und gezielt nachfragen statt zu raten) — die eine
+Bestätigung am Anfang ersetzt die vielen Einzelfragen (Versionsnummer,
+SmartScreen-Hinweis, Alte-Releases-Policy etc.), die in früheren Sitzungen
+einzeln gestellt wurden.
 
 ## 1. Vorbereitung
 
