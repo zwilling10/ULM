@@ -448,7 +448,7 @@
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
                         <TextBlock Margin="0,0,0,2" FontSize="12">
                             <Run Text="🌐 Nächster automatischer Online-Versionscheck: "/>
-                            <Run Text="{Binding NextAutoCheckText}"/>
+                            <Run Text="{Binding NextAutoCheckText, Mode=OneWay}"/>
                         </TextBlock>
                         <TextBlock Margin="0,0,0,12" FontSize="12" Foreground="{DynamicResource BrushMid}"
                                    Text="🔌 Laufwerks-Überwachung: läuft laufend im Hintergrund (Prüfung alle 4 Sekunden)."/>
