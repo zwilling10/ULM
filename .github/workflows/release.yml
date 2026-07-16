@@ -1,8 +1,10 @@
 name: Release
 
-# Läuft nur bei einem Tag-Push nach Schema "v*" (z.B. v2.27.2) — baut die portable EXE über das
-# bestehende build-release.sh und hängt sie automatisch als GitHub-Release-Asset an, statt das
-# manuell lokal auszuführen und hochzuladen.
+# Läuft nur bei einem Tag-Push nach Schema "v*" (z.B. v2.27.2) — baut die portable EXE UND den
+# Windows-Installer (Setup.exe, siehe installer/ULM.iss) über das bestehende build-release.sh und
+# hängt beide automatisch als GitHub-Release-Assets an, statt das manuell lokal auszuführen und
+# hochzuladen. Inno Setup (ISCC.exe) ist auf dem windows-latest-Runner bereits vorinstalliert
+# (siehe actions/runner-images Software-Liste), kein zusätzlicher Setup-Schritt nötig.
 on:
   push:
     tags:
@@ -34,9 +36,9 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Portable EXE bauen
+      - name: Portable EXE + Installer bauen
         shell: bash
-        run: ./build-release.sh --zip
+        run: ./build-release.sh --zip --installer
 
       - name: GitHub Release erstellen und EXE anhängen
         shell: bash
