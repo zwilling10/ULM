@@ -76,6 +76,9 @@ namespace ULM.ViewModels
         private bool   _usbScanActive;    public bool UsbScanActive     { get => _usbScanActive;     private set { if (SetField(ref _usbScanActive, value)) NotifyScanHint(); } }
         private int    _usbScanPercent;   public int  UsbScanPercent    { get => _usbScanPercent;    private set => SetField(ref _usbScanPercent,    value); }
 
+        private string _nextAutoCheckText = "wird berechnet …";
+        public string NextAutoCheckText { get => _nextAutoCheckText; private set => SetField(ref _nextAutoCheckText, value); }
+
         // Für den Startphasen-Hinweis (rotierender Spinner + pulsierender Text): sichtbar, solange
         // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
         // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
@@ -856,6 +859,19 @@ namespace ULM.ViewModels
             return msg;
         }
 
+        /// <summary>
+        /// Reine Formatierungslogik für die "Status"-Reiter-Anzeige "Nächste geplante Aktion".
+        /// lastCheckUtc kommt aus der Settings-INI (LastAutoCheckUtc, siehe CheckAutoRecheckDue in
+        /// MainWindow.xaml.cs) — null bedeutet: seit Installation/Reset noch kein Check gelaufen.
+        /// </summary>
+        internal static string FormatNextAutoCheckText(DateTime? lastCheckUtc, int intervalDays, DateTime nowUtc)
+        {
+            if (lastCheckUtc is null) return "unbekannt (noch kein Check gelaufen)";
+            double remainingDays = intervalDays - (nowUtc - lastCheckUtc.Value).TotalDays;
+            if (remainingDays <= 0) return "jetzt fällig";
+            return $"in ca. {Math.Ceiling(remainingDays):0} Tag(en)";
+        }
+
         private async Task<(int Ok, int Failed)> RunPipelineCopyConsumerAsync(ChannelReader<IsoEntry> reader, string drive)
         {
             const int bufSize = 4 * 1024 * 1024;
@@ -1195,6 +1211,14 @@ namespace ULM.ViewModels
 
         private int GetEntryIndex(string n) => _db.Entries.ToList().FindIndex(e => e.Name == n || e.Filename == n);
         private void Log(string msg) => LogMessage?.Invoke(msg);
+
+        public void RefreshScheduleStatus()
+        {
+            string raw = IniService.Read(_paths.SettingsIni, "App", "LastAutoCheckUtc", string.Empty);
+            DateTime? last = DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out DateTime parsed) ? parsed : null;
+            NextAutoCheckText = FormatNextAutoCheckText(last, Constants.AutoCheckIntervalDays, DateTime.UtcNow);
+        }
 
         public void SaveAndClose()
         {
