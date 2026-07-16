@@ -17,11 +17,14 @@ Portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-Live-ISOs. 
 - **Log-Rotation** — die Protokolldatei wird ab 5 MB automatisch rotiert statt unbegrenzt zu wachsen
 - **Dark Mode** — Design-Wahl System/Hell/Dunkel, schaltet live um (kein Neustart nötig), folgt bei "System" automatisch der Windows-Einstellung
 - **Autostart-Option** — optionale Checkbox im Einrichtungsfenster startet ULM automatisch mit Windows, kein Admin-Recht nötig
-- **Komplett portabel** — eine einzige .exe, self-contained, kein Installer, keine .NET-Installation auf dem Zielsystem nötig
+- **Portabel oder installiert** — wahlweise eine einzige self-contained .exe ohne Installation, oder ein klassischer Setup.exe mit Startmenü-Eintrag und Deinstaller; keine .NET-Installation auf dem Zielsystem nötig
 
 ## Download
 
-Fertige, portable `.exe` unter [Releases](../../releases/latest) — einfach herunterladen und starten. Keine Installation, keine Administratorrechte nötig (außer für die optionale Ventoy-Installation/-Aktualisierung).
+Unter [Releases](../../releases/latest) stehen zwei Varianten bereit:
+
+- **Portable `.exe`** (`UniversalLinuxManager-vX.Y.Z-win-x64.exe`) — einfach herunterladen und starten, keine Installation, keine Administratorrechte nötig (außer für die optionale Ventoy-Installation/-Aktualisierung)
+- **Setup `.exe`** (`UniversalLinuxManager-Setup-vX.Y.Z-win-x64.exe`) — klassischer Installer mit Startmenü-Eintrag, optionalem Desktop-Icon und Deinstaller unter "Programme und Features"
 
 **Anforderungen:** Windows 10 / 11 (x64)
 
@@ -32,8 +35,9 @@ Voraussetzung: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 ```bash
 git clone https://github.com/zwilling10/ULM.git
 cd ULM
-./build-release.sh          # baut eine portable Single-File-EXE nach release/
-./build-release.sh --zip    # zusätzlich als .zip verpackt
+./build-release.sh                        # baut eine portable Single-File-EXE nach release/
+./build-release.sh --zip                  # zusätzlich als .zip verpackt
+./build-release.sh --installer            # zusätzlich klassischen Setup.exe bauen (benötigt Inno Setup, https://jrsoftware.org/isdl.php)
 ```
 
 Oder direkt mit `dotnet publish`:
