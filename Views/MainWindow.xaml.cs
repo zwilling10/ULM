@@ -152,7 +152,9 @@ namespace ULM.Views
                 await RunLocalFileMaintenanceAsync();
             };
 
-            _driveTimer.Interval = TimeSpan.FromSeconds(4);
+            // 8s statt vormals 4s: Hot-Plug-Erkennung (Stick rein/raus) bleibt dadurch laufend
+            // aktiv, reagiert aber spürbar seltener statt praktisch alle 4 Sekunden zu pollen.
+            _driveTimer.Interval = TimeSpan.FromSeconds(8);
             _driveTimer.Tick    += (_, _) => CheckDriveChanges();
 
             // Hintergrund-Suche nach erreichbaren Servern/neuen Versionen: läuft nicht nur
