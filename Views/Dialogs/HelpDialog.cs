@@ -406,6 +406,12 @@ namespace ULM.Views.Dialogs
                 "Installation läuft, pausiert ULM die automatische Laufwerkserkennung — es können " +
                 "keine weiteren Abfragen oder Dialoge parallel erscheinen. Nach Abschluss (Erfolg " +
                 "oder Fehler) muss der 'Schließen'-Button aktiv geklickt werden, um fortzufahren."));
+            content.Children.Add(MakeItem("Mehrere USB-Sticks angeschlossen",
+                "Sind zwei oder mehr USB-Sticks gleichzeitig angeschlossen — egal ob schon beim " +
+                "Programmstart oder erst später —, fragt ULM aktiv nach, mit welchem Stick gearbeitet " +
+                "werden soll (vorbelegt mit der zuletzt aktiven Auswahl). 'Abbrechen' behält einfach die " +
+                "bisherige Auswahl bei. Über das Laufwerks-Dropdown im Hauptfenster lässt sich jederzeit " +
+                "manuell zu einem anderen angeschlossenen Stick wechseln."));
             content.Children.Add(MakeItem("Ventoy-Bootmenü",
                 "Wird automatisch nach jedem Kopiervorgang UND nach jedem ISO-Import vom Stick aktualisiert. " +
                 "Enthält leserliche Namen, Beschreibungen und Kategorien aus der Datenbank."));
@@ -484,6 +490,13 @@ namespace ULM.Views.Dialogs
             // ── Expert-Modus ───────────────────────────────────────────────
             AddSection("🛠 Expert-Modus — Zusatzfunktionen", "Expert-Modus");
             content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts 'Modus: Anwender' → klicken."));
+            content.Children.Add(MakeItem("📊 Status-Reiter",
+                "Zeigt Transparenz über alles, was gerade oder demnächst automatisch im Hintergrund " +
+                "läuft, ohne dass ein Blick in den Task-Manager nötig ist: den aktuell laufenden " +
+                "manuellen Vorgang (Download, Kopieren, Integritätsprüfung, Ventoy, …) mit Datei, " +
+                "Fortschritt und Zähler, die automatischen Hintergrund-Scans (Online-Versionscheck, " +
+                "Stick-Prüfung), wann der nächste automatische Online-Versionscheck fällig ist, sowie " +
+                "einen Verlauf der letzten Hintergrund-Ereignisse (mit 'Verlauf leeren'-Button)."));
             content.Children.Add(MakeItem("URL-Check",
                 "Prüft ob alle konfigurierten URLs erreichbar sind (Primär-URL + Mirror1-5). " +
                 "Ergebnisse erscheinen als 🌐✓ / 🌐✗ im Distro-Namen."));
