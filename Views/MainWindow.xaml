@@ -403,10 +403,16 @@
                         <TextBlock Margin="0,0,0,12" FontSize="12">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="{Binding StatusText}"/>
+                                    <Setter Property="Text" Value="Kein Vorgang aktiv."/>
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsBusy}" Value="False">
-                                            <Setter Property="Text" Value="Kein manueller Vorgang aktiv."/>
+                                        <DataTrigger Binding="{Binding OnlineScanActive}" Value="True">
+                                            <Setter Property="Text" Value="🌐 Automatischer Online-Versionscheck läuft …"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding UsbScanActive}" Value="True">
+                                            <Setter Property="Text" Value="💾 Automatische Stick-Prüfung läuft …"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                            <Setter Property="Text" Value="{Binding StatusText}"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
@@ -451,7 +457,7 @@
                             <Run Text="{Binding NextAutoCheckText, Mode=OneWay}"/>
                         </TextBlock>
                         <TextBlock Margin="0,0,0,12" FontSize="12" Foreground="{DynamicResource BrushMid}"
-                                   Text="🔌 Laufwerks-Überwachung: läuft laufend im Hintergrund (Prüfung alle 4 Sekunden)."/>
+                                   Text="🔌 Laufwerks-Überwachung: läuft laufend im Hintergrund (Prüfung alle 8 Sekunden)."/>
 
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
