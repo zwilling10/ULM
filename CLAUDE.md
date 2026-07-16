@@ -1,3 +1,10 @@
+## Release-Prozess
+
+Bei "veröffentliche das"/"erstelle einen Release" o.ä.: `docs/RELEASE.md`
+Schritt für Schritt befolgen, ohne die dort bereits geklärten Punkte
+(Versionsnummer-Logik, SmartScreen-Hinweis, Alte-Releases-Policy) erneut zu
+erfragen. Nur bei den dort explizit gelisteten Sonderfällen nachfragen.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
