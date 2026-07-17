@@ -1,6 +1,7 @@
 // Views/MainWindow.xaml.cs
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -203,10 +204,44 @@ namespace ULM.Views
         /// </summary>
         private async Task CheckUlmUpdateAsync()
         {
-            var (hasUpdate, latest, url) = await HttpService.Instance.CheckForUlmUpdateAsync(Constants.AppVersion).ConfigureAwait(true);
-            if (!hasUpdate) return;
-            AppendLog($"🆕 Neue ULM-Version verfügbar: v{latest} (aktuell installiert: v{Constants.AppVersion})");
-            if (!string.IsNullOrWhiteSpace(url)) AppendLog($"   {url}");
+            var info = await HttpService.Instance.CheckForUlmUpdateAsync(Constants.AppVersion).ConfigureAwait(true);
+            if (!info.HasUpdate) return;
+            AppendLog($"🆕 Neue ULM-Version verfügbar: v{info.LatestVersion} (aktuell installiert: v{Constants.AppVersion})");
+            if (!string.IsNullOrWhiteSpace(info.ReleaseUrl)) AppendLog($"   {info.ReleaseUrl}");
+            _vm.SetAvailableUpdate(info);
+        }
+
+        private void BtnUpdateDismiss_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdateBanner();
+
+        private async void BtnUpdateDownload_Click(object sender, RoutedEventArgs e)
+        {
+            var info = _vm.AvailableUpdate;
+            if (info is null) return;
+            var dlg = new UpdateDownloadDialog(info) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+
+            if (dlg.OpenReleasePageInstead)
+            {
+                try { Process.Start(new ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); }
+                catch (Exception ex) { AppendLog($"⚠ Release-Seite konnte nicht geöffnet werden: {ex.Message}"); }
+                return;
+            }
+
+            string url  = dlg.ChosenUrl;
+            string name = Path.GetFileName(new Uri(url).AbsolutePath);
+            string dest = Path.Combine(AppPaths.Instance.DownloadDir, name);
+            AppendLog($"⬇ Lade Programm-Update: {name} …");
+            bool ok;
+            try { ok = await HttpService.Instance.DownloadAsync(url, dest, null, System.Threading.CancellationToken.None).ConfigureAwait(true); }
+            catch (Exception ex) { AppendLog($"❌ Update-Download fehlgeschlagen: {ex.Message}"); ok = false; }
+            if (!ok)
+            {
+                MessageBox.Show("Der Download des Programm-Updates ist fehlgeschlagen.", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            AppendLog($"✅ Update gespeichert: {dest}");
+            try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dest}\"") { UseShellExecute = true }); }
+            catch (Exception ex) { AppendLog($"⚠ Ordner konnte nicht geöffnet werden: {ex.Message}"); }
         }
 
         // Wird alle 30 Minuten geprüft: löst TriggerAutoVersionCheck() erneut aus, sobald seit
