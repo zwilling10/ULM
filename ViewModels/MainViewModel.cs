@@ -373,56 +373,13 @@ namespace ULM.ViewModels
             var worker = new UsbScanWorker(letter, _db.Entries);
             worker.Completed += (ltr, found, incomplete) => _ui.Invoke(() =>
             {
-                ApplyStickResults(found); RefreshAllEntries(); UsbScanActive = false; UsbScanPercent = 100;
+                UsbScanActive = false; UsbScanPercent = 100;
                 StatusText = $"✓ Stick-Scan {ltr}: {found.Count} ISO(s).";
                 Log($"💾 Stick-Scan {ltr}: {found.Count} ISO(s) gefunden.");
                 if (found.Count > 0) foreach (var iso in found) Log($"   • {iso.Filename}  [{iso.Category}]  {iso.Size/1_073_741_824.0:F2} GB");
                 OnPropertyChanged(nameof(DriveInfoText));
-
-                if (incomplete.Count > 0)
-                {
-                    Log($"⚠ Stick-Scan {ltr}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
-                    foreach (var si in incomplete) Log($"   ⚠ {si.Filename}  ({FormatGb(si.Size)}) — vermutlich Datenmüll.");
-                    IncompleteIsosOnStickDetected?.Invoke(incomplete, ltr);
-                }
-
-                _ = Task.Run(async () =>
-                {
-                    var mismatches = await DetectVersionlessHashMismatchesAsync(found).ConfigureAwait(false);
-                    // Immer aktualisieren, nicht nur bei Treffern — HashMismatchDetected kann sich auch
-                    // von true zurück auf false geändert haben (z.B. nach einem erneuten Download).
-                    _ui.Invoke(() =>
-                    {
-                        RefreshAllEntries();
-                        if (mismatches.Count == 0) return;
-                        Log($"⚠ Stick-Scan {ltr}: {mismatches.Count} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.");
-                        foreach (var m in mismatches) Log($"   ⚠ {m.Filename} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.");
-                        IncompleteIsosOnStickDetected?.Invoke(mismatches, ltr);
-                    });
-                });
-
-                var newerOnStick = DetectNewerVersionsOnStick(found);
-                var newerFnSet   = new HashSet<string>(newerOnStick.Select(x => x.StickIso.Filename), StringComparer.OrdinalIgnoreCase);
-                var dbFn         = new HashSet<string>(_db.Entries.Select(e => e.Filename), StringComparer.OrdinalIgnoreCase);
-                var initialUnknowns = found.Where(f => !string.IsNullOrWhiteSpace(f.Filename) && !dbFn.Contains(f.Filename) && !newerFnSet.Contains(f.Filename)).ToList();
-
-                var additionalNewer = new List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>();
-                var trueUnknowns    = new List<UsbService.StickIso>();
-                foreach (var stickIso in initialUnknowns)
-                {
-                    var match = _db.Entries.Where(e => !string.IsNullOrWhiteSpace(e.Name))
-                        .FirstOrDefault(e => IsLikelySameDistroByName(e.Name, stickIso.Filename) &&
-                            (string.IsNullOrWhiteSpace(e.Filename) ||
-                             IsVersionNewer(HttpService.ExtractVersion(stickIso.Filename), HttpService.ExtractVersion(e.Filename))));
-                    if (match != null) additionalNewer.Add((match, stickIso));
-                    else               trueUnknowns.Add(stickIso);
-                }
-
-                var allNewer = newerOnStick.Concat(additionalNewer).ToList();
-                if (allNewer.Count > 0) NewerVersionsOnStickDetected?.Invoke(allNewer, ltr);
-                if (trueUnknowns.Count > 0) UnknownIsosOnStickDetected?.Invoke(trueUnknowns, ltr);
-                var missing = GetVerifiedCompleteEntriesMissingFromStick();
-                if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, ltr);
+                // Manueller Scan hat keinen Versionscheck-Kontext → leeres oldFn (keine Veraltet-/Duplikat-Trennung).
+                ProcessStickScanResults(found, incomplete, new Dictionary<string, int>(), ltr);
                 // Bewusst KEIN automatischer RunHealthCheck() mehr hier: TriggerUsbScan läuft bei
                 // jedem Stick-Einstecken, jeder Ventoy-Installation und jedem Kopiervorgang — ein
                 // voller Katalog-Gesundheitscheck (Netzwerk-Requests für JEDEN Eintrag) bei jedem
