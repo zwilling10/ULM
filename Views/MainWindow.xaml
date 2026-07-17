@@ -28,6 +28,7 @@
                         <ColumnDefinition Width="130"/>
                         <ColumnDefinition Width="150"/>
                         <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="30"/>
                     </Grid.ColumnDefinitions>
 
                     <CheckBox Grid.Column="0" IsChecked="{Binding IsSelected}"
@@ -89,6 +90,13 @@
                     <TextBlock Grid.Column="5" Text="{Binding VersionStatus}"
                                Foreground="{DynamicResource BrushMid}"
                                FontSize="11.5" VerticalAlignment="Center"/>
+
+                    <Button Grid.Column="6" Content="🔧" FontSize="12"
+                            Width="24" Height="24" Padding="0"
+                            ToolTip="Quelle manuell suchen/eintragen"
+                            Click="BtnManualSearch_Click"
+                            Style="{DynamicResource BtnGhost}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -371,6 +379,7 @@
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="150"/>
                                 <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="30"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="1" Text="🔒" FontSize="10"
                                        HorizontalAlignment="Center"

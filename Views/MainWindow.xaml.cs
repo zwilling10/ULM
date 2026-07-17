@@ -136,6 +136,10 @@ namespace ULM.Views
                 MessageBox.Show(message, "✅ Vorgang abgeschlossen", MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
+            // Unauffällige Bestätigung für URL-/Update-/Integritätsprüfung (nicht modal, schließt
+            // sich nach 2s von selbst) — siehe QuickCheckSucceeded-Dokumentation im ViewModel.
+            _vm.QuickCheckSucceeded += message => new QuickConfirmationWindow(message) { Owner = this }.Show();
+
             _vm.HealthCheckCompleted += results => new DbHealthCheckDialog(results) { Owner = this }.ShowDialog();
 
             _vm.AutoVersionCheckCompleted += async () =>
@@ -533,6 +537,19 @@ namespace ULM.Views
             if (e.ClickCount != 2) return;
             if (sender is FrameworkElement fe && fe.DataContext is IsoEntryViewModel vm && vm.Model != null && !string.IsNullOrWhiteSpace(vm.Model.Tip))
                 MessageBox.Show(vm.Model.Tip, vm.Model.Name, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // Öffnet ManualSourceSearchDialog für genau die Zeile, in der der Button liegt — siehe
+        // docs/superpowers/specs/2026-07-17-manual-source-search-design.md. Kein neues Auswahl-
+        // Konzept nötig, da der Button direkt im DataContext (IsoEntryViewModel) der eigenen Zeile
+        // sitzt (gleiches Muster wie EntryRow_MouseLeftButtonDown oben).
+        private void BtnManualSearch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.DataContext is not IsoEntryViewModel vm) return;
+            var dlg = new ManualSourceSearchDialog(vm.Model) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            IsoDatabaseService.Instance.Save();
+            _vm.RebuildTree();
         }
 
         private void BtnRefreshDrives_Click(object sender, RoutedEventArgs e) => CheckDriveChanges();
