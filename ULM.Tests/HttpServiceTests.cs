@@ -140,3 +140,30 @@ public class HttpServiceChecksumParserTests
     public void ParseBsdStyleChecksum_UnknownFilename_ReturnsNull()
         => Assert.Null(HttpService.ParseBsdStyleChecksum(BsdStyleFixture, "does-not-exist.iso"));
 }
+
+public class HttpServiceMatchUlmReleaseAssetsTests
+{
+    [Fact]
+    public void MatchUlmReleaseAssets_SeparatesPortableAndSetup()
+    {
+        var assets = new List<(string, string)>
+        {
+            ("UniversalLinuxManager-v2.34.0-win-x64.exe",       "https://x/portable.exe"),
+            ("UniversalLinuxManager-Setup-v2.34.0-win-x64.exe", "https://x/setup.exe"),
+            ("UniversalLinuxManager-v2.34.0-win-x64.zip",       "https://x/ignore.zip"),
+        };
+        var (portable, setup) = HttpService.MatchUlmReleaseAssets(assets);
+        Assert.Equal("https://x/portable.exe", portable);
+        Assert.Equal("https://x/setup.exe",    setup);
+    }
+
+    [Fact]
+    public void MatchUlmReleaseAssets_MissingSetup_LeavesSetupEmpty()
+    {
+        var assets = new List<(string, string)>
+        { ("UniversalLinuxManager-v2.34.0-win-x64.exe", "https://x/portable.exe") };
+        var (portable, setup) = HttpService.MatchUlmReleaseAssets(assets);
+        Assert.Equal("https://x/portable.exe", portable);
+        Assert.Equal("", setup);
+    }
+}
