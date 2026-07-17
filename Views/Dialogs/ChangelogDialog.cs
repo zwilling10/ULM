@@ -18,6 +18,13 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.35.1", new[]
+            {
+                "Fehlerbehebung: Findet ULM ein neueres Update (z.B. direkt nach dem Übernehmen einer vom Stick importierten ISO oder beim Gesundheitscheck), wird es jetzt sofort zum Aktualisieren angeboten — vorher erschien es zunächst nur als „Update verfügbar“ in der Liste, die eigentliche Frage kam erst beim nächsten Programmstart.",
+                "Fehlerbehebung: Nach einer von ULM selbst durchgeführten Stick-Aktualisierung konnte zusätzlich zur Frage „Alte ISO löschen?“ fälschlich ein „ISO importieren?“-Dialog für genau diese alte Datei erscheinen.",
+                "Fehlerbehebung: Der Gesundheitscheck-Dialog und ein anschließendes Update-Angebot konnten sich in seltenen Fällen überlagern — erscheinen jetzt nacheinander.",
+                "Das Fenster \"ISO bearbeiten\" (Datenbank bearbeiten) passt seine Höhe jetzt automatisch an den Bildschirm an, damit alle Felder ohne Scrollen sichtbar sind.",
+            }),
             ("2.35.0", new[]
             {
                 "Neu: ULM prüft beim Start im Hintergrund, ob eine neuere Programmversion verfügbar ist, und zeigt in dem Fall ein Hinweis-Banner an. Per Klick lässt sich direkt die portable EXE oder der Setup-Installer herunterladen; ULM legt die Datei ab und öffnet den Ordner — gestartet wird sie wie gewohnt selbst.",
