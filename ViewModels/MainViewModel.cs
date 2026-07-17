@@ -189,6 +189,11 @@ namespace ULM.ViewModels
         public event Action<int>?                 CopyBatchCompleted;
         public event Action<string>?              OperationSucceeded;
         public event Action?                      AutoVersionCheckCompleted;
+        // Unauffällige Erfolgsmeldung für URL-/Update-/Integritätsprüfung (BtnCheckUrls/BtnUpdates/
+        // BtnVerifyIntegrity) — bewusst getrennt von OperationSucceeded, das für Download/Kopie eine
+        // blockierende MessageBox zeigt und zusätzlich den Fortschrittsdialog schließt; hier soll der
+        // Arbeitsfluss NICHT unterbrochen werden.
+        public event Action<string>?              QuickCheckSucceeded;
         public event Action?                      RefreshTree;
 
         /// <summary>
@@ -641,6 +646,7 @@ namespace ULM.ViewModels
                     RecordHistory($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
+                    QuickCheckSucceeded?.Invoke($"Integritätsprüfung {SelectedDriveLetter} abgeschlossen: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
                 });
             }
@@ -1114,10 +1120,16 @@ namespace ULM.ViewModels
             var worker = new UpdateScanWorker(_db.Entries, _paths.DownloadDir); _activeWorker = worker;
             worker.EntryChecked += result => _ui.Invoke(() =>
             {
+                // BUGFIX: nicht aufgelöste Einträge wurden hier komplett stillschweigend übersprungen
+                // (kein Log-Eintrag) — nicht zu unterscheiden von "wurde wegen fehlender lokaler
+                // Verfügbarkeit gar nicht erst versucht" (siehe UpdateScanWorker.hasKnownSource-Fix).
+                // Jetzt analog zu RunHealthCheck auch das Scheitern sichtbar loggen.
+                Log(!result.Resolved
+                    ? $"   ❌ {result.Name}: nicht erreichbar."
+                    : result.HasUpdate
+                        ? $"   🆕 {result.Name}: v{result.LocalVersion} → v{result.RemoteVersion}"
+                        : $"   ✓ {result.Name}: v{result.RemoteVersion}");
                 if (!result.Resolved) return;
-                Log(result.HasUpdate
-                    ? $"   🆕 {result.Name}: v{result.LocalVersion} → v{result.RemoteVersion}"
-                    : $"   ✓ {result.Name}: v{result.RemoteVersion}");
                 int idx = _db.Entries.ToList().FindIndex(e => e.Name == result.Name);
                 if (idx >= 0) RefreshEntry(idx);
             });
@@ -1129,6 +1141,7 @@ namespace ULM.ViewModels
                 StatusText = updates.Count > 0 ? $"🆕 {updates.Count} Update(s)."
                            : resolved > 0      ? "Alles aktuell." : "Keine lokalen ISOs.";
                 ProgressPercent = 100; Log($"🔄 {StatusText}");
+                QuickCheckSucceeded?.Invoke($"Update-Check abgeschlossen: {StatusText}");
             });
             _ = worker.RunAsync();
         }
@@ -1143,13 +1156,18 @@ namespace ULM.ViewModels
                     Log($"   {(ok ? "✓" : "✗")} {_db.Entries[i].Name}");
                 RefreshEntry(i);
             });
-            worker.Completed += (_, _) => _ui.Invoke(() =>
+            worker.Completed += (wasCompleted, _) => _ui.Invoke(() =>
             {
+                // BUGFIX: neu entdeckte Quellen (siehe UrlCheckWorker.AnyUrlDiscovered) gingen bisher
+                // ohne Save beim nächsten Start wieder verloren — der teure Auflösungsweg
+                // (DistroWatch-Suche/Websuche) hätte bei jedem künftigen Check neu durchlaufen müssen.
+                if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
                 SetBusy(false); RefreshAllEntries();
                 int ok  = _db.Entries.Count(e => e.UrlOk);
                 int nok = _db.Entries.Count(e => e.UrlChecked && !e.UrlOk);
                 StatusText = $"URL-Check fertig — ✓ {ok} erreichbar, ✗ {nok} nicht erreichbar.";
                 ProgressPercent = 100; Log($"🌐 {StatusText}");
+                if (wasCompleted) QuickCheckSucceeded?.Invoke(StatusText);
             });
             _ = worker.RunAsync();
         }

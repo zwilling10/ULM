@@ -136,6 +136,10 @@ namespace ULM.Views
                 MessageBox.Show(message, "✅ Vorgang abgeschlossen", MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
+            // Unauffällige Bestätigung für URL-/Update-/Integritätsprüfung (nicht modal, schließt
+            // sich nach 5s von selbst) — siehe QuickCheckSucceeded-Dokumentation im ViewModel.
+            _vm.QuickCheckSucceeded += message => new QuickConfirmationWindow(message) { Owner = this }.Show();
+
             _vm.HealthCheckCompleted += results => new DbHealthCheckDialog(results) { Owner = this }.ShowDialog();
 
             _vm.AutoVersionCheckCompleted += async () =>

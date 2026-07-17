@@ -713,6 +713,17 @@ namespace ULM.Core.Workers
         public event Action<int>?          ProgressPercent;
         public event Action<int, bool>?    EntryChecked;
         public event Action<bool, string>? Completed;
+
+        // BUGFIX: Einträge ohne konfigurierte Url (z.B. via "ISO suchen" hinzugefügt — dort werden
+        // nur Name+Kategorie übernommen, siehe IsoSearchDialog.TakeSelected) hatten hier nie eine
+        // URL zum Prüfen: AllDownloadUrls() lieferte eine leere Liste, die Schleife lief leer durch,
+        // ohne je die generische Selbstlern-Auflösung zu versuchen (die ResolveLatestAsync über
+        // dedizierte Resolver → DistroWatch-Suche → Websuche bereits für Updates-Prüfung/Download
+        // durchläuft) — "URL prüfen" meldete solche Einträge deshalb IMMER als nicht erreichbar,
+        // ohne überhaupt nach einer Quelle zu suchen. Zeigt an, ob dabei mindestens eine Quelle neu
+        // gefunden wurde, damit der Aufrufer weiß, ob sich ein DB-Save lohnt.
+        public bool AnyUrlDiscovered { get; private set; }
+
         public UrlCheckWorker(IReadOnlyList<IsoEntry> entries) => _entries = entries;
         public void Cancel() => _cts.Cancel();
 
@@ -734,6 +745,18 @@ namespace ULM.Core.Workers
                         ok = await HttpService.Instance.IsReachableAsync(url, 6).ConfigureAwait(false);
                         if (ok) break;
                         if (_cts.IsCancellationRequested) break;
+                    }
+
+                    // BUGFIX (siehe AnyUrlDiscovered oben): keine konfigurierte URL war erreichbar
+                    // (oder gar keine vorhanden) — dieselbe generische Auflösung versuchen, die auch
+                    // Updates-Prüfung und Download nutzen, statt den Eintrag vorschnell als tot zu
+                    // melden.
+                    if (!ok && !_cts.IsCancellationRequested)
+                    {
+                        bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
+                        var (_, resolvedUrl, _) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false);
+                        ok = !string.IsNullOrWhiteSpace(resolvedUrl);
+                        if (ok && urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;
                     }
 
                     e.UrlOk = ok; e.UrlChecked = true;
@@ -806,7 +829,17 @@ namespace ULM.Core.Workers
             {
                 if (_cts.IsCancellationRequested) break;
                 var e = _entries[i]; string localFn = e.Filename ?? string.Empty;
-                if (!_checkAllEntries && !e.IsAvailableAnywhere(_downloadDir)) { Progress?.Invoke(++processed, count); continue; }
+                // BUGFIX: Einträge ohne jede konfigurierte Quelle (Url/GithubRepo) — z.B. frisch über
+                // "ISO suchen" hinzugefügt, siehe IsoSearchDialog.TakeSelected — wurden hier trotz
+                // !_checkAllEntries übersprungen, weil sie naturgemäß weder lokal noch auf dem Stick
+                // vorliegen können (es wurde ja noch nie erfolgreich aufgelöst/heruntergeladen). Der
+                // manuelle Update-Check (checkAllEntries: false) versuchte für solche Einträge deshalb
+                // NIE eine Auflösung — "Updates prüfen" meldete sie schlicht gar nicht. Ohne bekannte
+                // Quelle IMMER prüfen (einziger Weg, überhaupt eine zu finden), unabhängig von
+                // checkAllEntries; die Zeitersparnis des Überspringens gilt nur für bereits bekannte,
+                // aber gerade nicht lokal vorliegende Einträge.
+                bool hasKnownSource = !string.IsNullOrWhiteSpace(e.Url) || !string.IsNullOrWhiteSpace(e.GithubRepo);
+                if (!_checkAllEntries && hasKnownSource && !e.IsAvailableAnywhere(_downloadDir)) { Progress?.Invoke(++processed, count); continue; }
                 bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
                 // BUGFIX: Ein unbehandelter Fehler bei EINEM Eintrag ließ bisher den kompletten Scan
                 // als faulted Task enden, OHNE dass Completed je feuert. Bei AutoVersionCheckWorker
