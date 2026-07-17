@@ -122,8 +122,13 @@ Erwartet: `UniversalLinuxManager-Setup-vX.Y.Z-win-x64.exe`,
 
 ## 11. Alte Releases aufräumen
 
-Standing Policy dieses Projekts (bestätigt 2026-07-16): **nur der
-neueste Release bleibt öffentlich sichtbar.**
+Standing Policy dieses Projekts (aktualisiert 2026-07-17, vorher
+2026-07-16 "nur der neueste Release"): **die letzten 2 Releases bleiben
+öffentlich sichtbar**, alles Ältere wird entfernt. Bei einer normalen
+Veröffentlichung (neue Version kommt hinzu) heißt das: nur Releases, die
+VOR dem bisher vorletzten liegen, löschen — der bisher neueste bleibt
+zusammen mit dem gerade neu veröffentlichten stehen, nichts wird an
+diesem Tag zusätzlich gelöscht.
 
 ```bash
 gh release delete <alter-tag> -y
