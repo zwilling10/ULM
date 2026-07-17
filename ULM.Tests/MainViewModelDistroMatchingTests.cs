@@ -1,4 +1,5 @@
-using ULM.Core.Models;
+﻿using ULM.Core.Models;
+using ULM.Core.Services;
 using ULM.ViewModels;
 using Xunit;
 
@@ -14,26 +15,26 @@ public class MainViewModelDistroMatchingTests
 {
     [Fact]
     public void IsSameDistroDifferentVersion_SameDistroDifferentVersion_ReturnsTrue()
-        => Assert.True(MainViewModel.IsSameDistroDifferentVersion(
+        => Assert.True(DistroMatcher.IsSameDistroDifferentVersion(
             "ubuntu-24.04-desktop-amd64.iso", "ubuntu-26.04-desktop-amd64.iso"));
 
     [Fact]
     public void IsSameDistroDifferentVersion_DifferentDistro_ReturnsFalse()
-        => Assert.False(MainViewModel.IsSameDistroDifferentVersion(
+        => Assert.False(DistroMatcher.IsSameDistroDifferentVersion(
             "ubuntu-24.04-desktop-amd64.iso", "fedora-Workstation-Live-44-1.7.x86_64.iso"));
 
     [Fact]
     public void IsSameDistroDifferentVersion_IdenticalFilename_ReturnsFalse()
         // Exakt gleicher Dateiname bedeutet "gleiche Version", nicht "andere Version" —
         // die Funktion beantwortet explizit "ist es eine ANDERE Version derselben Distro?".
-        => Assert.False(MainViewModel.IsSameDistroDifferentVersion(
+        => Assert.False(DistroMatcher.IsSameDistroDifferentVersion(
             "ubuntu-24.04-desktop-amd64.iso", "ubuntu-24.04-desktop-amd64.iso"));
 
     [Fact]
     public void IsSameDistroDifferentVersion_DebianCodenameDiffers_StillSameDistro()
         // Debian-Codenamen (trixie/bookworm) werden vor dem Vergleich entfernt, damit ein reiner
         // Codename-Wechsel zwischen zwei Releases nicht als "andere Distro" fehlinterpretiert wird.
-        => Assert.True(MainViewModel.IsSameDistroDifferentVersion(
+        => Assert.True(DistroMatcher.IsSameDistroDifferentVersion(
             "debian-live-13.5.0-amd64-trixie.iso", "debian-live-12.0.0-amd64-bookworm.iso"));
 
     [Theory]
@@ -41,11 +42,11 @@ public class MainViewModelDistroMatchingTests
     [InlineData("ubuntu-24.04.iso", "")]
     [InlineData("", "")]
     public void IsSameDistroDifferentVersion_EmptyInput_ReturnsFalse(string a, string b)
-        => Assert.False(MainViewModel.IsSameDistroDifferentVersion(a, b));
+        => Assert.False(DistroMatcher.IsSameDistroDifferentVersion(a, b));
 
     [Fact]
     public void IsLikelySameDistroByName_MatchingKeyword_ReturnsTrue()
-        => Assert.True(MainViewModel.IsLikelySameDistroByName(
+        => Assert.True(DistroMatcher.IsLikelySameDistroByName(
             "Zorin OS 18 Core", "Zorin-OS-18-Core-64-bit-r1.iso"));
 
     [Fact]
@@ -56,26 +57,26 @@ public class MainViewModelDistroMatchingTests
         // durch die Länge <=4 nicht qualifiziert) — der Abgleich funktioniert hier trotzdem über
         // das nächste qualifizierende Wort "nvidia". Test dokumentiert das bewusst, damit eine
         // künftige Änderung an der Trennzeichen-Liste nicht versehentlich diesen Fallback verliert.
-        Assert.True(MainViewModel.IsLikelySameDistroByName(
+        Assert.True(DistroMatcher.IsLikelySameDistroByName(
             "Pop!_OS 24.04 LTS NVIDIA", "pop-os_24.04_amd64_nvidia_12.iso"));
     }
 
     [Fact]
     public void IsLikelySameDistroByName_UnrelatedDistro_ReturnsFalse()
-        => Assert.False(MainViewModel.IsLikelySameDistroByName(
+        => Assert.False(DistroMatcher.IsLikelySameDistroByName(
             "Ubuntu 26.04 LTS", "fedora-Workstation-Live-44-1.7.x86_64.iso"));
 
     [Fact]
     public void IsLikelySameDistroByName_OnlyGenericWords_ReturnsFalse()
         // "OS", "Live" sind als generische Wörter ausgeschlossen — bleibt kein Schlüsselwort übrig,
         // kann kein sinnvoller Abgleich stattfinden.
-        => Assert.False(MainViewModel.IsLikelySameDistroByName("OS Live Server", "irgendwas.iso"));
+        => Assert.False(DistroMatcher.IsLikelySameDistroByName("OS Live Server", "irgendwas.iso"));
 
     [Theory]
     [InlineData("", "irgendwas.iso")]
     [InlineData("Ubuntu", "")]
     public void IsLikelySameDistroByName_EmptyInput_ReturnsFalse(string name, string filename)
-        => Assert.False(MainViewModel.IsLikelySameDistroByName(name, filename));
+        => Assert.False(DistroMatcher.IsLikelySameDistroByName(name, filename));
 
     [Theory]
     [InlineData("18", "17", true)]
@@ -83,7 +84,7 @@ public class MainViewModelDistroMatchingTests
     [InlineData("1.2.0", "1.10.0", false)] // numerischer, nicht lexikalischer Vergleich: 1.2 < 1.10
     [InlineData("1.0", "1.0", false)]
     public void IsVersionNewer_ComparesNumerically(string candidate, string current, bool expected)
-        => Assert.Equal(expected, MainViewModel.IsVersionNewer(candidate, current));
+        => Assert.Equal(expected, DistroMatcher.IsVersionNewer(candidate, current));
 
     // Regression: Distros mit einem Resolver, der IMMER denselben statischen Dateinamen liefert
     // (z.B. Hiren's BootCD PE — ResolveHirensAsync gibt konstant "HBCD_PE_x64.iso" zurück, ohne
@@ -101,7 +102,7 @@ public class MainViewModelDistroMatchingTests
     [InlineData("", "HBCD_PE_x64.iso", false)]
     [InlineData("HBCD_PE_x64.iso", "", false)]
     public void RepresentsGenuineFilenameChange_OnlyTrueWhenFilenameActuallyDiffers(string oldFilename, string newFilename, bool expected)
-        => Assert.Equal(expected, MainViewModel.RepresentsGenuineFilenameChange(oldFilename, newFilename));
+        => Assert.Equal(expected, DistroMatcher.RepresentsGenuineFilenameChange(oldFilename, newFilename));
 
     // Entscheidet, ob für einen Eintrag ein Hash-Rehash sinnvoll ist: nur wenn sich aus dem
     // Dateinamen KEINE Version ablesen lässt (z. B. "HBCD_PE_x64.iso") — bei versionierten
@@ -113,7 +114,7 @@ public class MainViewModelDistroMatchingTests
     [InlineData("equestria-os-2026.07.15-x86_64.iso", false)]
     [InlineData("", false)]
     public void HasVersionlessFilename_TrueOnlyWithoutExtractableVersion(string filename, bool expected)
-        => Assert.Equal(expected, MainViewModel.HasVersionlessFilename(filename));
+        => Assert.Equal(expected, DistroMatcher.HasVersionlessFilename(filename));
 
     public class MainViewModelSplitOutdatedFromDuplicatesTests
     {
@@ -126,7 +127,7 @@ public class MainViewModelDistroMatchingTests
             var oldFn = new Dictionary<string, int> { ["equestria-os-2026.07.08-x86_64.iso"] = 0 };
             var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "equestria-os-2026.07.08-x86_64.iso" };
 
-            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+            var (outdated, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
             Assert.Single(outdated);
             Assert.Equal("equestria-os-2026.07.08-x86_64.iso", outdated[0].OldFilename);
@@ -144,7 +145,7 @@ public class MainViewModelDistroMatchingTests
             var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 { "equestria-os-2026.07.08-x86_64.iso", "equestria-os-2026.07.15-x86_64.iso" };
 
-            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+            var (outdated, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
             Assert.Empty(outdated);
             Assert.Single(duplicates);
@@ -158,7 +159,7 @@ public class MainViewModelDistroMatchingTests
             var oldFn = new Dictionary<string, int> { ["equestria-os-2026.07.08-x86_64.iso"] = 0 };
             var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase); // Stick leer / bereits bereinigt
 
-            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+            var (outdated, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
             Assert.Empty(outdated);
             Assert.Empty(duplicates);
@@ -180,7 +181,7 @@ public class MainViewModelDistroMatchingTests
             var stick = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
                 { "distro-a-1.0.iso", "distro-b-1.0.iso", "distro-b-2.0.iso" };
 
-            var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
+            var (outdated, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
             Assert.Single(outdated); Assert.Equal("distro-a-2.0.iso", outdated[0].Entry.Filename);
             Assert.Equal("distro-a-1.0.iso", outdated[0].OldFilename);
@@ -204,7 +205,7 @@ public class MainViewModelDistroMatchingTests
                 E("ubuntu-26.04-desktop-amd64.iso"),       // 1 — bleibt
                 E("neon-user-desktop-20260709-1906.iso"), // 2 — Duplikat von 0
             };
-            var dupes = MainViewModel.FindExactDuplicateIndicesByFilename(entries);
+            var dupes = DistroMatcher.FindExactDuplicateIndicesByFilename(entries);
             Assert.Equal(new[] { 2 }, dupes);
         }
 
@@ -214,7 +215,7 @@ public class MainViewModelDistroMatchingTests
             // Absteigend, damit der Aufrufer per _db.Remove(index) sicher nacheinander entfernen kann,
             // ohne dass sich die Indizes noch nicht entfernter Duplikate verschieben.
             var entries = new List<IsoEntry> { E("a.iso"), E("a.iso"), E("a.iso") };
-            var dupes = MainViewModel.FindExactDuplicateIndicesByFilename(entries);
+            var dupes = DistroMatcher.FindExactDuplicateIndicesByFilename(entries);
             Assert.Equal(new[] { 2, 1 }, dupes);
         }
 
@@ -223,7 +224,7 @@ public class MainViewModelDistroMatchingTests
         {
             // Ohne Dateiname (noch nie aufgelöster Eintrag) lässt sich kein Duplikat-Urteil fällen.
             var entries = new List<IsoEntry> { E(""), E("") };
-            Assert.Empty(MainViewModel.FindExactDuplicateIndicesByFilename(entries));
+            Assert.Empty(DistroMatcher.FindExactDuplicateIndicesByFilename(entries));
         }
     }
 }

@@ -36,15 +36,6 @@ namespace ULM.ViewModels
         private bool     _startupPhase = true;
         private bool     _expertMode;
 
-        private static readonly string[] _platformCodenames =
-        {
-            "noble", "jammy", "focal", "bionic", "oracular", "mantic", "lunar", "kinetic", "plucky",
-            "trixie", "bookworm", "bullseye", "buster", "sid", "testing"
-        };
-        private static readonly HashSet<string> _genericDistroWords =
-            new(StringComparer.OrdinalIgnoreCase)
-            { "linux", "os", "live", "desktop", "server", "workstation", "official" };
-
         public ObservableCollection<IsoCategoryViewModel> Categories { get; } = new();
         private ObservableCollection<UsbDrive> _drives = new();
         public  ObservableCollection<UsbDrive> Drives  { get => _drives; private set => SetField(ref _drives, value); }
@@ -236,38 +227,13 @@ namespace ULM.ViewModels
             if (changed) _db.Save();
         }
 
-        /// <summary>
-        /// Findet Indizes EXAKTER Duplikate: Einträge, deren (nicht-leerer) Dateiname bereits bei
-        /// einem FRÜHEREN Eintrag vorkam. Der erste Eintrag je Dateiname bleibt, spätere gelten als
-        /// Duplikat. Rückgabe absteigend sortiert, damit der Aufrufer per Remove(index) sicher
-        /// nacheinander entfernen kann, ohne noch ausstehende Indizes zu verschieben. Reine Funktion,
-        /// ohne DB-/Stick-Zugriff testbar. BUGFIX: DeduplicateEntries behandelte bisher NUR "gleiche
-        /// Distro, andere Version" (unterschiedliche Dateinamen) — zwei Einträge mit identischem
-        /// Dateinamen (z.B. zwei importierte KDE-neon-Einträge, die beim Versionscheck auf dieselbe
-        /// aktuelle ISO auflösen) blieben doppelt stehen, weil der Namensvergleich identische
-        /// Dateinamen ausdrücklich ausschließt (IsSameDistroDifferentVersion liefert dafür false).
-        /// </summary>
-        internal static List<int> FindExactDuplicateIndicesByFilename(IReadOnlyList<IsoEntry> entries)
-        {
-            var seen  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var dupes = new List<int>();
-            for (int i = 0; i < entries.Count; i++)
-            {
-                string fn = entries[i].Filename;
-                if (string.IsNullOrWhiteSpace(fn)) continue; // ohne Dateiname kein Duplikat-Urteil
-                if (!seen.Add(fn)) dupes.Add(i);
-            }
-            dupes.Reverse(); // absteigend, damit Remove(index) sicher nacheinander möglich ist
-            return dupes;
-        }
-
         private int DeduplicateEntries()
         {
             bool changed = false; int removed = 0;
 
             // Zuerst EXAKTE Duplikate (identischer Dateiname) entfernen — die AreSameDistro-Logik
             // unten behandelt nur "gleiche Distro, ANDERE Version" und ließe identische Einträge stehen.
-            foreach (int i in FindExactDuplicateIndicesByFilename(_db.Entries))
+            foreach (int i in DistroMatcher.FindExactDuplicateIndicesByFilename(_db.Entries))
             { Log($"   🗑 Exaktes Duplikat entfernt: {_db.Entries[i].Name}  ({_db.Entries[i].Filename})"); _db.Remove(i); changed = true; removed++; }
 
             var processed = new HashSet<IsoEntry>();
@@ -279,7 +245,7 @@ namespace ULM.ViewModels
                 var duplicates = snapshot.Skip(i + 1)
                     .Where(b => !processed.Contains(b) &&
                                 !string.Equals(a.Filename, b.Filename, StringComparison.OrdinalIgnoreCase) &&
-                                AreSameDistro(a, b))
+                                DistroMatcher.AreSameDistro(a, b))
                     .ToList();
                 if (duplicates.Count == 0) continue;
 
@@ -287,7 +253,7 @@ namespace ULM.ViewModels
                 var keeper = allEntries.OrderBy(e => e.ImportedFromStick ? 1 : 0).First();
                 var newerDup = allEntries
                     .Where(e => e != keeper && !string.IsNullOrWhiteSpace(e.Filename) &&
-                                IsVersionNewer(
+                                DistroMatcher.IsVersionNewer(
                                     HttpService.ExtractVersion(e.Filename),
                                     HttpService.ExtractVersion(string.IsNullOrWhiteSpace(keeper.Filename) ? keeper.Name : keeper.Filename)))
                     .OrderByDescending(e => HttpService.ExtractVersion(e.Filename))
@@ -318,15 +284,6 @@ namespace ULM.ViewModels
             }
             if (changed) _db.Save();
             return removed;
-        }
-
-        internal static bool AreSameDistro(IsoEntry a, IsoEntry b)
-        {
-            bool aHas = !string.IsNullOrWhiteSpace(a.Filename); bool bHas = !string.IsNullOrWhiteSpace(b.Filename);
-            if (aHas && bHas) return IsSameDistroDifferentVersion(a.Filename, b.Filename);
-            if (!aHas && bHas) return IsLikelySameDistroByName(a.Name, b.Filename);
-            if (aHas && !bHas) return IsLikelySameDistroByName(b.Name, a.Filename);
-            return false;
         }
 
         private void SyncStaleNames()
@@ -361,7 +318,7 @@ namespace ULM.ViewModels
 
         public void AddImportedEntry(IsoEntry e)
         {
-            var existing = _db.Entries.FirstOrDefault(d => AreSameDistro(d, e));
+            var existing = _db.Entries.FirstOrDefault(d => DistroMatcher.AreSameDistro(d, e));
             if (existing != null)
             {
                 Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — Dateiname übernommen statt Duplikat angelegt.");
@@ -484,7 +441,7 @@ namespace ULM.ViewModels
 
             // Veraltet-/Duplikat-Trennung (nur mit Versionscheck-Kontext; sonst oldFn leer → leere Listen).
             var stickFn = new HashSet<string>(found.Select(f => f.Filename), StringComparer.OrdinalIgnoreCase);
-            var (od, duplicates) = SplitOutdatedFromDuplicates(oldFn, _db.Entries, stickFn);
+            var (od, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, _db.Entries, stickFn);
             if (od.Count > 0)
             {
                 Log($"💾 {od.Count} veraltete ISO(s) auf {drive}.");
@@ -519,9 +476,9 @@ namespace ULM.ViewModels
             foreach (var stickIso in initialUnknowns)
             {
                 var match = _db.Entries.Where(e => !string.IsNullOrWhiteSpace(e.Name))
-                    .FirstOrDefault(e => IsLikelySameDistroByName(e.Name, stickIso.Filename) &&
+                    .FirstOrDefault(e => DistroMatcher.IsLikelySameDistroByName(e.Name, stickIso.Filename) &&
                         (string.IsNullOrWhiteSpace(e.Filename) ||
-                         IsVersionNewer(HttpService.ExtractVersion(stickIso.Filename), HttpService.ExtractVersion(e.Filename))));
+                         DistroMatcher.IsVersionNewer(HttpService.ExtractVersion(stickIso.Filename), HttpService.ExtractVersion(e.Filename))));
                 if (match != null) additionalNewer.Add((match, stickIso));
                 else               trueUnknowns.Add(stickIso);
             }
@@ -540,29 +497,13 @@ namespace ULM.ViewModels
             var result = new List<(IsoEntry, UsbService.StickIso)>();
             foreach (var e in _db.Entries.Where(e => e.UsbStatus == Core.Models.UsbStatus.Outdated))
             {
-                var si = found.FirstOrDefault(f => IsSameDistroDifferentVersion(e.Filename, f.Filename));
+                var si = found.FirstOrDefault(f => DistroMatcher.IsSameDistroDifferentVersion(e.Filename, f.Filename));
                 if (si is null) continue;
-                if (IsVersionNewer(HttpService.ExtractVersion(si.Filename), HttpService.ExtractVersion(e.Filename)))
+                if (DistroMatcher.IsVersionNewer(HttpService.ExtractVersion(si.Filename), HttpService.ExtractVersion(e.Filename)))
                     result.Add((e, si));
             }
             return result;
         }
-
-        internal static bool IsVersionNewer(string c, string d)
-        {
-            if (string.IsNullOrWhiteSpace(c) || string.IsNullOrWhiteSpace(d) || string.Equals(c, d, StringComparison.OrdinalIgnoreCase)) return false;
-            int[] cP = ParseVersionParts(c), dP = ParseVersionParts(d);
-            if (cP.Length > 0 && dP.Length > 0)
-            {
-                for (int i = 0; i < Math.Max(cP.Length, dP.Length); i++)
-                { int a = i < cP.Length ? cP[i] : 0, b = i < dP.Length ? dP[i] : 0; if (a > b) return true; if (a < b) return false; }
-                return false;
-            }
-            return string.Compare(c, d, StringComparison.OrdinalIgnoreCase) > 0;
-        }
-
-        private static int[] ParseVersionParts(string v)
-        { var n = new List<int>(); foreach (string p in v.Split('.', '-', '_')) { if (int.TryParse(p, out int x)) n.Add(x); else break; } return n.ToArray(); }
 
         private void ApplyStickResults(List<UsbService.StickIso> found)
         {
@@ -572,7 +513,7 @@ namespace ULM.ViewModels
             {
                 if (!string.IsNullOrEmpty(e.Filename) && byFn.TryGetValue(e.Filename, out var exact))
                 { e.UsbStatus = Core.Models.UsbStatus.Ok; e.UsbSize = FormatGb(exact.Size); continue; }
-                var other = found.FirstOrDefault(f => IsSameDistroDifferentVersion(e.Filename, f.Filename));
+                var other = found.FirstOrDefault(f => DistroMatcher.IsSameDistroDifferentVersion(e.Filename, f.Filename));
                 if (other != null) { e.UsbStatus = Core.Models.UsbStatus.Outdated; e.UsbSize = FormatGb(other.Size); }
                 else               { e.UsbStatus = Core.Models.UsbStatus.Missing;  e.UsbSize = string.Empty; }
             }
@@ -595,7 +536,7 @@ namespace ULM.ViewModels
 
             foreach (var e in _db.Entries)
             {
-                if (string.IsNullOrEmpty(e.Sha256) || !HasVersionlessFilename(e.Filename)) continue;
+                if (string.IsNullOrEmpty(e.Sha256) || !DistroMatcher.HasVersionlessFilename(e.Filename)) continue;
                 if (!byFn.TryGetValue(e.Filename, out var stick)) continue;
                 string actual = await IsoEntry.ComputeSha256Async(stick.FullPath).ConfigureAwait(false);
                 if (string.IsNullOrEmpty(actual)) continue;
@@ -683,79 +624,6 @@ namespace ULM.ViewModels
             }
         }
 
-        internal static bool IsSameDistroDifferentVersion(string a, string b)
-        {
-            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
-            if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase)) return false;
-            return NormalizeForDistroComparison(a) == NormalizeForDistroComparison(b);
-        }
-
-        /// <summary>
-        /// BUGFIX: Ob ein Eintrag durch einen Versionscheck-Durchlauf tatsächlich einen NEUEN
-        /// Dateinamen bekommen hat — nicht bloß, ob "hasUpdate" für den Versionscheck selbst true
-        /// war. Manche Resolver (z.B. ResolveHirensAsync für Hiren's BootCD PE) liefern IMMER
-        /// denselben statischen Dateinamen ohne Versionsnummer; für solche Einträge ist
-        /// HttpService.IsUpdateAvailable() bei jedem Check "true" (keine Version aus dem Dateinamen
-        /// ableitbar → jeder Fund gilt als Erstbezug), obwohl sich am Dateinamen nichts ändert. Wird
-        /// so ein Eintrag von einem Stick importiert und beim nächsten Versionscheck erneut "als
-        /// Update" markiert, darf er NICHT als "auf dem Stick veraltet" gelten — der alte und der
-        /// neue Dateiname sind identisch, die Stick-Kopie IST die aktuelle. Dieselbe Unterscheidung
-        /// trifft ApplyStickResults (regulärer Stick-Scan) bereits korrekt über
-        /// IsSameDistroDifferentVersion (liefert bei identischem Dateinamen explizit false) — diese
-        /// Methode wendet dasselbe Prinzip auf den separaten Stick-Abgleich in
-        /// TriggerAutoVersionCheck an.
-        /// </summary>
-        internal static bool RepresentsGenuineFilenameChange(string? oldFilename, string? newFilename)
-            => !string.IsNullOrWhiteSpace(oldFilename) && !string.IsNullOrWhiteSpace(newFilename)
-               && !string.Equals(oldFilename, newFilename, StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Klassifiziert jeden "alter Dateiname liegt noch auf dem Stick"-Kandidaten in zwei Fälle:
-        /// echt veraltet (der NEUE/aktuelle Dateiname fehlt auf dem Stick — Download nötig) oder
-        /// Stale-Duplikat (der neue Dateiname liegt BEREITS auf dem Stick — die alte Datei ist reiner
-        /// Datenmüll, kein Download nötig, sondern ein Löschangebot). BUGFIX: die vorherige Logik prüfte
-        /// nur "ist der alte Name noch da" und ignorierte, ob der neue Name zusätzlich schon vorhanden
-        /// ist — dadurch feuerte "veraltet", obwohl der Stick bereits aktuell war (alte Datei nie
-        /// gelöscht). Reine Funktion, keine Seiteneffekte — testbar ohne DB/Stick-Zugriff.
-        /// </summary>
-        internal static (List<(IsoEntry Entry, string OldFilename)> TrulyOutdated,
-                          List<(IsoEntry Entry, string OldFilename)> StaleDuplicates)
-            SplitOutdatedFromDuplicates(Dictionary<string, int> oldFn, IReadOnlyList<IsoEntry> entries, HashSet<string> stickFilenames)
-        {
-            var outdated   = new List<(IsoEntry, string)>();
-            var duplicates = new List<(IsoEntry, string)>();
-            foreach (var kvp in oldFn)
-            {
-                if (!stickFilenames.Contains(kvp.Key)) continue; // alter Name nicht (mehr) auf dem Stick
-                var e = entries[kvp.Value];
-                if (stickFilenames.Contains(e.Filename)) duplicates.Add((e, kvp.Key)); // neuer Name AUCH da
-                else                                     outdated.Add((e, kvp.Key));   // neuer Name fehlt
-            }
-            return (outdated, duplicates);
-        }
-
-        internal static bool HasVersionlessFilename(string filename)
-            => !string.IsNullOrWhiteSpace(filename) && string.IsNullOrEmpty(HttpService.ExtractVersion(filename));
-
-        internal static string NormalizeForDistroComparison(string filename)
-        {
-            string s = Regex.Replace(filename.ToLowerInvariant(), @"[\d.]+", string.Empty);
-            foreach (string cn in _platformCodenames)
-            { s = s.Replace("." + cn, string.Empty); s = s.Replace("-" + cn, string.Empty); s = s.Replace("_" + cn, string.Empty); }
-            return s;
-        }
-
-        internal static bool IsLikelySameDistroByName(string dbEntryName, string stickFilename)
-        {
-            if (string.IsNullOrWhiteSpace(dbEntryName) || string.IsNullOrWhiteSpace(stickFilename)) return false;
-            string nameLower = dbEntryName.ToLowerInvariant();
-            string fileLower = Path.GetFileNameWithoutExtension(stickFilename).ToLowerInvariant();
-            string? dw = nameLower
-                .Split(new[] { ' ', '-', '_', '.', '(', ')' }, StringSplitOptions.RemoveEmptyEntries)
-                .FirstOrDefault(w => w.Length > 4 && !char.IsDigit(w[0]) && !_genericDistroWords.Contains(w));
-            return dw != null && fileLower.Contains(dw);
-        }
-
         private static string FormatGb(long bytes) => $"{bytes / 1_073_741_824.0:F2} GB";
 
         public void TriggerVentoyMenuUpdate(string drive)
@@ -792,7 +660,7 @@ namespace ULM.ViewModels
                 // (unter dem alten Namen gefundene) Stick-Kopie wirklich veraltet machen.
                 var oldFn = updates
                     .Where(i => !string.IsNullOrEmpty(_db.Entries[i].RemoteUrl) && !string.IsNullOrEmpty(_db.Entries[i].Filename)
-                             && RepresentsGenuineFilenameChange(_db.Entries[i].Filename, _db.Entries[i].RemoteFilename))
+                             && DistroMatcher.RepresentsGenuineFilenameChange(_db.Entries[i].Filename, _db.Entries[i].RemoteFilename))
                     .ToDictionary(i => _db.Entries[i].Filename, i => i, StringComparer.OrdinalIgnoreCase);
                 _ui.Invoke(() =>
                 {
