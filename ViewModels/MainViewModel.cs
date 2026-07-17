@@ -439,6 +439,94 @@ namespace ULM.ViewModels
             _ = worker.RunAsync();
         }
 
+        /// <summary>
+        /// Gemeinsame Auswertung eines Stick-Scan-Ergebnisses für BEIDE Scan-Pfade (Start-Scan in
+        /// TriggerAutoVersionCheck und manueller TriggerUsbScan). Vorher hatten beide Pfade eigenen,
+        /// auseinandergedrifteten Code — nur TriggerUsbScan erkannte unbekannte ISOs, nur der Start-Scan
+        /// die Veraltet-/Duplikat-Trennung. oldFn ist leer, wenn kein Versionscheck-Kontext vorliegt
+        /// (manueller Scan) → die Veraltet-/Duplikat-Erkennung liefert dann leere Listen. Muss auf dem
+        /// UI-Thread aufgerufen werden (verändert gebundene Zustände und feuert UI-Dialog-Events).
+        /// </summary>
+        private void ProcessStickScanResults(
+            List<UsbService.StickIso> found, List<UsbService.StickIso> incomplete,
+            Dictionary<string, int> oldFn, string drive)
+        {
+            ApplyStickResults(found); RefreshAllEntries();
+
+            if (incomplete.Count > 0)
+            {
+                Log($"⚠ Stick-Prüfung {drive}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
+                foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
+                IncompleteIsosOnStickDetected?.Invoke(incomplete, drive);
+            }
+
+            // Hash-Abgleich für versionslose Dateinamen (fire-and-forget — kann bei GB-ISOs dauern).
+            _ = Task.Run(async () =>
+            {
+                var mismatches = await DetectVersionlessHashMismatchesAsync(found).ConfigureAwait(false);
+                _ui.Invoke(() =>
+                {
+                    RefreshAllEntries();
+                    if (mismatches.Count == 0) return;
+                    Log($"⚠ Stick-Prüfung {drive}: {mismatches.Count} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.");
+                    foreach (var m in mismatches) Log($"   ⚠ {m.Filename} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.");
+                    IncompleteIsosOnStickDetected?.Invoke(mismatches, drive);
+                });
+            });
+
+            // Veraltet-/Duplikat-Trennung (nur mit Versionscheck-Kontext; sonst oldFn leer → leere Listen).
+            var stickFn = new HashSet<string>(found.Select(f => f.Filename), StringComparer.OrdinalIgnoreCase);
+            var (od, duplicates) = SplitOutdatedFromDuplicates(oldFn, _db.Entries, stickFn);
+            if (od.Count > 0)
+            {
+                Log($"💾 {od.Count} veraltete ISO(s) auf {drive}.");
+                foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}");
+                StickUpdateAvailable?.Invoke(od, drive);
+            }
+            if (duplicates.Count > 0)
+            {
+                Log($"🗑 {duplicates.Count} veraltete Duplikat-ISO(s) auf {drive} (aktuelle Version bereits vorhanden).");
+                foreach (var (e, oldFilename) in duplicates) Log($"   🗑 {e.Name}: {oldFilename}");
+                StaleDuplicatesOnStickDetected?.Invoke(duplicates, drive);
+            }
+            if (od.Count == 0 && duplicates.Count == 0 && found.Count > 0)
+                Log($"✅ Alle ISOs auf {drive} aktuell.");
+
+            // Bereits als veraltet/Duplikat gemeldete alte Dateinamen aus der Neuer-/Unbekannt-Erkennung
+            // ausschließen, sonst würde dieselbe Datei doppelt gemeldet (einmal "veraltet", einmal "unbekannt").
+            var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (_, oldFilename) in od)         handled.Add(oldFilename);
+            foreach (var (_, oldFilename) in duplicates) handled.Add(oldFilename);
+
+            var newerOnStick = DetectNewerVersionsOnStick(found);
+            var newerFnSet   = new HashSet<string>(newerOnStick.Select(x => x.StickIso.Filename), StringComparer.OrdinalIgnoreCase);
+            var dbFn         = new HashSet<string>(_db.Entries.Select(e => e.Filename), StringComparer.OrdinalIgnoreCase);
+            var initialUnknowns = found.Where(f => !string.IsNullOrWhiteSpace(f.Filename)
+                                                && !dbFn.Contains(f.Filename)
+                                                && !newerFnSet.Contains(f.Filename)
+                                                && !handled.Contains(f.Filename)).ToList();
+
+            var additionalNewer = new List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>();
+            var trueUnknowns    = new List<UsbService.StickIso>();
+            foreach (var stickIso in initialUnknowns)
+            {
+                var match = _db.Entries.Where(e => !string.IsNullOrWhiteSpace(e.Name))
+                    .FirstOrDefault(e => IsLikelySameDistroByName(e.Name, stickIso.Filename) &&
+                        (string.IsNullOrWhiteSpace(e.Filename) ||
+                         IsVersionNewer(HttpService.ExtractVersion(stickIso.Filename), HttpService.ExtractVersion(e.Filename))));
+                if (match != null) additionalNewer.Add((match, stickIso));
+                else               trueUnknowns.Add(stickIso);
+            }
+
+            var allNewer = newerOnStick.Concat(additionalNewer).ToList();
+            if (allNewer.Count > 0) NewerVersionsOnStickDetected?.Invoke(allNewer, drive);
+            if (trueUnknowns.Count > 0) UnknownIsosOnStickDetected?.Invoke(trueUnknowns, drive);
+
+            var odEntries = new HashSet<IsoEntry>(od.Select(x => x.Entry));
+            var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !odEntries.Contains(e)).ToList();
+            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, drive);
+        }
+
         private List<(IsoEntry DbEntry, UsbService.StickIso StickIso)> DetectNewerVersionsOnStick(List<UsbService.StickIso> found)
         {
             var result = new List<(IsoEntry, UsbService.StickIso)>();
