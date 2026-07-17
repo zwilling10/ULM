@@ -176,7 +176,12 @@ namespace ULM.Views.Dialogs
         {
             _entry = entry;
             Title  = isNew ? "Neuen Eintrag hinzufügen" : $"Bearbeiten: {entry.Name}";
-            Width  = 620; Height = 560;
+            // Höhe wächst mit dem Inhalt (alle Felder ohne Scrollen sichtbar), aber nie über die
+            // verfügbare Bildschirmhöhe hinaus — der ScrollViewer im Content greift automatisch als
+            // Fallback, sobald MaxHeight erreicht ist (z.B. auf kleinen/niedrig aufgelösten Displays).
+            Width  = 620;
+            SizeToContent = SizeToContent.Height;
+            MaxHeight = SystemParameters.WorkArea.Height - 40;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = (Brush)Application.Current.Resources["BrushBg"];

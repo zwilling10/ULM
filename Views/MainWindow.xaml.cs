@@ -416,6 +416,13 @@ namespace ULM.Views
             var oldFilenames = outdated.Select(x => x.OldFilename).ToList();
             foreach (var e in entries) e.IsSelected = true; _vm.RefreshAllEntries();
 
+            // BUGFIX: Der Pipeline-Abschluss ruft VOR DownloadBatchCompleted bereits TriggerUsbScan()
+            // auf (siehe MainViewModel.cs, StartDownload) — dieser Scan hat keinen Versionscheck-
+            // Kontext und erkennt die jetzt überflüssige ALTE Datei fälschlich als "unbekannt", was
+            // zusätzlich zum Lösch-Angebot unten einen "ISO importieren"-Dialog für die alte Datei
+            // öffnete. Als "ausstehende Entscheidung" markieren, bis der Lösch-Dialog beantwortet ist.
+            foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.MarkPendingOldFileDecision(drive, fn);
+
             // Nach ERFOLGREICHEM Download + Stick-Kopie (DownloadBatchCompleted feuert erst danach mit den
             // echten Kopier-Erfolgszahlen) das Löschen der jetzt überflüssigen alten Datei anbieten. Der
             // Handler entfernt sich beim ersten Feuern selbst — Downloads laufen serialisiert (SetBusy),
@@ -423,7 +430,11 @@ namespace ULM.Views
             void OnBatchDone(int ok, int failed, int _unused)
             {
                 _vm.DownloadBatchCompleted -= OnBatchDone;
-                if (ok <= 0) return; // Update fehlgeschlagen → alte Datei unangetastet lassen
+                if (ok <= 0) // Update fehlgeschlagen → alte Datei unangetastet lassen
+                {
+                    foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
+                    return;
+                }
                 OfferDeleteOldIsosAfterUpdate(oldFilenames, drive);
             }
             _vm.DownloadBatchCompleted += OnBatchDone;
@@ -443,7 +454,11 @@ namespace ULM.Views
                 string? path = FindOldDuplicatePath(root, fn);
                 if (path != null) files.Add((path, IsoEntry.GetRobustLength(path)));
             }
-            if (files.Count == 0) return; // alte Datei schon weg / nie gefunden
+            if (files.Count == 0)
+            {
+                foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
+                return; // alte Datei schon weg / nie gefunden
+            }
 
             var dlg = new OrphanedDownloadsDialog(files,
                 "Alte ISO-Version(en) auf dem Stick",
@@ -457,6 +472,7 @@ namespace ULM.Views
                 if (deleted > 0) _vm.TriggerVentoyMenuUpdate(drive);
             }
             else AppendLog($"ℹ Alte ISO-Version(en) behalten ({files.Count} Datei(en)).");
+            foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
         }
 
         // BUGFIX: siehe SplitOutdatedFromDuplicates — diese Einträge sind bereits aktuell (der neue
