@@ -140,7 +140,7 @@ namespace ULM.ViewModels
 
         public event Action<string>?       LogMessage;
         public event Action<string, bool>? ShowMessageBox;
-        public event Action<List<IsoEntry>, string>?  StickUpdateAvailable;
+        public event Action<List<(IsoEntry Entry, string OldFilename)>, string>?  StickUpdateAvailable;
         public event Action<List<(IsoEntry Entry, string OldFilename)>, string>? StaleDuplicatesOnStickDetected;
         public event Action<List<IsoEntry>, string>?  MissingOnStickDetected;
         public event Action<List<UsbService.StickIso>, string>? UnknownIsosOnStickDetected;
@@ -765,7 +765,7 @@ namespace ULM.ViewModels
                                 foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
                                 IncompleteIsosOnStickDetected?.Invoke(incomplete, driveToScan);
                             }
-                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od.Select(x => x.Entry).ToList(), driveToScan); }
+                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, driveToScan); }
                             else if (duplicates.Count == 0 && si.Count > 0) Log($"✅ Alle ISOs auf {driveToScan} aktuell.");
                             if (duplicates.Count > 0)
                             {

@@ -375,14 +375,58 @@ namespace ULM.Views
             catch (Exception ex) { AppendLog($"⚠ Datei-Wartung: {ex.Message}"); }
         }
 
-        private void OnStickUpdateAvailable(List<IsoEntry> outdated, string drive)
+        private void OnStickUpdateAvailable(List<(IsoEntry Entry, string OldFilename)> outdated, string drive)
         {
             if (outdated.Count == 0) return;
             var sb = new StringBuilder(); sb.AppendLine($"Auf {drive} wurden {outdated.Count} veraltete ISO(s) gefunden:"); sb.AppendLine();
-            foreach (var e in outdated) sb.AppendLine($"  • {e.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt aktualisieren?");
+            foreach (var (entry, _) in outdated) sb.AppendLine($"  • {entry.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt aktualisieren?");
             if (MessageBox.Show(sb.ToString(), "💾 Stick-Aktualisierung", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-            foreach (var e in outdated) e.IsSelected = true; _vm.RefreshAllEntries();
-            StartDownloadWithProgressDialog(outdated, drive, copyAfter: true, deleteAfter: false, slots: Math.Min(outdated.Count, Constants.MaxParallelSlots));
+
+            var entries      = outdated.Select(x => x.Entry).ToList();
+            var oldFilenames = outdated.Select(x => x.OldFilename).ToList();
+            foreach (var e in entries) e.IsSelected = true; _vm.RefreshAllEntries();
+
+            // Nach ERFOLGREICHEM Download + Stick-Kopie (DownloadBatchCompleted feuert erst danach mit den
+            // echten Kopier-Erfolgszahlen) das Löschen der jetzt überflüssigen alten Datei anbieten. Der
+            // Handler entfernt sich beim ersten Feuern selbst — Downloads laufen serialisiert (SetBusy),
+            // das erste Batch-Ende nach dem Abonnieren gehört daher zu genau diesem Update.
+            void OnBatchDone(int ok, int failed, int _unused)
+            {
+                _vm.DownloadBatchCompleted -= OnBatchDone;
+                if (ok <= 0) return; // Update fehlgeschlagen → alte Datei unangetastet lassen
+                OfferDeleteOldIsosAfterUpdate(oldFilenames, drive);
+            }
+            _vm.DownloadBatchCompleted += OnBatchDone;
+
+            StartDownloadWithProgressDialog(entries, drive, copyAfter: true, deleteAfter: false, slots: Math.Min(entries.Count, Constants.MaxParallelSlots));
+        }
+
+        // Bietet nach einer von ULM selbst durchgeführten Aktualisierung das Löschen der alten,
+        // jetzt ersetzten ISO-Datei(en) an — Standard: löschen (angehakt), wie beim Duplikat-Dialog.
+        private void OfferDeleteOldIsosAfterUpdate(List<string> oldFilenames, string drive)
+        {
+            string root = UsbService.DriveRoot(drive);
+            var files = new List<(string Path, long Size)>();
+            foreach (string fn in oldFilenames)
+            {
+                if (string.IsNullOrWhiteSpace(fn)) continue;
+                string? path = FindOldDuplicatePath(root, fn);
+                if (path != null) files.Add((path, IsoEntry.GetRobustLength(path)));
+            }
+            if (files.Count == 0) return; // alte Datei schon weg / nie gefunden
+
+            var dlg = new OrphanedDownloadsDialog(files,
+                "Alte ISO-Version(en) auf dem Stick",
+                "alte ISO(s), die durch das Update ersetzt wurden") { Owner = this };
+            if (dlg.ShowDialog() == true)
+            {
+                int deleted = 0, failed = 0;
+                foreach (string path in dlg.ToDelete)
+                { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {Path.GetFileName(path)}"); } else failed++; }
+                AppendLog($"🗑 {deleted} alte ISO-Version(en) auf {drive} gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
+                if (deleted > 0) _vm.TriggerVentoyMenuUpdate(drive);
+            }
+            else AppendLog($"ℹ Alte ISO-Version(en) behalten ({files.Count} Datei(en)).");
         }
 
         // BUGFIX: siehe SplitOutdatedFromDuplicates — diese Einträge sind bereits aktuell (der neue
