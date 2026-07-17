@@ -129,6 +129,7 @@ public class MainViewModelDistroMatchingTests
             var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
             Assert.Single(outdated);
+            Assert.Equal("equestria-os-2026.07.08-x86_64.iso", outdated[0].OldFilename);
             Assert.Empty(duplicates);
         }
 
@@ -181,7 +182,8 @@ public class MainViewModelDistroMatchingTests
 
             var (outdated, duplicates) = MainViewModel.SplitOutdatedFromDuplicates(oldFn, entries, stick);
 
-            Assert.Single(outdated); Assert.Equal("distro-a-2.0.iso", outdated[0].Filename);
+            Assert.Single(outdated); Assert.Equal("distro-a-2.0.iso", outdated[0].Entry.Filename);
+            Assert.Equal("distro-a-1.0.iso", outdated[0].OldFilename);
             Assert.Single(duplicates); Assert.Equal("distro-b-1.0.iso", duplicates[0].OldFilename);
         }
     }
