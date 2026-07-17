@@ -236,9 +236,40 @@ namespace ULM.ViewModels
             if (changed) _db.Save();
         }
 
-        private void DeduplicateEntries()
+        /// <summary>
+        /// Findet Indizes EXAKTER Duplikate: Einträge, deren (nicht-leerer) Dateiname bereits bei
+        /// einem FRÜHEREN Eintrag vorkam. Der erste Eintrag je Dateiname bleibt, spätere gelten als
+        /// Duplikat. Rückgabe absteigend sortiert, damit der Aufrufer per Remove(index) sicher
+        /// nacheinander entfernen kann, ohne noch ausstehende Indizes zu verschieben. Reine Funktion,
+        /// ohne DB-/Stick-Zugriff testbar. BUGFIX: DeduplicateEntries behandelte bisher NUR "gleiche
+        /// Distro, andere Version" (unterschiedliche Dateinamen) — zwei Einträge mit identischem
+        /// Dateinamen (z.B. zwei importierte KDE-neon-Einträge, die beim Versionscheck auf dieselbe
+        /// aktuelle ISO auflösen) blieben doppelt stehen, weil der Namensvergleich identische
+        /// Dateinamen ausdrücklich ausschließt (IsSameDistroDifferentVersion liefert dafür false).
+        /// </summary>
+        internal static List<int> FindExactDuplicateIndicesByFilename(IReadOnlyList<IsoEntry> entries)
         {
-            bool changed = false;
+            var seen  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var dupes = new List<int>();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                string fn = entries[i].Filename;
+                if (string.IsNullOrWhiteSpace(fn)) continue; // ohne Dateiname kein Duplikat-Urteil
+                if (!seen.Add(fn)) dupes.Add(i);
+            }
+            dupes.Reverse(); // absteigend, damit Remove(index) sicher nacheinander möglich ist
+            return dupes;
+        }
+
+        private int DeduplicateEntries()
+        {
+            bool changed = false; int removed = 0;
+
+            // Zuerst EXAKTE Duplikate (identischer Dateiname) entfernen — die AreSameDistro-Logik
+            // unten behandelt nur "gleiche Distro, ANDERE Version" und ließe identische Einträge stehen.
+            foreach (int i in FindExactDuplicateIndicesByFilename(_db.Entries))
+            { Log($"   🗑 Exaktes Duplikat entfernt: {_db.Entries[i].Name}  ({_db.Entries[i].Filename})"); _db.Remove(i); changed = true; removed++; }
+
             var processed = new HashSet<IsoEntry>();
             var snapshot  = _db.Entries.ToList();
 
@@ -280,12 +311,13 @@ namespace ULM.ViewModels
                 {
                     var dup = dupsToRemove[di];
                     int idx = _db.Entries.ToList().IndexOf(dup); // ToList() weil IReadOnlyList kein IndexOf hat
-                    if (idx >= 0) { Log($"   🗑 Duplikat entfernt: {dup.Name}"); _db.Remove(idx); changed = true; }
+                    if (idx >= 0) { Log($"   🗑 Duplikat entfernt: {dup.Name}"); _db.Remove(idx); changed = true; removed++; }
                     processed.Add(dup);
                 }
                 processed.Add(keeper);
             }
             if (changed) _db.Save();
+            return removed;
         }
 
         internal static bool AreSameDistro(IsoEntry a, IsoEntry b)
@@ -789,6 +821,11 @@ namespace ULM.ViewModels
                     // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
                     if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
                     else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
+                    // Nach dem In-place-Update können mehrere Einträge (z.B. zwei importierte
+                    // KDE-neon-Varianten) auf dieselbe aktuelle ISO kollabiert und damit zu identischen
+                    // Duplikaten geworden sein — sofort bereinigen, ohne Neustart abzuwarten. RebuildTree
+                    // nur bei tatsächlicher Änderung, sonst genügt das RefreshAllEntries() unten.
+                    if (DeduplicateEntries() > 0) RebuildTree();
                     // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
                     // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
                     // nachdem der Scan fertig ist; wird erst beim Start des NÄCHSTEN Scans geleert.
