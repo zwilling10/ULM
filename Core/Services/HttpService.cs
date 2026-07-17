@@ -245,6 +245,25 @@ namespace ULM.Core.Services
         /// Distro-Versionschecks, nur für ULM selbst. Rein informativ: löst nichts automatisch aus,
         /// der Aufrufer entscheidet, wie/ob der Hinweis angezeigt wird.
         /// </summary>
+        /// <summary>
+        /// Ordnet die Assets eines GitHub-Releases den beiden ULM-Windows-Downloads zu: portable EXE
+        /// (…-win-x64.exe ohne "-Setup-") und Installer (…-Setup-…-win-x64.exe). Reine Logik, testbar
+        /// ohne Netzwerk. Fehlt ein Typ, bleibt dessen URL leer.
+        /// </summary>
+        internal static (string PortableUrl, string SetupUrl) MatchUlmReleaseAssets(IEnumerable<(string Name, string Url)> assets)
+        {
+            string portable = string.Empty, setup = string.Empty;
+            foreach (var (name, url) in assets)
+            {
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(url)) continue;
+                if (!name.EndsWith("-win-x64.exe", StringComparison.OrdinalIgnoreCase)) continue;
+                bool isSetup = name.Contains("-Setup-", StringComparison.OrdinalIgnoreCase);
+                if (isSetup) { if (string.IsNullOrEmpty(setup))    setup    = url; }
+                else         { if (string.IsNullOrEmpty(portable)) portable = url; }
+            }
+            return (portable, setup);
+        }
+
         public async Task<(bool HasUpdate, string LatestVersion, string ReleaseUrl)> CheckForUlmUpdateAsync(string currentVersion, string repo = "zwilling10/ULM")
         {
             try
