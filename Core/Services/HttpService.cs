@@ -873,6 +873,54 @@ namespace ULM.Core.Services
             catch (Exception ex) { Debug.WriteLine($"[WebSearch] {entry.Name}: {ex.Message}"); }
             return Empty;
         }
+        /// <summary>
+        /// Sammelt ALLE über eine Websuche gefundenen .iso-Kandidaten für eine frei wählbare
+        /// Suchanfrage und liefert sie unbewertet zurück — kein Bestmatch, keine Reachability-
+        /// Prüfung, keine Mirror-Persistenz (im Unterschied zu ResolveViaWebSearchAsync). Grundlage
+        /// für ManualSourceSearchDialog: der Nutzer entscheidet selbst, statt dass ULM automatisch
+        /// den vermeintlich besten Treffer wählt. Nutzt dieselbe DuckDuckGo-Websuche wie
+        /// ResolveViaWebSearchAsync — siehe dortige Doku zu Grenzen/Trefferqualität.
+        /// </summary>
+        public async Task<List<IsoSearchHit>> SearchIsoLinksAsync(string query)
+        {
+            var hits = new List<IsoSearchHit>();
+            if (string.IsNullOrWhiteSpace(query)) return hits;
+            try
+            {
+                string? html = await GetStringAsync($"https://html.duckduckgo.com/html/?q={Uri.EscapeDataString(query)}", 15).ConfigureAwait(false);
+                if (html is null) return hits;
+
+                var resultPages = Regex.Matches(html, @"class=""result__a""[^>]*href=""([^""]+)""", RegexOptions.IgnoreCase)
+                    .Cast<Match>().Select(m => ResolveDuckDuckGoRedirect(m.Groups[1].Value))
+                    .Where(u => Uri.IsWellFormedUriString(u, UriKind.Absolute))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(8).ToList();
+
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string candidate in resultPages)
+                {
+                    if (hits.Count >= 10) break;
+                    if (candidate.EndsWith(".iso", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (seen.Add(candidate)) hits.Add(new IsoSearchHit(candidate, Path.GetFileName(candidate.TrimEnd('/')), candidate));
+                        continue;
+                    }
+
+                    string? pageHtml = await GetStringAsync(candidate, 12).ConfigureAwait(false);
+                    if (pageHtml is null) continue;
+                    var (foundLinks, foundOn, _) = await FindIsoLinksFollowingDownloadLinkAsync(candidate, pageHtml).ConfigureAwait(false);
+                    foreach (string link in foundLinks)
+                    {
+                        string abs = link.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? link
+                            : Uri.TryCreate(new Uri(foundOn), link, out var u) ? u.ToString() : foundOn.TrimEnd('/') + "/" + link.TrimStart('/');
+                        if (seen.Add(abs)) hits.Add(new IsoSearchHit(abs, Path.GetFileName(abs.TrimEnd('/')), foundOn));
+                    }
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"[SearchIsoLinks] {query}: {ex.Message}"); }
+            return hits;
+        }
+
+        public sealed record IsoSearchHit(string Url, string Filename, string SourcePage);
 
         // DuckDuckGos HTML-Ergebnisse verlinken über einen Redirect (/l/?uddg=<urlencoded-ziel>&...)
         // statt direkt auf die Zielseite — die echte URL steckt im "uddg"-Parameter.
