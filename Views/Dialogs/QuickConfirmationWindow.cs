@@ -10,7 +10,7 @@ namespace ULM.Views.Dialogs
     // (Views/Dialogs/DownloadDialogs.cs) — kein zusätzliches using nötig.
     //
     // Unauffällige Erfolgsmeldung für schnelle Hintergrund-Checks (URL-/Update-/Integritätsprüfung,
-    // siehe MainViewModel.QuickCheckSucceeded) — schließt sich nach 2s von selbst, oder der Nutzer
+    // siehe MainViewModel.QuickCheckSucceeded) — schließt sich nach 5s von selbst, oder der Nutzer
     // klickt vorher auf OK. Bewusst NICHT modal (Show statt ShowDialog), damit der Arbeitsfluss nicht
     // unterbrochen wird, anders als die blockierende MessageBox bei OperationSucceeded (Download/Kopie).
     public sealed class QuickConfirmationWindow : Window
