@@ -798,28 +798,12 @@ namespace ULM.ViewModels
                     {
                         _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
                         var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
-                        var sn = new HashSet<string>(si.Select(s => s.Filename), StringComparer.OrdinalIgnoreCase);
-                        var (od, duplicates) = SplitOutdatedFromDuplicates(oldFn, _db.Entries, sn);
                         _ui.Invoke(() =>
                         {
-                            ApplyStickResults(si); UsbScanActive = false; UsbScanPercent = 100; RefreshAllEntries();
+                            UsbScanActive = false; UsbScanPercent = 100;
                             RecordHistory($"💾 Stick-Prüfung {driveToScan} abgeschlossen ({si.Count} ISO(s) erkannt).");
-                            if (incomplete.Count > 0)
-                            {
-                                Log($"⚠ Stick-Prüfung {driveToScan}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
-                                foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
-                                IncompleteIsosOnStickDetected?.Invoke(incomplete, driveToScan);
-                            }
-                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, driveToScan); }
-                            else if (duplicates.Count == 0 && si.Count > 0) Log($"✅ Alle ISOs auf {driveToScan} aktuell.");
-                            if (duplicates.Count > 0)
-                            {
-                                Log($"🗑 {duplicates.Count} veraltete Duplikat-ISO(s) auf {driveToScan} (aktuelle Version bereits vorhanden).");
-                                foreach (var (e, oldFilename) in duplicates) Log($"   🗑 {e.Name}: {oldFilename}");
-                                StaleDuplicatesOnStickDetected?.Invoke(duplicates, driveToScan);
-                            }
-                            var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !od.Any(x => x.Entry == e)).ToList();
-                            if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, driveToScan);
+                            // Start-Scan HAT Versionscheck-Kontext → oldFn aus den Update-Ergebnissen (oben berechnet).
+                            ProcessStickScanResults(si, incomplete, oldFn, driveToScan);
                         });
                     });
             };
