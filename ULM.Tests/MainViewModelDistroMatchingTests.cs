@@ -187,4 +187,43 @@ public class MainViewModelDistroMatchingTests
             Assert.Single(duplicates); Assert.Equal("distro-b-1.0.iso", duplicates[0].OldFilename);
         }
     }
+
+    public class MainViewModelFindExactDuplicateIndicesTests
+    {
+        private static IsoEntry E(string filename) => new() { Name = filename, Filename = filename };
+
+        [Fact]
+        public void FindExactDuplicateIndicesByFilename_IdenticalFilenames_ReturnsLaterIndex()
+        {
+            // Regression: genau der vom Nutzer gemeldete Fall — zwei Einträge mit IDENTISCHEM
+            // Dateinamen (zwei importierte KDE-neon-Einträge, die beim Versionscheck auf dieselbe
+            // aktuelle ISO kollabiert sind). Der erste bleibt, der zweite ist ein exaktes Duplikat.
+            var entries = new List<IsoEntry>
+            {
+                E("neon-user-desktop-20260709-1906.iso"), // 0 — bleibt
+                E("ubuntu-26.04-desktop-amd64.iso"),       // 1 — bleibt
+                E("neon-user-desktop-20260709-1906.iso"), // 2 — Duplikat von 0
+            };
+            var dupes = MainViewModel.FindExactDuplicateIndicesByFilename(entries);
+            Assert.Equal(new[] { 2 }, dupes);
+        }
+
+        [Fact]
+        public void FindExactDuplicateIndicesByFilename_MultipleDuplicates_ReturnedDescending()
+        {
+            // Absteigend, damit der Aufrufer per _db.Remove(index) sicher nacheinander entfernen kann,
+            // ohne dass sich die Indizes noch nicht entfernter Duplikate verschieben.
+            var entries = new List<IsoEntry> { E("a.iso"), E("a.iso"), E("a.iso") };
+            var dupes = MainViewModel.FindExactDuplicateIndicesByFilename(entries);
+            Assert.Equal(new[] { 2, 1 }, dupes);
+        }
+
+        [Fact]
+        public void FindExactDuplicateIndicesByFilename_EmptyFilenames_NeverDuplicates()
+        {
+            // Ohne Dateiname (noch nie aufgelöster Eintrag) lässt sich kein Duplikat-Urteil fällen.
+            var entries = new List<IsoEntry> { E(""), E("") };
+            Assert.Empty(MainViewModel.FindExactDuplicateIndicesByFilename(entries));
+        }
+    }
 }
