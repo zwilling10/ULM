@@ -19,9 +19,9 @@ namespace ULM.ViewModels
 {
     public sealed class MainViewModel : ViewModelBase
     {
-        private readonly IsoDatabaseService _db    = IsoDatabaseService.Instance;
-        private readonly HttpService        _http  = HttpService.Instance;
-        private readonly UsbService         _usb   = UsbService.Instance;
+        private readonly IIsoDatabaseService _db;
+        private readonly IHttpService        _http;
+        private readonly IUsbService         _usb;
         private readonly AppPaths           _paths = AppPaths.Instance;
         private readonly Dispatcher         _ui;
         private CancellationTokenSource _workerCts = new();
@@ -189,9 +189,12 @@ namespace ULM.ViewModels
         /// </summary>
         public Func<string, string, bool>? ConfirmSlowDownload;
 
-        public MainViewModel(Dispatcher ui)
+        public MainViewModel(Dispatcher ui, IHttpService? http = null, IUsbService? usb = null, IIsoDatabaseService? db = null)
         {
-            _ui = ui;
+            _ui   = ui;
+            _http = http ?? HttpService.Instance;
+            _usb  = usb  ?? UsbService.Instance;
+            _db   = db   ?? IsoDatabaseService.Instance;
             DownloadCommand      = new RelayCommand(OnDownload,     () => !IsBusy);
             CopyToUsbCommand     = new RelayCommand(OnCopyToUsb,    () => !IsBusy);
             CheckUpdatesCommand  = new RelayCommand(OnCheckUpdates, () => !IsBusy);
@@ -585,7 +588,7 @@ namespace ULM.ViewModels
             // still verschluckt worden. Stil analog zu StartVentoyInstall (catch + Log + StatusText).
             try
             {
-                var (found, _) = await UsbService.Instance.ScanStickVerifiedAsync(SelectedDriveLetter, _db.Entries).ConfigureAwait(false);
+                var (found, _) = await _usb.ScanStickVerifiedAsync(SelectedDriveLetter, _db.Entries).ConfigureAwait(false);
                 var byFn = new Dictionary<string, UsbService.StickIso>(StringComparer.OrdinalIgnoreCase);
                 foreach (var f in found) if (!byFn.ContainsKey(f.Filename)) byFn[f.Filename] = f;
 
@@ -735,7 +738,7 @@ namespace ULM.ViewModels
                     _ = Task.Run(async () =>
                     {
                         _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
-                        var (si, incomplete) = await UsbService.Instance.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
+                        var (si, incomplete) = await _usb.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
                         _ui.Invoke(() =>
                         {
                             UsbScanActive = false; UsbScanPercent = 100;
