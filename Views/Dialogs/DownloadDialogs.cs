@@ -19,6 +19,32 @@ namespace ULM.Views.Dialogs
     {
         public static Brush Brush(string key) => (Brush)Application.Current!.Resources[key];
         public static Style  Style(string key) => (Style)Application.Current!.Resources[key];
+
+        // Aus IsoEditDialog extrahiert (Views/Dialogs/DatabaseDialogs.cs) — zweiter Konsument ist
+        // ManualSourceSearchDialog, das dieselben Bearbeiten-Felder braucht.
+        public static TextBox AddField(StackPanel root, string label, string value, bool multiLine = false)
+        {
+            root.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = Brush("BrushHeader") });
+            var tb = new TextBox
+            {
+                Text = value, Margin = new Thickness(0, 0, 0, 10),
+                MinHeight = multiLine ? 70 : 30, AcceptsReturn = multiLine,
+                TextWrapping = multiLine ? TextWrapping.Wrap : TextWrapping.NoWrap,
+                VerticalScrollBarVisibility = multiLine ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
+            };
+            root.Children.Add(tb);
+            return tb;
+        }
+
+        public static ComboBox AddCategoryCombo(StackPanel root, string selected)
+        {
+            root.Children.Add(new TextBlock { Text = "Kategorie *", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = Brush("BrushHeader") });
+            var cb = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
+            foreach (string cat in Constants.Categories) cb.Items.Add(cat);
+            cb.SelectedItem = Constants.Categories.Contains(selected) ? selected : "Einsteiger";
+            root.Children.Add(cb);
+            return cb;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
