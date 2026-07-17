@@ -18,6 +18,13 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.35.0", new[]
+            {
+                "Neu: ULM prüft beim Start im Hintergrund, ob eine neuere Programmversion verfügbar ist, und zeigt in dem Fall ein Hinweis-Banner an. Per Klick lässt sich direkt die portable EXE oder der Setup-Installer herunterladen; ULM legt die Datei ab und öffnet den Ordner — gestartet wird sie wie gewohnt selbst.",
+                "Neu: Schlägt ULM selbst ein Stick-Update vor und wird es durchgeführt, fragt das Programm anschließend, ob die alte, ersetzte ISO auf dem Stick gelöscht oder behalten werden soll.",
+                "Fehlerbehebung: Auf den Stick kopierte ISOs, die ULM noch nicht kennt, werden jetzt bereits beim Programmstart erkannt und zum Übernehmen angeboten — vorher erst, nachdem der Stick ab- und wieder eingesteckt wurde.",
+                "Fehlerbehebung: Zwei Datenbank-Einträge mit identischem Dateinamen (z.B. wenn mehrere importierte Einträge beim Versionscheck auf dieselbe aktuelle ISO zusammenfielen) blieben doppelt bestehen — solche exakten Duplikate werden jetzt automatisch entfernt.",
+            }),
             ("2.34.0", new[]
             {
                 "Neu: Sind mehrere USB-Sticks gleichzeitig angeschlossen, fragt ULM jetzt aktiv nach, mit welchem gearbeitet werden soll — sowohl beim Programmstart als auch beim Einstecken eines weiteren Sticks während der Laufzeit. Vorher wurde stillschweigend der erste erkannte Stick gewählt.",
