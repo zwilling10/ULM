@@ -25,7 +25,12 @@ namespace ULM.Core.Services
         public static readonly UlmUpdateInfo None = new(false, string.Empty, string.Empty, string.Empty, string.Empty);
     }
 
-    public sealed class HttpService
+    public interface IHttpService
+    {
+        string? GitHubToken { get; set; }
+    }
+
+    public sealed class HttpService : IHttpService
     {
         private static readonly Lazy<HttpService> _lazy = new(() => new HttpService());
         public static HttpService Instance => _lazy.Value;

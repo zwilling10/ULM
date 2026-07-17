@@ -221,7 +221,7 @@ namespace ULM.Core.Workers
         private readonly List<IsoEntry> _entries;
         private readonly string         _downloadDir;
         private readonly int            _maxConcurrent;
-        private readonly IsoDatabaseService? _db;
+        private readonly IIsoDatabaseService? _db;
         private readonly CancellationTokenSource _cts = new();
         public event Action<int, string>?       OverallProgress;
         public event Action<DownloadSlotArgs>?  SlotUpdated;
@@ -270,7 +270,7 @@ namespace ULM.Core.Workers
         /// </summary>
         public Func<string, string, bool>? ConfirmSlowDownloadAnyway;
         public DownloadWorker(List<IsoEntry> entries, int maxConcurrent, string downloadDir,
-            IsoDatabaseService? db, string drive, bool copyAfter, bool deleteAfter)
+            IIsoDatabaseService? db, string drive, bool copyAfter, bool deleteAfter)
         { _entries = entries; _downloadDir = downloadDir; _maxConcurrent = maxConcurrent > 0 ? maxConcurrent : 1; _db = db; }
         public void Cancel() => _cts.Cancel();
 

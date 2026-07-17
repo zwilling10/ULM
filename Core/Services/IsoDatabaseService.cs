@@ -18,7 +18,19 @@ namespace ULM.Core.Services
     ///   [Name, Category, Url, Filename, Mirror1, Mirror2, Mirror3,
     ///    Mirror4, Mirror5, GitHubRepo, GitHubAsset, Tip]
     /// </summary>
-    public sealed class IsoDatabaseService
+    public interface IIsoDatabaseService
+    {
+        IReadOnlyList<IsoEntry> Entries { get; }
+        int Count { get; }
+        void Load();
+        void Save();
+        void SaveFilenames();
+        void Add(IsoEntry entry);
+        void Remove(int index);
+        void SaveExpectedSize(IsoEntry entry, long bytes);
+    }
+
+    public sealed class IsoDatabaseService : IIsoDatabaseService
     {
         private static readonly Lazy<IsoDatabaseService> _lazy =
             new(() => new IsoDatabaseService());

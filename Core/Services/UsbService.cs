@@ -14,7 +14,13 @@ using ULM.Infrastructure;
 
 namespace ULM.Core.Services
 {
-    public sealed class UsbService
+    public interface IUsbService
+    {
+        List<UsbDrive> ListRemovableDrives();
+        Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries);
+    }
+
+    public sealed class UsbService : IUsbService
     {
         private static readonly Lazy<UsbService> _lazy = new(() => new UsbService());
         public static UsbService Instance => _lazy.Value;
