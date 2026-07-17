@@ -189,16 +189,16 @@ namespace ULM.Views.Dialogs
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var root   = new StackPanel { Margin = new Thickness(20) };
 
-            _tbName    = AddField(root, "Name *",          entry.Name);
-            _cbCat     = AddCategoryCombo(root, entry.Category);
-            _tbUrl     = AddField(root, "Primäre URL",     entry.Url);
-            _tbFilename= AddField(root, "Dateiname *",     entry.Filename);
-            _tbMirror1 = AddField(root, "Mirror 1",        entry.Mirror1);
-            _tbMirror2 = AddField(root, "Mirror 2",        entry.Mirror2);
-            _tbMirror3 = AddField(root, "Mirror 3",        entry.Mirror3);
-            _tbGhRepo  = AddField(root, "GitHub Repo",     entry.GithubRepo);
-            _tbGhAsset = AddField(root, "GitHub Asset",    entry.GithubAsset);
-            _tbTip     = AddField(root, "Beschreibung",    entry.Tip, multiLine: true);
+            _tbName    = AppRes.AddField(root, "Name *",          entry.Name);
+            _cbCat     = AppRes.AddCategoryCombo(root, entry.Category);
+            _tbUrl     = AppRes.AddField(root, "Primäre URL",     entry.Url);
+            _tbFilename= AppRes.AddField(root, "Dateiname *",     entry.Filename);
+            _tbMirror1 = AppRes.AddField(root, "Mirror 1",        entry.Mirror1);
+            _tbMirror2 = AppRes.AddField(root, "Mirror 2",        entry.Mirror2);
+            _tbMirror3 = AppRes.AddField(root, "Mirror 3",        entry.Mirror3);
+            _tbGhRepo  = AppRes.AddField(root, "GitHub Repo",     entry.GithubRepo);
+            _tbGhAsset = AppRes.AddField(root, "GitHub Asset",    entry.GithubAsset);
+            _tbTip     = AppRes.AddField(root, "Beschreibung",    entry.Tip, multiLine: true);
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
             var ok = new Button { Content = "✔ Speichern", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
@@ -209,30 +209,6 @@ namespace ULM.Views.Dialogs
             root.Children.Add(btns);
             scroll.Content = root;
             Content = scroll;
-        }
-
-        private static TextBox AddField(StackPanel root, string label, string value, bool multiLine = false)
-        {
-            root.Children.Add(new TextBlock { Text = label, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = (Brush)Application.Current.Resources["BrushHeader"] });
-            var tb = new TextBox
-            {
-                Text = value, Margin = new Thickness(0, 0, 0, 10),
-                MinHeight = multiLine ? 70 : 30, AcceptsReturn = multiLine,
-                TextWrapping = multiLine ? TextWrapping.Wrap : TextWrapping.NoWrap,
-                VerticalScrollBarVisibility = multiLine ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
-            };
-            root.Children.Add(tb);
-            return tb;
-        }
-
-        private ComboBox AddCategoryCombo(StackPanel root, string selected)
-        {
-            root.Children.Add(new TextBlock { Text = "Kategorie *", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = (Brush)Application.Current.Resources["BrushHeader"] });
-            var cb = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
-            foreach (string cat in Constants.Categories) cb.Items.Add(cat);
-            cb.SelectedItem = Constants.Categories.Contains(selected) ? selected : "Einsteiger";
-            root.Children.Add(cb);
-            return cb;
         }
 
         private void OkBtn_Click(object sender, RoutedEventArgs e)
