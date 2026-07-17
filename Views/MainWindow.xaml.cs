@@ -28,11 +28,6 @@ namespace ULM.Views
         private bool   _orphanCheckDone;
         private string _lastDriveSignatureUi = string.Empty;
 
-        private readonly HashSet<string> _offeredCopyKeys     = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _importedStickKeys   = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _newerVersionKeys    = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _incompleteStickKeys = new(StringComparer.OrdinalIgnoreCase);
-
         public MainWindow()
         {
             InitializeComponent();
@@ -60,7 +55,7 @@ namespace ULM.Views
 
             _vm.NewerVersionsOnStickDetected += (matches, drive) =>
             {
-                var fresh = matches.Where(m => _newerVersionKeys.Add($"{drive}|{m.StickIso.Filename}")).ToList();
+                var fresh = matches.Where(m => _vm.MarkNewerVersionOffered(drive, m.StickIso.Filename)).ToList();
                 if (fresh.Count == 0) return;
                 AppendLog($"📥 {fresh.Count} ISO(s) auf {drive} neuer als DB-Eintrag.");
                 var dlg = new NewerVersionOnStickDialog(fresh) { Owner = this };
@@ -83,7 +78,7 @@ namespace ULM.Views
 
             _vm.UnknownIsosOnStickDetected += async (unknowns, drive) =>
             {
-                var fresh = unknowns.Where(u => _importedStickKeys.Add($"{drive}|{u.Filename}")).ToList();
+                var fresh = unknowns.Where(u => _vm.MarkUnknownStickIsoOffered(drive, u.Filename)).ToList();
                 if (fresh.Count == 0) return;
                 AppendLog($"❓ {fresh.Count} unbekannte ISO(s) auf {drive}.");
                 var dlg = new ImportStickIsosDialog(fresh) { Owner = this };
@@ -114,7 +109,7 @@ namespace ULM.Views
 
             _vm.IncompleteIsosOnStickDetected += (incomplete, drive) =>
             {
-                var fresh = incomplete.Where(i => _incompleteStickKeys.Add($"{drive}|{i.Filename}")).ToList();
+                var fresh = incomplete.Where(i => _vm.MarkIncompleteStickIsoOffered(drive, i.Filename)).ToList();
                 if (fresh.Count == 0) return;
                 AppendLog($"🗑 {fresh.Count} unvollständige ISO(s) auf {drive} erkannt (Online-Größenprüfung).");
                 var files = fresh.Select(i => (i.FullPath, i.Size)).ToList();
@@ -507,7 +502,7 @@ namespace ULM.Views
 
         private void OnMissingOnStickDetected(List<IsoEntry> entries, string drive)
         {
-            var fresh = entries.Where(e => _offeredCopyKeys.Add($"{drive}|{e.Filename}")).ToList();
+            var fresh = entries.Where(e => _vm.MarkCopyOffered(drive, e.Filename)).ToList();
             if (fresh.Count == 0) return;
             var sb = new StringBuilder(); sb.AppendLine($"{fresh.Count} ISO(s) vollständig lokal, NICHT auf {drive}:"); sb.AppendLine();
             foreach (var e in fresh) sb.AppendLine($"  • {e.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt kopieren?");

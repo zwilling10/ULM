@@ -36,6 +36,20 @@ namespace ULM.ViewModels
         private bool     _startupPhase = true;
         private bool     _expertMode;
 
+        // Session-Dedup: verhindert, dass derselbe Stick-Fund (Laufwerk+Dateiname) dem Nutzer
+        // mehrfach als Dialog/Meldung angeboten wird, wenn TriggerUsbScan mehrfach über denselben
+        // Fund läuft. Anwendungszustand ("wurde dieser Fund schon behandelt?"), daher im ViewModel
+        // statt in MainWindow.xaml.cs (dort lag es vorher, was gegen MVVM verstieß).
+        private readonly HashSet<string> _offeredCopyKeys     = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _importedStickKeys   = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _newerVersionKeys    = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _incompleteStickKeys = new(StringComparer.OrdinalIgnoreCase);
+
+        public bool MarkCopyOffered(string drive, string filename)               => _offeredCopyKeys.Add($"{drive}|{filename}");
+        public bool MarkUnknownStickIsoOffered(string drive, string filename)    => _importedStickKeys.Add($"{drive}|{filename}");
+        public bool MarkNewerVersionOffered(string drive, string filename)       => _newerVersionKeys.Add($"{drive}|{filename}");
+        public bool MarkIncompleteStickIsoOffered(string drive, string filename) => _incompleteStickKeys.Add($"{drive}|{filename}");
+
         public ObservableCollection<IsoCategoryViewModel> Categories { get; } = new();
         private ObservableCollection<UsbDrive> _drives = new();
         public  ObservableCollection<UsbDrive> Drives  { get => _drives; private set => SetField(ref _drives, value); }
