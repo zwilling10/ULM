@@ -45,8 +45,20 @@ namespace ULM.ViewModels
         private readonly HashSet<string> _newerVersionKeys    = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _incompleteStickKeys = new(StringComparer.OrdinalIgnoreCase);
 
+        // BUGFIX: TriggerUsbScan() (z.B. der Scan direkt nach einer von ULM selbst durchgeführten
+        // Update-Kopie, siehe StartDownload → TriggerUsbScan() VOR DownloadBatchCompleted) läuft
+        // immer mit leerem oldFn (kein Versionscheck-Kontext) und kann die noch physisch vorhandene
+        // ALTE Datei deshalb nicht als "veraltet/behandelt" erkennen — sie fiel bislang durch die
+        // Unbekannt-Erkennung und öffnete während/direkt nach dem Lösch-Angebot (OfferDeleteOldIsos-
+        // AfterUpdate) zusätzlich einen "ISO importieren"-Dialog für genau diese alte Datei. Diese
+        // Menge merkt sich, für welche Laufwerk+Dateiname-Kombinationen gerade eine Lösch-Entscheidung
+        // aussteht, damit ProcessStickScanResults sie in der Zwischenzeit nicht als unbekannt meldet.
+        private readonly HashSet<string> _pendingOldFileDecisions = new(StringComparer.OrdinalIgnoreCase);
+
         public bool MarkCopyOffered(string drive, string filename)               => _offeredCopyKeys.Add($"{drive}|{filename}");
         public bool MarkUnknownStickIsoOffered(string drive, string filename)    => _importedStickKeys.Add($"{drive}|{filename}");
+        public void MarkPendingOldFileDecision(string drive, string filename)    => _pendingOldFileDecisions.Add($"{drive}|{filename}");
+        public void ClearPendingOldFileDecision(string drive, string filename)   => _pendingOldFileDecisions.Remove($"{drive}|{filename}");
         public bool MarkNewerVersionOffered(string drive, string filename)       => _newerVersionKeys.Add($"{drive}|{filename}");
         public bool MarkIncompleteStickIsoOffered(string drive, string filename) => _incompleteStickKeys.Add($"{drive}|{filename}");
 
@@ -486,7 +498,8 @@ namespace ULM.ViewModels
             var initialUnknowns = found.Where(f => !string.IsNullOrWhiteSpace(f.Filename)
                                                 && !dbFn.Contains(f.Filename)
                                                 && !newerFnSet.Contains(f.Filename)
-                                                && !handled.Contains(f.Filename)).ToList();
+                                                && !handled.Contains(f.Filename)
+                                                && !_pendingOldFileDecisions.Contains($"{drive}|{f.Filename}")).ToList();
 
             var additionalNewer = new List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>();
             var trueUnknowns    = new List<UsbService.StickIso>();
@@ -666,89 +679,97 @@ namespace ULM.ViewModels
                 int idx = _db.Entries.ToList().FindIndex(e => e.Name == result.Name);
                 if (idx >= 0) RefreshEntry(idx);
             });
-            worker.Completed += (resolved, updates) =>
+            worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
-                // BUGFIX: Ohne die RepresentsGenuineFilenameChange-Prüfung wurden Einträge, deren
-                // Resolver IMMER denselben statischen Dateinamen liefert (z.B. Hiren's BootCD PE —
-                // ResolveHirensAsync gibt konstant "HBCD_PE_x64.iso" zurück), bei JEDEM Versionscheck
-                // erneut fälschlich als "auf dem Stick veraltet" gemeldet — der alte und der neue
-                // Dateiname sind identisch, die Stick-Kopie IST bereits die aktuelle. Nur ein
-                // Eintrag, dessen Dateiname sich durchs Update TATSÄCHLICH ändert, kann eine ältere
-                // (unter dem alten Namen gefundene) Stick-Kopie wirklich veraltet machen.
-                var oldFn = updates
-                    .Where(i => !string.IsNullOrEmpty(_db.Entries[i].RemoteUrl) && !string.IsNullOrEmpty(_db.Entries[i].Filename)
-                             && DistroMatcher.RepresentsGenuineFilenameChange(_db.Entries[i].Filename, _db.Entries[i].RemoteFilename))
-                    .ToDictionary(i => _db.Entries[i].Filename, i => i, StringComparer.OrdinalIgnoreCase);
+                ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered);
+                // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
+                // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
+                // nachdem der Scan fertig ist; wird erst beim Start des NÄCHSTEN Scans geleert.
+                OnlineScanActive = false; OnlineScanPercent = 100;
+                // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
+                // sofort scannen. Der Start-Stick-Scan selbst folgt in ApplyResolvedUpdatesAndOfferStickUpdate
+                // (BUGFIX: SelectedDriveLetter wird dort GENAU JETZT gelesen, nach dem Zurücksetzen
+                // von _startupPhase — liefert so immer den tatsächlich aktuellen Stick, egal ob er
+                // schon vor dem Check da war oder während des Checks erst eingesteckt wurde).
+                _startupPhase = false;
+                StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
+                           : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
+                RecordHistory($"🌐 Versionscheck: {StatusText}"); Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
+            });
+            _ = worker.RunAsync();
+        }
+
+        /// <summary>
+        /// Übernimmt für alle in 'updates' aufgelösten Einträge die neu gefundene Remote-Version
+        /// (Filename/Url) und bietet danach — sofern ein Stick eingesteckt ist — sofort das Update
+        /// auf dem Stick an (StickUpdateAvailable), statt darauf zu warten, dass der Nutzer die App
+        /// neu startet. Gemeinsam genutzt von TriggerAutoVersionCheck (Start-/periodischer Check)
+        /// und RunHealthCheck (u.a. nach Stick-Import, DB-Bearbeiten, Online-Suche) — beide lösen
+        /// über UpdateScanWorker identisch strukturierte Ergebnisse auf. BUGFIX: RunHealthCheck bot
+        /// ein gefundenes Update bisher NICHT sofort an — es erschien nur als "Update verfügbar" im
+        /// Hauptfenster, die Stick-Aktualisierungsfrage kam erst beim nächsten App-Start (der intern
+        /// TriggerAutoVersionCheck erneut ausführt). Muss auf dem UI-Thread aufgerufen werden
+        /// (mutiert gebundene Entry-Properties und startet einen Folge-Stick-Scan).
+        /// </summary>
+        private void ApplyResolvedUpdatesAndOfferStickUpdate(List<int> updates, bool anyUrlDiscovered)
+        {
+            // BUGFIX: Ohne die RepresentsGenuineFilenameChange-Prüfung wurden Einträge, deren
+            // Resolver IMMER denselben statischen Dateinamen liefert (z.B. Hiren's BootCD PE —
+            // ResolveHirensAsync gibt konstant "HBCD_PE_x64.iso" zurück), bei JEDEM Versionscheck
+            // erneut fälschlich als "auf dem Stick veraltet" gemeldet — der alte und der neue
+            // Dateiname sind identisch, die Stick-Kopie IST bereits die aktuelle. Nur ein
+            // Eintrag, dessen Dateiname sich durchs Update TATSÄCHLICH ändert, kann eine ältere
+            // (unter dem alten Namen gefundene) Stick-Kopie wirklich veraltet machen.
+            var oldFn = updates
+                .Where(i => !string.IsNullOrEmpty(_db.Entries[i].RemoteUrl) && !string.IsNullOrEmpty(_db.Entries[i].Filename)
+                         && DistroMatcher.RepresentsGenuineFilenameChange(_db.Entries[i].Filename, _db.Entries[i].RemoteFilename))
+                .ToDictionary(i => _db.Entries[i].Filename, i => i, StringComparer.OrdinalIgnoreCase);
+
+            foreach (int i in updates)
+            {
+                var e = _db.Entries[i]; if (string.IsNullOrEmpty(e.RemoteUrl)) continue;
+                string oldVer = HttpService.ExtractVersion(e.Filename);
+                if (string.IsNullOrEmpty(oldVer)) oldVer = HttpService.ExtractVersion(e.Name);
+                string newVer = string.IsNullOrEmpty(e.RemoteVersion)
+                    ? HttpService.ExtractVersion(e.RemoteFilename) : e.RemoteVersion;
+                e.Url = e.RemoteUrl; e.Filename = e.RemoteFilename;
+                // Der Eintrag repräsentiert nach der Übernahme selbst die neueste Version →
+                // es gibt kein ausstehendes Update mehr. Ohne dieses Zurücksetzen bliebe das
+                // (vor der Übernahme korrekt gesetzte) Flag veraltet auf true und die
+                // "Aktuell"-Spalte zeigte fälschlich "Update vX" statt "Aktuell (vX)".
+                e.UpdateAvailable = false;
+                if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
+                {
+                    int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);
+                    if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log($"   ✏ {on} → {e.Name}"); }
+                }
+            }
+            // BUGFIX: auch speichern, wenn KEIN Versions-Update vorliegt, aber für einen
+            // zuvor URL-losen Eintrag (Import/manuell hinzugefügt) gerade erstmals eine
+            // Quelle gefunden wurde — sonst geht die im Speicher gefundene URL beim nächsten
+            // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
+            if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
+            else if (anyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
+            // Nach dem In-place-Update können mehrere Einträge (z.B. zwei importierte
+            // KDE-neon-Varianten) auf dieselbe aktuelle ISO kollabiert und damit zu identischen
+            // Duplikaten geworden sein — sofort bereinigen, ohne Neustart abzuwarten.
+            if (DeduplicateEntries() > 0) RebuildTree();
+            RefreshAllEntries();
+
+            string driveToScan = SelectedDriveLetter;
+            if (string.IsNullOrEmpty(driveToScan)) return;
+            _ = Task.Run(async () =>
+            {
+                _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
+                var (si, incomplete) = await _usb.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
                 _ui.Invoke(() =>
                 {
-                    foreach (int i in updates)
-                    {
-                        var e = _db.Entries[i]; if (string.IsNullOrEmpty(e.RemoteUrl)) continue;
-                        string oldVer = HttpService.ExtractVersion(e.Filename);
-                        if (string.IsNullOrEmpty(oldVer)) oldVer = HttpService.ExtractVersion(e.Name);
-                        string newVer = string.IsNullOrEmpty(e.RemoteVersion)
-                            ? HttpService.ExtractVersion(e.RemoteFilename) : e.RemoteVersion;
-                        e.Url = e.RemoteUrl; e.Filename = e.RemoteFilename;
-                        // Der Eintrag repräsentiert nach der Übernahme selbst die neueste Version →
-                        // es gibt kein ausstehendes Update mehr. Ohne dieses Zurücksetzen bliebe das
-                        // (vor der Übernahme korrekt gesetzte) Flag veraltet auf true und die
-                        // "Aktuell"-Spalte zeigte fälschlich "Update vX" statt "Aktuell (vX)".
-                        e.UpdateAvailable = false;
-                        if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
-                        {
-                            int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);
-                            if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log($"   ✏ {on} → {e.Name}"); }
-                        }
-                    }
-                    // BUGFIX: auch speichern, wenn KEIN Versions-Update vorliegt, aber für einen
-                    // zuvor URL-losen Eintrag (Import/manuell hinzugefügt) gerade erstmals eine
-                    // Quelle gefunden wurde — sonst geht die im Speicher gefundene URL beim nächsten
-                    // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
-                    if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
-                    else if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
-                    // Nach dem In-place-Update können mehrere Einträge (z.B. zwei importierte
-                    // KDE-neon-Varianten) auf dieselbe aktuelle ISO kollabiert und damit zu identischen
-                    // Duplikaten geworden sein — sofort bereinigen, ohne Neustart abzuwarten. RebuildTree
-                    // nur bei tatsächlicher Änderung, sonst genügt das RefreshAllEntries() unten.
-                    if (DeduplicateEntries() > 0) RebuildTree();
-                    // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
-                    // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
-                    // nachdem der Scan fertig ist; wird erst beim Start des NÄCHSTEN Scans geleert.
-                    OnlineScanActive = false; OnlineScanPercent = 100; RefreshAllEntries();
-                    // Startphase beendet: ab jetzt darf ein Laufwerkswechsel/Neu-Einstecken wieder
-                    // sofort scannen. Der Start-Stick-Scan selbst folgt unten (capturedDrive).
-                    _startupPhase = false;
-                    StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
-                               : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
-                    RecordHistory($"🌐 Versionscheck: {StatusText}"); Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
+                    UsbScanActive = false; UsbScanPercent = 100;
+                    RecordHistory($"💾 Stick-Prüfung {driveToScan} abgeschlossen ({si.Count} ISO(s) erkannt).");
+                    // Versionscheck-Kontext vorhanden → oldFn aus den Update-Ergebnissen (oben berechnet).
+                    ProcessStickScanResults(si, incomplete, oldFn, driveToScan);
                 });
-                // BUGFIX: Der zu scannende Stick wurde bisher als "capturedDrive" VOR dem
-                // Versionscheck erfasst — steckte der Anwender einen Stick erst WÄHREND des Checks
-                // ein, blieb dieser Nachlauf-Scan auf dem alten (oft leeren) Stand hängen: der
-                // reguläre TriggerUsbScan()-Aufruf über den SelectedDrive-Setter war durch
-                // _startupPhase blockiert, UND hier wurde weiterhin der veraltete Laufwerksbuchstabe
-                // von vor dem Check geprüft — der neu eingesteckte Stick wurde nie gescannt, bis er
-                // ab- und wieder eingesteckt wurde. SelectedDrive selbst wird aber auch während
-                // _startupPhase korrekt aktualisiert (nur der TriggerUsbScan()-Aufruf im Setter wird
-                // unterdrückt) — ein frischer Blick auf SelectedDriveLetter GENAU JETZT (nach dem
-                // Zurücksetzen von _startupPhase oben) liefert daher immer den tatsächlich
-                // aktuellen Stick, egal ob er schon vor dem Check da war oder währenddessen dazukam.
-                string driveToScan = SelectedDriveLetter;
-                if (!string.IsNullOrEmpty(driveToScan))
-                    _ = Task.Run(async () =>
-                    {
-                        _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
-                        var (si, incomplete) = await _usb.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
-                        _ui.Invoke(() =>
-                        {
-                            UsbScanActive = false; UsbScanPercent = 100;
-                            RecordHistory($"💾 Stick-Prüfung {driveToScan} abgeschlossen ({si.Count} ISO(s) erkannt).");
-                            // Start-Scan HAT Versionscheck-Kontext → oldFn aus den Update-Ergebnissen (oben berechnet).
-                            ProcessStickScanResults(si, incomplete, oldFn, driveToScan);
-                        });
-                    });
-            };
-            _ = worker.RunAsync();
+            });
         }
 
         private void OnDownload() { }
@@ -1162,18 +1183,27 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
-                // BUGFIX: siehe TriggerAutoVersionCheck — genau hier lief der Gesundheitscheck bei
-                // frisch importierten Distros ohne URL zwar erfolgreich auf, ohne dass die
-                // gefundene Quelle je gespeichert wurde (kein "Update" im Sinne der bisherigen
-                // Bedingung, da Version = Version). Der nächste Start musste die komplette,
-                // fehleranfällige Auflösungskette (Websuche/DistroWatch/SourceForge) jedes Mal neu
-                // durchlaufen, statt die einmal gefundene URL wiederzuverwenden.
-                if (updates.Count > 0 || worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries();
                 int failed = results.Count(r => !r.Resolved);
                 HealthCheckActive = false; HealthCheckPercent = 100;
                 StatusText = failed == 0 ? $"🩺 Alle {results.Count} Distros online erreichbar." : $"🩺 {failed}/{results.Count} nicht erreichbar.";
                 Log($"🩺 {StatusText}");
+                // BUGFIX: HealthCheckCompleted (öffnet DbHealthCheckDialog MODAL) muss VOR
+                // ApplyResolvedUpdatesAndOfferStickUpdate feuern — die Methode stößt einen
+                // Hintergrund-Stick-Rescan an, dessen "Jetzt aktualisieren?"-Meldung sonst während
+                // der noch offene Gesundheitscheck-Dialog erscheinen und sich mit ihm überlagern
+                // konnte (WPFs verschachtelte Message-Pump verarbeitet den _ui.Invoke des Rescans
+                // bereits während ShowDialog() läuft). Erst NACH dem Schließen des Dialogs starten.
                 HealthCheckCompleted?.Invoke(results);
+                // BUGFIX: RunHealthCheck löste zwar dieselben Remote-Versionen wie
+                // TriggerAutoVersionCheck auf (zeigte ein gefundenes Update bereits als "Update
+                // verfügbar" im Hauptfenster), bot es aber nie sofort zum Aktualisieren auf dem
+                // Stick an — erst der nächste App-Start (der intern TriggerAutoVersionCheck erneut
+                // ausführt) tat das. Jetzt teilen sich beide Pfade dieselbe Übernahme-/Angebot-Logik
+                // (siehe ApplyResolvedUpdatesAndOfferStickUpdate — deckt auch den Fall ab, dass KEIN
+                // Versions-Update vorliegt, aber für einen zuvor URL-losen Eintrag erstmals eine
+                // Quelle gefunden wurde: dann nur speichern + aktualisieren, kein Stick-Angebot).
+                if (updates.Count > 0) ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered);
+                else { if (worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries(); }
             });
             _ = worker.RunAsync();
         }
