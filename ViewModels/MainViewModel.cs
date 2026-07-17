@@ -622,17 +622,18 @@ namespace ULM.ViewModels
         /// ist — dadurch feuerte "veraltet", obwohl der Stick bereits aktuell war (alte Datei nie
         /// gelöscht). Reine Funktion, keine Seiteneffekte — testbar ohne DB/Stick-Zugriff.
         /// </summary>
-        internal static (List<IsoEntry> TrulyOutdated, List<(IsoEntry Entry, string OldFilename)> StaleDuplicates)
+        internal static (List<(IsoEntry Entry, string OldFilename)> TrulyOutdated,
+                          List<(IsoEntry Entry, string OldFilename)> StaleDuplicates)
             SplitOutdatedFromDuplicates(Dictionary<string, int> oldFn, IReadOnlyList<IsoEntry> entries, HashSet<string> stickFilenames)
         {
-            var outdated   = new List<IsoEntry>();
+            var outdated   = new List<(IsoEntry, string)>();
             var duplicates = new List<(IsoEntry, string)>();
             foreach (var kvp in oldFn)
             {
                 if (!stickFilenames.Contains(kvp.Key)) continue; // alter Name nicht (mehr) auf dem Stick
                 var e = entries[kvp.Value];
                 if (stickFilenames.Contains(e.Filename)) duplicates.Add((e, kvp.Key)); // neuer Name AUCH da
-                else                                     outdated.Add(e);              // neuer Name fehlt
+                else                                     outdated.Add((e, kvp.Key));   // neuer Name fehlt
             }
             return (outdated, duplicates);
         }
@@ -764,7 +765,7 @@ namespace ULM.ViewModels
                                 foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
                                 IncompleteIsosOnStickDetected?.Invoke(incomplete, driveToScan);
                             }
-                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var e in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od, driveToScan); }
+                            if (od.Count > 0) { Log($"💾 {od.Count} veraltete ISO(s) auf {driveToScan}."); foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}"); StickUpdateAvailable?.Invoke(od.Select(x => x.Entry).ToList(), driveToScan); }
                             else if (duplicates.Count == 0 && si.Count > 0) Log($"✅ Alle ISOs auf {driveToScan} aktuell.");
                             if (duplicates.Count > 0)
                             {
@@ -772,7 +773,7 @@ namespace ULM.ViewModels
                                 foreach (var (e, oldFilename) in duplicates) Log($"   🗑 {e.Name}: {oldFilename}");
                                 StaleDuplicatesOnStickDetected?.Invoke(duplicates, driveToScan);
                             }
-                            var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !od.Contains(e)).ToList();
+                            var missing = GetVerifiedCompleteEntriesMissingFromStick().Where(e => !od.Any(x => x.Entry == e)).ToList();
                             if (missing.Count > 0) MissingOnStickDetected?.Invoke(missing, driveToScan);
                         });
                     });
