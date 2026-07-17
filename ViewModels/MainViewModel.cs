@@ -118,6 +118,25 @@ namespace ULM.ViewModels
         private bool _showInfoPopup = true;
         public  bool ShowInfoPopup { get => _showInfoPopup; set => SetField(ref _showInfoPopup, value); }
 
+        // Selbst-Update-Banner: nur sichtbar, wenn CheckForUlmUpdateAsync eine neuere Programmversion
+        // gefunden hat (SetAvailableUpdate wird vom MainWindow nur dann aufgerufen).
+        private UlmUpdateInfo? _availableUpdate;
+        public UlmUpdateInfo? AvailableUpdate => _availableUpdate;
+        private bool _updateBannerVisible;
+        public bool UpdateBannerVisible { get => _updateBannerVisible; private set => SetField(ref _updateBannerVisible, value); }
+        private string _updateBannerText = string.Empty;
+        public string UpdateBannerText { get => _updateBannerText; private set => SetField(ref _updateBannerText, value); }
+
+        // Vom MainWindow nach erfolgreichem Update-Check aufgerufen — macht das Banner sichtbar.
+        public void SetAvailableUpdate(UlmUpdateInfo info)
+        {
+            _availableUpdate = info;
+            UpdateBannerText = $"🆕 Neue Version verfügbar: v{info.LatestVersion} (installiert: v{Constants.AppVersion})";
+            UpdateBannerVisible = true;
+        }
+        // Blendet das Banner nur für die laufende Sitzung aus (kein persistenter Zustand).
+        public void DismissUpdateBanner() => UpdateBannerVisible = false;
+
         private string _gitHubToken = string.Empty;
         // Optional — hebt nur das API-Limit für GitHub-basierte Resolver/Ventoy-Update-Check von
         // 60 auf 5000 Anfragen/Std an (siehe HttpService.GitHubToken). Ohne Token funktioniert alles

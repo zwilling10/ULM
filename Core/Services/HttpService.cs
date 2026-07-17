@@ -15,6 +15,16 @@ using ULM.Infrastructure;
 
 namespace ULM.Core.Services
 {
+    // Ergebnis der ULM-Selbst-Update-Prüfung: ob eine neuere Version existiert, welche, die
+    // Release-Seite (Fallback) sowie die direkten Download-URLs für portable EXE und Setup-Installer
+    // (leer, wenn das jeweilige Asset im Release fehlt).
+    public sealed record UlmUpdateInfo(
+        bool HasUpdate, string LatestVersion, string ReleaseUrl,
+        string PortableExeUrl, string SetupExeUrl)
+    {
+        public static readonly UlmUpdateInfo None = new(false, string.Empty, string.Empty, string.Empty, string.Empty);
+    }
+
     public sealed class HttpService
     {
         private static readonly Lazy<HttpService> _lazy = new(() => new HttpService());
@@ -264,7 +274,7 @@ namespace ULM.Core.Services
             return (portable, setup);
         }
 
-        public async Task<(bool HasUpdate, string LatestVersion, string ReleaseUrl)> CheckForUlmUpdateAsync(string currentVersion, string repo = "zwilling10/ULM")
+        public async Task<UlmUpdateInfo> CheckForUlmUpdateAsync(string currentVersion, string repo = "zwilling10/ULM")
         {
             try
             {
@@ -274,16 +284,26 @@ namespace ULM.Core.Services
                 AddGitHubAuthHeader(req);
                 using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 using var resp = await _client.SendAsync(req, cts.Token).ConfigureAwait(false);
-                if (!resp.IsSuccessStatusCode) return (false, string.Empty, string.Empty);
+                if (!resp.IsSuccessStatusCode) return UlmUpdateInfo.None;
                 string json = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                 using var doc = JsonDocument.Parse(json);
                 string tag = doc.RootElement.TryGetProperty("tag_name", out var t) ? t.GetString() ?? string.Empty : string.Empty;
                 string url = doc.RootElement.TryGetProperty("html_url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
                 string latest = tag.TrimStart('v', 'V');
-                if (string.IsNullOrWhiteSpace(latest)) return (false, string.Empty, string.Empty);
-                return (IsVersionNewer(latest, currentVersion), latest, url);
+                if (string.IsNullOrWhiteSpace(latest)) return UlmUpdateInfo.None;
+
+                var assetList = new List<(string, string)>();
+                if (doc.RootElement.TryGetProperty("assets", out var assets))
+                    foreach (var a in assets.EnumerateArray())
+                    {
+                        string n  = a.TryGetProperty("name", out var nn) ? nn.GetString() ?? string.Empty : string.Empty;
+                        string au = a.TryGetProperty("browser_download_url", out var uu) ? uu.GetString() ?? string.Empty : string.Empty;
+                        assetList.Add((n, au));
+                    }
+                var (portable, setup) = MatchUlmReleaseAssets(assetList);
+                return new UlmUpdateInfo(IsVersionNewer(latest, currentVersion), latest, url, portable, setup);
             }
-            catch (Exception ex) { Debug.WriteLine($"[UlmUpdateCheck] {ex.Message}"); return (false, string.Empty, string.Empty); }
+            catch (Exception ex) { Debug.WriteLine($"[UlmUpdateCheck] {ex.Message}"); return UlmUpdateInfo.None; }
         }
 
         public static string ExtractVersion(string text)

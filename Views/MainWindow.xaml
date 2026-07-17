@@ -117,6 +117,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="64"/>
+            <RowDefinition Height="Auto"/>   <!-- Update-Banner -->
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -280,8 +281,29 @@
             </Grid>
         </Border>
 
+        <!-- ── Update-Banner (nur sichtbar, wenn eine neuere Programmversion verfügbar ist) ── -->
+        <Border Grid.Row="1" Background="#1E4620" Padding="14,8"
+                Visibility="{Binding UpdateBannerVisible, Converter={StaticResource BoolToVis}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding UpdateBannerText}"
+                           Foreground="White" FontWeight="SemiBold" FontSize="12.5"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1" x:Name="BtnUpdateDownload" Content="⬇ Herunterladen …"
+                        Style="{DynamicResource BtnSuccess}" Margin="0,0,8,0"
+                        Click="BtnUpdateDownload_Click"/>
+                <Button Grid.Column="2" x:Name="BtnUpdateDismiss" Content="Ausblenden"
+                        Style="{DynamicResource BtnGhost}" Foreground="White" BorderBrush="#4A6785"
+                        Click="BtnUpdateDismiss_Click"/>
+            </Grid>
+        </Border>
+
         <!-- ── Toolbar: Laufwerk / Ventoy ─────────────────────────────── -->
-        <Border Grid.Row="1" Background="{DynamicResource BrushWhite}"
+        <Border Grid.Row="2" Background="{DynamicResource BrushWhite}"
                 BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,0,0,1">
             <Grid Margin="18,10">
                 <Grid.ColumnDefinitions>
@@ -329,7 +351,7 @@
         </Border>
 
         <!-- ── Haupt-Inhalt ────────────────────────────────────────────── -->
-        <TabControl Grid.Row="2" x:Name="MainTabs" Margin="0">
+        <TabControl Grid.Row="3" x:Name="MainTabs" Margin="0">
 
             <TabItem Header="ISO-Auswahl">
                 <Grid>
@@ -515,7 +537,7 @@
         </TabControl>
 
         <!-- ── Aktions-Leiste ──────────────────────────────────────────── -->
-        <Border Grid.Row="3" Background="{DynamicResource BrushWhite}"
+        <Border Grid.Row="4" Background="{DynamicResource BrushWhite}"
                 BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,1,0,0">
             <Grid Margin="12,8">
                 <Grid.RowDefinitions>
@@ -585,7 +607,7 @@
         </Border>
 
         <!-- ── Statusleiste ────────────────────────────────────────────── -->
-        <Border Grid.Row="4" Background="{DynamicResource BrushCard}"
+        <Border Grid.Row="5" Background="{DynamicResource BrushCard}"
                 BorderBrush="{DynamicResource BrushBorder}" BorderThickness="0,1,0,0">
             <Grid Margin="12,0">
                 <Grid.ColumnDefinitions>
