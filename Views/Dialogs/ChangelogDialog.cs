@@ -18,6 +18,12 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.36.0", new[]
+            {
+                "Neu: Button „🔧 Quelle manuell suchen/eintragen“ pro Distro-Zeile — erscheint nur noch als Sicherheitsnetz für echte Härtefälle, bei denen die automatische Quellensuche wiederholt erfolglos bleibt. Öffnet ein Fenster mit den bekannten Bearbeiten-Feldern plus Suchfunktion: findet ULM selbst nichts, öffnet ein Klick auf „Suchen“ stattdessen direkt eine vorausgefüllte Browser-Suche.",
+                "Fehlerbehebung: „URLs prüfen“ fand für Einträge ohne bekannte Quelle (z.B. per „ISO suchen“ hinzugefügt) nie automatisch eine Quelle und meldete sie immer als nicht erreichbar — nutzt jetzt dieselbe Selbstlern-Auflösung wie Updates-Prüfung und Download.",
+                "Fehlerbehebung: Hiren's BootCD PE wurde bei jedem Check fälschlich als „Update verfügbar“ gemeldet, obwohl sich nichts geändert hatte; ULM liest die tatsächliche Version jetzt von der Hiren's-Downloadseite, statt eine feste Versionsnummer anzunehmen.",
+            }),
             ("2.35.1", new[]
             {
                 "Fehlerbehebung: Findet ULM ein neueres Update (z.B. direkt nach dem Übernehmen einer vom Stick importierten ISO oder beim Gesundheitscheck), wird es jetzt sofort zum Aktualisieren angeboten — vorher erschien es zunächst nur als „Update verfügbar“ in der Liste, die eigentliche Frage kam erst beim nächsten Programmstart.",
