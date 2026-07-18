@@ -245,7 +245,14 @@ foreach ($v in $vols) {
                 w.WriteEndObject();
 
                 w.WritePropertyName("control"); w.WriteStartArray();
-                WCtrl(w, "VTOY_MENU_TIMEOUT", "0"); WCtrl(w, "VTOY_DEFAULT_MENU_MODE", "1"); WCtrl(w, "VTOY_TREE_VIEW_MENU_STYLE", "0");
+                // VTOY_MENU_TIMEOUT bewusst NICHT gesetzt: ein gesetzter Wert (auch "0") lässt
+                // Ventoy den aktuell fokussierten Menüeintrag automatisch nach X Sekunden booten.
+                // Im TreeView-Modus (VTOY_DEFAULT_MENU_MODE=1) ist der oberste Eintrag beim
+                // Start aber ein Kategorie-Ordner (z.B. "[Antivirus]"), kein bootbares Image —
+                // GRUB versuchte diesen automatisch zu booten und scheiterte mit "Failed to boot
+                // both default and fallback entries. Press any key to continue.....". Ohne den
+                // Key wartet Ventoy wie gewollt auf eine echte Nutzerauswahl.
+                WCtrl(w, "VTOY_DEFAULT_MENU_MODE", "1"); WCtrl(w, "VTOY_TREE_VIEW_MENU_STYLE", "0");
                 // ULM legt ISOs ausschließlich direkt unter der Stick-Wurzel oder genau einen
                 // Kategorie-Ordner tief ab (siehe MoveToCategoryFolder/CopyToUsbWorker) — Level 1
                 // deckt das vollständig ab. Ventoys Standard ("max") durchsucht rekursiv beliebig
