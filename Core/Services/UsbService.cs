@@ -147,34 +147,41 @@ foreach ($v in $vols) {
             {
                 string themeDir = Path.Combine(DriveRoot(letter), "ventoy", "themes", "ulm");
                 Directory.CreateDirectory(themeDir);
-                WriteThemeTxt(themeDir);
-                WriteBackgroundPng(themeDir);
                 UpdateVentoyMenu(letter, Array.Empty<IsoEntry>());
             }
             catch (Exception ex) { Debug.WriteLine($"[EnsureVentoyTheme] {ex.Message}"); }
         }
 
         // Vertikale Aufteilung (0-100% der Bildschirmhöhe), so gewählt, dass sich Titel,
-        // Boot-Menü, Distro-Tipp (menu_tip, siehe UpdateVentoyMenu) und die Tasten-Hinweiszeile
-        // NICHT überlappen — mit durchgehend mind. ~3% Sicherheitsabstand zwischen den Blöcken:
-        //   Titel        2.0% – 6.5%
-        //   Boot-Menü   10.0% – 78.0%
-        //   Distro-Tipp 81.0% (einzeilig, siehe ventoy_left/ventoy_top in UpdateVentoyMenu)
-        //   Tasten-Hinweis 94%
-        private static void WriteThemeTxt(string dir)
+        // Untertitel, Boot-Menü, Distro-Tipp (menu_tip, siehe UpdateVentoyMenu), Tasten-Hinweis
+        // und Ventoys eigene native Disk-Info-Zeile (ventoy_left/ventoy_top, siehe UpdateVentoyMenu)
+        // NICHT überlappen:
+        //   Titel + Untertitel  2.0% – 9.0%  (ein zusammengehöriger Kopf-Block, kein Abstand
+        //                                     zwischen den beiden Zeilen nötig)
+        //   Boot-Menü          10.0% – 78.0%
+        //   Distro-Tipp         81.0% (einzeilig)
+        //   Tasten-Hinweis      88.0% (einzeilig) — BUGFIX: lag vorher bei 94%, nur 1% von
+        //                                           Ventoys nativer Status-Zeile entfernt und
+        //                                           überlappte sich sichtbar mit ihr
+        //   Ventoy-Status       95.0% (Ventoy-eigene Zeile, siehe ventoy_top in UpdateVentoyMenu)
+        private static void WriteThemeTxt(string dir, string letter, double totalMb, double freeMb, int isoCount)
         {
-            const string c =
+            string subtitle = $"Multiboot USB Stick Manager  v{Constants.AppVersion}   |   " +
+                $"{letter}:  {totalMb / 1024.0:F1} GB gesamt  |  {freeMb / 1024.0:F1} GB frei  |  {isoCount} ISOs";
+            string c =
                 "# Universal Linux Manager Boot-Theme\n" +
                 "desktop-image: \"background.png\"\n" +
                 "desktop-color: \"#0D1B2A\"\n" +
                 "\n+ label {\n  top=2%\n  left=0%\n  width=100%\n  height=48\n  align=\"center\"\n" +
                 "  text=\"UNIVERSAL LINUX MANAGER\"\n  color=\"#FFFFFF\"\n}\n" +
+                "\n+ label {\n  top=6.5%\n  left=0%\n  width=100%\n  height=26\n  align=\"center\"\n" +
+                $"  text=\"{subtitle}\"\n  color=\"#4A6FA5\"\n}}\n" +
                 "\n+ boot_menu {\n  left=10%\n  top=10%\n  width=80%\n  height=68%\n" +
                 "  item_color=\"#C8D4E0\"\n  selected_item_color=\"#FFFFFF\"\n" +
                 "  item_height=42\n  item_padding=16\n  item_spacing=6\n" +
                 "  scrollbar=true\n  scrollbar_width=6\n" +
                 "  scrollbar_thumb_color=\"#0075BE\"\n  scrollbar_frame_color=\"#1A3355\"\n}\n" +
-                "\n+ label {\n  top=94%\n  left=0%\n  width=100%\n  height=22\n  align=\"center\"\n" +
+                "\n+ label {\n  top=88%\n  left=0%\n  width=100%\n  height=22\n  align=\"center\"\n" +
                 "  text=\"Auf/Ab: Auswahl  |  ENTER: Booten  |  Esc: Zurueck\"\n  color=\"#4A6FA5\"\n}\n";
             File.WriteAllText(Path.Combine(dir, "theme.txt"), c, Encoding.UTF8);
         }
@@ -198,7 +205,6 @@ foreach ($v in $vols) {
                 string ventoyDir = Path.Combine(root, "ventoy");
                 Directory.CreateDirectory(ventoyDir);
                 string themeDir = Path.Combine(ventoyDir, "themes", "ulm");
-                if (Directory.Exists(themeDir)) WriteBackgroundPng(themeDir);
 
                 var stickIsos = new List<(string VentoyPath, string Filename, string Category)>();
                 if (Directory.Exists(root))
@@ -214,6 +220,12 @@ foreach ($v in $vols) {
                     }
                     foreach (string iso in Directory.GetFiles(root, "*.iso").OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                     { string fn = Path.GetFileName(iso); stickIsos.Add(($"/{fn}", fn, string.Empty)); }
+                }
+
+                if (Directory.Exists(themeDir))
+                {
+                    WriteBackgroundPng(themeDir);
+                    WriteThemeTxt(themeDir, letter, DriveTotalMb(letter), DriveFreeMb(letter), stickIsos.Count);
                 }
 
                 var byFn = new Dictionary<string, IsoEntry>(StringComparer.OrdinalIgnoreCase);
