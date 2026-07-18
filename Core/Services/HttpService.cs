@@ -403,6 +403,42 @@ namespace ULM.Core.Services
         internal static string NormalizeForMatch(string s) =>
             Regex.Replace((s ?? string.Empty).ToLowerInvariant(), "[^a-z0-9]+", string.Empty);
 
+        /// <summary>
+        /// Prüft rein namens-/konfigurationsbasiert (kein Netzwerkzugriff), ob für diesen Eintrag
+        /// ein dedizierter Resolver zuständig wäre — unabhängig davon, ob dessen Aufruf gerade
+        /// erfolgreich ist. Bildet exakt dieselben Bedingungen ab wie die else-if-Kette in
+        /// ResolveLatestAsync, damit ein transienter Netzwerk-Fehlschlag bei einer fest
+        /// unterstützten Distro (z.B. Ubuntu) nicht denselben "Härtefall"-Zähler erhöht wie eine
+        /// Distro ganz ohne automatische Auflösungsmöglichkeit (z.B. Shadowfetch).
+        /// </summary>
+        internal static bool HasDedicatedResolver(IsoEntry entry)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.GithubRepo)) return true;
+            string nl = NormalizeForMatch(entry.Name);
+            string fl = NormalizeForMatch(entry.Filename);
+            string rawFl = entry.Filename.ToLowerInvariant();
+            return nl.Contains("gamepack") || nl.Contains("lubuntu") || nl.Contains("ubuntu")
+                || nl.Contains("linuxmint") || fl.Contains("linuxmint") || nl.Contains("debian")
+                || nl.Contains("tails") || nl.Contains("fedora") || nl.Contains("ultramarine")
+                || nl.Contains("parrot") || nl.Contains("zorin") || nl.Contains("popos")
+                || nl.Contains("manjaro") || nl.Contains("mxlinux") || rawFl.StartsWith("mx-")
+                || nl.Contains("nobara") || nl.Contains("hiren") || nl.Contains("drweb")
+                || nl.Contains("finnix") || nl.Contains("cachyos") || nl.Contains("endeavour")
+                || nl.Contains("systemrescue") || nl.Contains("gparted") || nl.Contains("clonezilla")
+                || nl.Contains("kodachi");
+        }
+
+        /// <summary>
+        /// Pflegt IsoEntry.FailedResolveStreak nach einem Auflösungsversuch: Erfolg setzt IMMER
+        /// zurück auf 0 (gleich über welchen Pfad gefunden), ein Fehlschlag zählt nur hoch, wenn
+        /// KEIN dedizierter Resolver zuständig wäre — siehe HasDedicatedResolver.
+        /// </summary>
+        internal static void ApplyResolveOutcome(IsoEntry entry, bool succeeded)
+        {
+            if (succeeded) { entry.FailedResolveStreak = 0; return; }
+            if (!HasDedicatedResolver(entry)) entry.FailedResolveStreak++;
+        }
+
         public async Task<(string Version, string Url, string Filename)> ResolveLatestAsync(IsoEntry entry)
         {
             if (entry is null) return Empty;
@@ -455,7 +491,11 @@ namespace ULM.Core.Services
                 // ResolveGenericAsync automatisch auf die funktionierende GitHub-Auflösung zurück.
                 else if (nl.Contains("kodachi"))        result = await ResolveKodachiAsync().ConfigureAwait(false);
             }
-            if (result != Empty) return result;
+            if (result != Empty)
+            {
+                ApplyResolveOutcome(entry, succeeded: true);
+                return result;
+            }
 
             var generic = await ResolveGenericAsync(entry).ConfigureAwait(false);
             // Kein dedizierter Resolver hat gegriffen — typischerweise ein manuell hinzugefügter
@@ -467,6 +507,7 @@ namespace ULM.Core.Services
             // Verzeichnis-Auflistung nutzt (wie jeder dedizierte Resolver es täte, nur generisch).
             if (generic != Empty && string.IsNullOrWhiteSpace(entry.Url) && string.IsNullOrWhiteSpace(entry.GithubRepo))
                 entry.Url = generic.Item2;
+            ApplyResolveOutcome(entry, succeeded: generic != Empty);
             return generic;
         }
 

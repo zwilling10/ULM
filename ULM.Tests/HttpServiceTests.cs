@@ -1,3 +1,4 @@
+using ULM.Core.Models;
 using ULM.Core.Services;
 using Xunit;
 
@@ -103,6 +104,60 @@ public class HttpServiceNormalizeForMatchTests
         };
         foreach (string v in variants)
             Assert.Contains("popos", HttpService.NormalizeForMatch(v));
+    }
+}
+
+public class HttpServiceHasDedicatedResolverTests
+{
+    [Theory]
+    [InlineData("Ubuntu 26.04 Desktop", "")]
+    [InlineData("Linux Mint 22.3 Cinnamon", "")]
+    [InlineData("Fedora Workstation", "")]
+    [InlineData("Linux Kodachi", "")]
+    [InlineData("Rescuezilla", "rescuezilla/rescuezilla")] // dediziert über GithubRepo, nicht Namen
+    public void HasDedicatedResolver_ReturnsTrue_ForKnownDistros(string name, string githubRepo)
+    {
+        var entry = new IsoEntry { Name = name, GithubRepo = githubRepo };
+        Assert.True(HttpService.HasDedicatedResolver(entry));
+    }
+
+    [Theory]
+    // Regression: genau der Fall aus der Spec — eine Distro ohne jeden dedizierten Resolver.
+    [InlineData("Shadowfetch Linux")]
+    [InlineData("Irgendeine Ganz Neue Distro")]
+    public void HasDedicatedResolver_ReturnsFalse_ForUnknownDistros(string name)
+    {
+        var entry = new IsoEntry { Name = name };
+        Assert.False(HttpService.HasDedicatedResolver(entry));
+    }
+}
+
+public class HttpServiceApplyResolveOutcomeTests
+{
+    [Fact]
+    public void ApplyResolveOutcome_Success_ResetsStreakToZero()
+    {
+        var entry = new IsoEntry { Name = "Shadowfetch Linux", FailedResolveStreak = 2 };
+        HttpService.ApplyResolveOutcome(entry, succeeded: true);
+        Assert.Equal(0, entry.FailedResolveStreak);
+    }
+
+    [Fact]
+    public void ApplyResolveOutcome_FailureWithoutDedicatedResolver_IncrementsStreak()
+    {
+        var entry = new IsoEntry { Name = "Shadowfetch Linux", FailedResolveStreak = 2 };
+        HttpService.ApplyResolveOutcome(entry, succeeded: false);
+        Assert.Equal(3, entry.FailedResolveStreak);
+    }
+
+    [Fact]
+    public void ApplyResolveOutcome_FailureWithDedicatedResolver_DoesNotIncrementStreak()
+    {
+        // Regression: ein transienter Netzwerk-Hänger bei einer fest unterstützten Distro (Ubuntu)
+        // darf NICHT als "Härtefall" gezählt werden — dafür existiert ein funktionierender Resolver.
+        var entry = new IsoEntry { Name = "Ubuntu 26.04 Desktop", FailedResolveStreak = 0 };
+        HttpService.ApplyResolveOutcome(entry, succeeded: false);
+        Assert.Equal(0, entry.FailedResolveStreak);
     }
 }
 
