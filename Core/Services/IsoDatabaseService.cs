@@ -97,6 +97,7 @@ namespace ULM.Core.Services
                     Sha256       = d.GetValueOrDefault("Sha256",       string.Empty),
                     Sha256Source = d.GetValueOrDefault("Sha256Source", string.Empty),
                     ExpectedSizeBytes = long.TryParse(d.GetValueOrDefault("ExpectedSizeBytes", "0"), out long esb) ? esb : 0L,
+                    FailedResolveStreak = int.TryParse(d.GetValueOrDefault("FailedResolveStreak", "0"), out int frs) ? frs : 0,
                 });
             }
 
@@ -145,6 +146,7 @@ namespace ULM.Core.Services
                 sb.AppendLine($"Sha256      = {e.Sha256}");
                 sb.AppendLine($"Sha256Source = {e.Sha256Source}");
                 sb.AppendLine($"ExpectedSizeBytes = {e.ExpectedSizeBytes}");
+                sb.AppendLine($"FailedResolveStreak = {e.FailedResolveStreak}");
                 sb.AppendLine();
             }
 

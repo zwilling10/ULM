@@ -57,6 +57,15 @@ namespace ULM.Core.Models
         public string    DownloadStatus    { get; set; } = string.Empty;
         public bool      ImportedFromStick { get; set; }
 
+        // Zählt aufeinanderfolgende Fehlschläge der automatischen Selbstlern-Auflösung
+        // (HttpService.ResolveLatestAsync) für Einträge OHNE dedizierten Resolver — treibt die
+        // Sichtbarkeit des "Quelle manuell suchen/eintragen"-Buttons in der Hauptliste (nur ab
+        // Constants.ManualSearchFailureThreshold sichtbar). Jeder Erfolg (gleich über welchen
+        // Auflösungspfad) setzt den Zähler zurück auf 0 — der Button soll nur bei einer
+        // ZUSAMMENHÄNGENDEN Fehlschlagsserie erscheinen, nicht kumulativ über die gesamte
+        // Lebenszeit des Eintrags. Siehe docs/superpowers/specs/2026-07-18-manual-search-hardcase-design.md.
+        public int FailedResolveStreak { get; set; }
+
         // Laufzeit-Ergebnis der letzten Integritätsprüfung (DetectVersionlessHashMismatchesAsync /
         // VerifyStickIntegrityAsync in dieser Sitzung) — treibt das Hash-Status-Symbol in der
         // Hauptliste (IsoEntryViewModel.HashStatusBrush). Bewusst NICHT persistent: nur ein aktueller

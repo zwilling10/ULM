@@ -73,6 +73,42 @@ public class IsoDatabaseServiceRoundTripTests
         }
     }
 
+    [Fact]
+    public void SaveThenLoad_PreservesFailedResolveStreak()
+    {
+        AppPaths paths = AppPaths.Instance;
+        IsoDatabaseService db = IsoDatabaseService.Instance;
+
+        string originalBase = paths.BaseDirectory;
+        var originalEntries = db.Entries.ToList();
+        string tempDir = Path.Combine(Path.GetTempPath(), $"ulm-db-streak-{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            paths.SetPaths(tempDir);
+
+            while (db.Count > 0) db.Remove(0);
+
+            var entry = new IsoEntry { Name = "Streak-Test-Distro", FailedResolveStreak = 2 };
+            db.Add(entry);
+            db.Save();
+
+            db.Load();
+
+            IsoEntry? reloaded = db.Entries.SingleOrDefault(e => e.Name == "Streak-Test-Distro");
+            Assert.NotNull(reloaded);
+            Assert.Equal(2, reloaded!.FailedResolveStreak);
+        }
+        finally
+        {
+            while (db.Count > 0) db.Remove(0);
+            foreach (var e in originalEntries) db.Add(e);
+            paths.SetPaths(originalBase);
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* Best-effort Cleanup */ }
+        }
+    }
+
     /// <summary>
     /// Regression: ein Programmabsturz/-Neustart MITTEN in einem laufenden Download hinterließ
     /// bisher keine gespeicherte Ziel-Größe — der reguläre Save() läuft erst, nachdem der GESAMTE
@@ -160,6 +196,48 @@ public class IsoDatabaseServiceRoundTripTests
             Assert.NotNull(loaded);
             Assert.Equal(string.Empty, loaded!.Sha256);
             Assert.Equal(string.Empty, loaded.Sha256Source);
+        }
+        finally
+        {
+            while (db.Count > 0) db.Remove(0);
+            foreach (var e in originalEntries) db.Add(e);
+            paths.SetPaths(originalBase);
+            try { Directory.Delete(tempDir, recursive: true); } catch { /* Best-effort Cleanup */ }
+        }
+    }
+
+    [Fact]
+    public void LoadFromIni_MissingFailedResolveStreakKey_DefaultsToZero_BackwardCompatibleWithOldDatabases()
+    {
+        AppPaths paths = AppPaths.Instance;
+        IsoDatabaseService db = IsoDatabaseService.Instance;
+
+        string originalBase = paths.BaseDirectory;
+        var originalEntries = db.Entries.ToList();
+        string tempDir = Path.Combine(Path.GetTempPath(), $"ulm-db-streak-oldformat-{Guid.NewGuid():N}");
+
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            paths.SetPaths(tempDir);
+
+            // Simuliert eine ALTE ulm_isos.ini ohne den FailedResolveStreak-Key (vor diesem Fix).
+            string oldFormatIni =
+                "[General]\r\n" +
+                "Count = 1\r\n" +
+                "\r\n" +
+                "[ISO_0]\r\n" +
+                "Name        = Alte Distro Ohne Streak\r\n" +
+                "Category    = Einsteiger\r\n" +
+                "URL         = \r\n" +
+                "Filename    = alte-distro.iso\r\n";
+            File.WriteAllText(paths.DatabaseIni, oldFormatIni);
+
+            db.Load();
+
+            IsoEntry? loaded = db.Entries.SingleOrDefault(e => e.Name == "Alte Distro Ohne Streak");
+            Assert.NotNull(loaded);
+            Assert.Equal(0, loaded!.FailedResolveStreak);
         }
         finally
         {
