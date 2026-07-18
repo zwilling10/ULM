@@ -687,7 +687,7 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
-                ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered);
+                ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered || worker.AnyStreakChanged);
                 // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
                 // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
                 // nachdem der Scan fertig ist; wird erst beim Start des NÄCHSTEN Scans geleert.
@@ -1137,7 +1137,7 @@ namespace ULM.ViewModels
             {
                 // BUGFIX: siehe TriggerAutoVersionCheck — auch ohne echtes Update speichern, wenn
                 // eine zuvor fehlende Download-Quelle neu gefunden wurde.
-                SetBusy(false); if (updates.Count > 0 || worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries();
+                SetBusy(false); if (updates.Count > 0 || worker.AnyUrlDiscovered || worker.AnyStreakChanged) _db.Save(); RefreshAllEntries();
                 StatusText = updates.Count > 0 ? $"🆕 {updates.Count} Update(s)."
                            : resolved > 0      ? "Alles aktuell." : "Keine lokalen ISOs.";
                 ProgressPercent = 100; Log($"🔄 {StatusText}");
@@ -1161,7 +1161,7 @@ namespace ULM.ViewModels
                 // BUGFIX: neu entdeckte Quellen (siehe UrlCheckWorker.AnyUrlDiscovered) gingen bisher
                 // ohne Save beim nächsten Start wieder verloren — der teure Auflösungsweg
                 // (DistroWatch-Suche/Websuche) hätte bei jedem künftigen Check neu durchlaufen müssen.
-                if (worker.AnyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
+                if (worker.AnyUrlDiscovered || worker.AnyStreakChanged) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
                 SetBusy(false); RefreshAllEntries();
                 int ok  = _db.Entries.Count(e => e.UrlOk);
                 int nok = _db.Entries.Count(e => e.UrlChecked && !e.UrlOk);
@@ -1220,8 +1220,8 @@ namespace ULM.ViewModels
                 // (siehe ApplyResolvedUpdatesAndOfferStickUpdate — deckt auch den Fall ab, dass KEIN
                 // Versions-Update vorliegt, aber für einen zuvor URL-losen Eintrag erstmals eine
                 // Quelle gefunden wurde: dann nur speichern + aktualisieren, kein Stick-Angebot).
-                if (updates.Count > 0) ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered);
-                else { if (worker.AnyUrlDiscovered) _db.Save(); RefreshAllEntries(); }
+                if (updates.Count > 0) ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered || worker.AnyStreakChanged);
+                else { if (worker.AnyUrlDiscovered || worker.AnyStreakChanged) _db.Save(); RefreshAllEntries(); }
             });
             _ = worker.RunAsync();
         }

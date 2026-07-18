@@ -724,6 +724,14 @@ namespace ULM.Core.Workers
         // gefunden wurde, damit der Aufrufer weiß, ob sich ein DB-Save lohnt.
         public bool AnyUrlDiscovered { get; private set; }
 
+        // Wie AnyUrlDiscovered, aber fuer IsoEntry.FailedResolveStreak: ein reiner Haertefall-
+        // Fehlschlag (resolverlos, kein Fund) aendert weder Url noch UpdateAvailable, wuerde also
+        // ohne dieses Flag NIE gespeichert — der Zaehler ginge bei jedem App-Neustart wieder auf
+        // den zuletzt persistierten (niedrigeren) Wert zurueck und die Schwelle 3 waere ueber
+        // mehrere App-Starts hinweg praktisch unerreichbar. Siehe
+        // docs/superpowers/specs/2026-07-18-manual-search-hardcase-design.md.
+        public bool AnyStreakChanged { get; private set; }
+
         public UrlCheckWorker(IReadOnlyList<IsoEntry> entries) => _entries = entries;
         public void Cancel() => _cts.Cancel();
 
@@ -754,9 +762,11 @@ namespace ULM.Core.Workers
                     if (!ok && !_cts.IsCancellationRequested)
                     {
                         bool urlWasEmpty = string.IsNullOrWhiteSpace(e.Url);
+                        int streakBefore = e.FailedResolveStreak;
                         var (_, resolvedUrl, _) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false);
                         ok = !string.IsNullOrWhiteSpace(resolvedUrl);
                         if (ok && urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;
+                        if (e.FailedResolveStreak != streakBefore) AnyStreakChanged = true;
                     }
 
                     e.UrlOk = ok; e.UrlChecked = true;
@@ -785,6 +795,7 @@ namespace ULM.Core.Workers
         public event Action<int, int>?                Progress;
         public event Action<VersionCheckEntryResult>? EntryChecked;
         public bool AnyUrlDiscovered => _internalWorker.AnyUrlDiscovered;
+        public bool AnyStreakChanged  => _internalWorker.AnyStreakChanged;
         public AutoVersionCheckWorker(IReadOnlyList<IsoEntry> entries, string downloadDir = "")
         {
             _internalWorker = new UpdateScanWorker(entries, string.IsNullOrEmpty(downloadDir) ? AppPaths.Instance.DownloadDir : downloadDir, checkAllEntries: true);
@@ -819,6 +830,10 @@ namespace ULM.Core.Workers
         // eigenes, von "gibt es ein Versions-Update" unabhängiges Signal sichtbar.
         public bool AnyUrlDiscovered { get; private set; }
 
+        // Siehe UrlCheckWorker.AnyStreakChanged fuer die Begruendung — identisches Problem, andere
+        // Aufrufer (TriggerAutoVersionCheck/OnCheckUpdates/RunHealthCheck statt OnCheckUrls).
+        public bool AnyStreakChanged { get; private set; }
+
         public UpdateScanWorker(IReadOnlyList<IsoEntry> entries, string downloadDir, bool checkAllEntries = false)
         { _entries = entries; _downloadDir = downloadDir; _checkAllEntries = checkAllEntries; }
         public void Cancel() => _cts.Cancel();
@@ -848,9 +863,11 @@ namespace ULM.Core.Workers
                 // ganz ohne sichtbaren Fehler (siehe Kommentar dort). Analog zum Fix für DownloadWorker
                 // weiter oben: ein Fehler bei EINEM Eintrag darf den ganzen Batch nicht abwürgen —
                 // einfach als "nicht aufgelöst" behandeln und mit dem nächsten Eintrag weitermachen.
+                int streakBefore = e.FailedResolveStreak;
                 string remoteVer = string.Empty, url = string.Empty, fname = string.Empty;
                 try { (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false); }
                 catch (Exception ex) { Debug.WriteLine($"[UpdateScanWorker] {e.Name}: {ex.GetType().Name}: {ex.Message}"); }
+                if (e.FailedResolveStreak != streakBefore) AnyStreakChanged = true;
                 Progress?.Invoke(++processed, count);
                 bool res = !string.IsNullOrWhiteSpace(remoteVer) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(fname);
                 bool hasUpdate = false;
