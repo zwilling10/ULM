@@ -79,6 +79,43 @@ public class HttpServiceIsUpdateAvailableTests
         => Assert.Equal(expected, HttpService.IsUpdateAvailable(localFilenameOrName, remoteVersion, remoteFileFound));
 }
 
+public class HttpServiceBestLocalVersionSourceTests
+{
+    [Fact]
+    public void BestLocalVersionSource_FilenameHasVersion_PrefersFilename()
+        => Assert.Equal("ubuntu-26.04-desktop-amd64.iso",
+            HttpService.BestLocalVersionSource("ubuntu-26.04-desktop-amd64.iso", "Ubuntu"));
+
+    [Fact]
+    public void BestLocalVersionSource_FilenameHasNoVersion_FallsBackToName()
+    {
+        // Regression: Hiren's BootCD PE liefert vom Resolver einen statischen, versionslosen
+        // Dateinamen ("HBCD_PE_x64.iso") — ExtractVersion davon ist immer leer. Ohne Fallback auf
+        // den Namen (der die Version "v1.0.8" bereits fest im Katalog trägt) meldete
+        // IsUpdateAvailable bei JEDEM Check "Update", obwohl sich nichts geändert hat.
+        string result = HttpService.BestLocalVersionSource("HBCD_PE_x64.iso", "Hiren's BootCD PE x64 v1.0.8");
+        Assert.Equal("Hiren's BootCD PE x64 v1.0.8", result);
+    }
+
+    [Fact]
+    public void BestLocalVersionSource_FilenameEmpty_UsesName()
+        => Assert.Equal("Foo 7.9.1", HttpService.BestLocalVersionSource("", "Foo 7.9.1"));
+
+    [Fact]
+    public void BestLocalVersionSource_BothEmpty_ReturnsEmpty()
+        => Assert.Equal(string.Empty, HttpService.BestLocalVersionSource("", ""));
+
+    [Fact]
+    public void IsUpdateAvailable_StaticVersionlessFilename_FallsBackToNameVersion_NoSpuriousUpdate()
+    {
+        // End-to-end-Regression fuer den Hiren's-BootCD-PE-Fall: kombiniert mit
+        // BestLocalVersionSource darf IsUpdateAvailable KEIN Update mehr melden, wenn die aus dem
+        // Namen abgeleitete Version mit der (hartkodiert) gefundenen Remote-Version uebereinstimmt.
+        string localSource = HttpService.BestLocalVersionSource("HBCD_PE_x64.iso", "Hiren's BootCD PE x64 v1.0.8");
+        Assert.False(HttpService.IsUpdateAvailable(localSource, "1.0.8", remoteFileFound: true));
+    }
+}
+
 public class HttpServiceNormalizeForMatchTests
 {
     [Theory]

@@ -389,6 +389,25 @@ namespace ULM.Core.Services
             return string.IsNullOrWhiteSpace(localVer) ? remoteFileFound : IsVersionNewer(remoteVersion, localVer);
         }
 
+        /// <summary>
+        /// Waehlt, welche Zeichenkette (Dateiname oder Katalog-Name) an IsUpdateAvailable/ExtractVersion
+        /// uebergeben werden soll: der Dateiname, sofern er tatsaechlich eine Version enthaelt — sonst
+        /// der Name als Fallback.
+        ///
+        /// BUGFIX: Aufrufer waehlten bisher rein danach, ob der Dateiname-STRING ueberhaupt gesetzt war
+        /// (string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn) — nicht danach, ob er eine PARSEBARE
+        /// Version enthaelt. Manche Resolver (z.B. ResolveHirensAsync fuer Hiren's BootCD PE) liefern
+        /// dauerhaft einen statischen, versionslosen Dateinamen ("HBCD_PE_x64.iso"); sobald der einmal
+        /// gesetzt ist, blieb die im Katalog-Namen bereits vorhandene Version ("Hiren's BootCD PE x64
+        /// v1.0.8") fuer IsUpdateAvailable fuer immer unsichtbar — jeder Check meldete "Update", auch
+        /// wenn sich nichts geaendert hatte.
+        /// </summary>
+        public static string BestLocalVersionSource(string? filename, string? name)
+        {
+            string f = filename ?? string.Empty;
+            return string.IsNullOrWhiteSpace(ExtractVersion(f)) ? (name ?? string.Empty) : f;
+        }
+
         private static readonly (string, string, string) Empty = (string.Empty, string.Empty, string.Empty);
 
         /// <summary>

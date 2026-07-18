@@ -882,7 +882,7 @@ namespace ULM.Core.Workers
                     // abgeleitet — so gilt "Foo 7.9.1" ohne Dateiname NICHT blind als Update, sobald
                     // online 7.9.1 gefunden wird (siehe HttpService.IsUpdateAvailable-Tests).
                     hasUpdate = HttpService.IsUpdateAvailable(
-                        string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn, remoteVer, !string.IsNullOrWhiteSpace(fname));
+                        HttpService.BestLocalVersionSource(localFn, e.Name), remoteVer, !string.IsNullOrWhiteSpace(fname));
                     e.UpdateAvailable = hasUpdate;
                     if (hasUpdate) lock (updates) updates.Add(i);
                     if (urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;
@@ -890,7 +890,7 @@ namespace ULM.Core.Workers
                 EntryChecked?.Invoke(new VersionCheckEntryResult
                 {
                     Name          = e.Name,
-                    LocalVersion  = HttpService.ExtractVersion(string.IsNullOrWhiteSpace(localFn) ? e.Name : localFn),
+                    LocalVersion  = HttpService.ExtractVersion(HttpService.BestLocalVersionSource(localFn, e.Name)),
                     RemoteVersion = remoteVer,
                     HasUpdate     = hasUpdate,
                     Resolved      = res
