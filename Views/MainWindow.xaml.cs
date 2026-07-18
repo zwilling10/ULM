@@ -548,6 +548,10 @@ namespace ULM.Views
             if (sender is not FrameworkElement fe || fe.DataContext is not IsoEntryViewModel vm) return;
             var dlg = new ManualSourceSearchDialog(vm.Model) { Owner = this };
             if (dlg.ShowDialog() != true) return;
+            // Der Nutzer hat den Haertefall gerade selbst geloest — ohne diesen Reset bliebe der
+            // Button bis zum naechsten automatischen Check faelschlich sichtbar, obwohl bereits
+            // eine URL eingetragen wurde (siehe docs/superpowers/specs/2026-07-18-manual-search-hardcase-design.md).
+            if (!string.IsNullOrWhiteSpace(vm.Model.Url)) vm.Model.FailedResolveStreak = 0;
             IsoDatabaseService.Instance.Save();
             _vm.RebuildTree();
         }

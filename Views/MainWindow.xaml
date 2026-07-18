@@ -96,6 +96,7 @@
                             ToolTip="Quelle manuell suchen/eintragen"
                             Click="BtnManualSearch_Click"
                             Style="{DynamicResource BtnGhost}"
+                            Visibility="{Binding ShowManualSearchButton, Converter={StaticResource BoolToVis}}"
                             VerticalAlignment="Center" HorizontalAlignment="Center"/>
                 </Grid>
             </Border>
