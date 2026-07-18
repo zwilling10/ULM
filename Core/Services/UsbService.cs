@@ -174,7 +174,7 @@ foreach ($v in $vols) {
                 "desktop-color: \"#0D1B2A\"\n" +
                 "\n+ label {\n  top=2%\n  left=0%\n  width=100%\n  height=48\n  align=\"center\"\n" +
                 "  text=\"UNIVERSAL LINUX MANAGER\"\n  color=\"#FFFFFF\"\n}\n" +
-                "\n+ label {\n  top=6.5%\n  left=0%\n  width=100%\n  height=26\n  align=\"center\"\n" +
+                "\n+ label {\n  top=7%\n  left=0%\n  width=100%\n  height=26\n  align=\"center\"\n" +
                 $"  text=\"{subtitle}\"\n  color=\"#4A6FA5\"\n}}\n" +
                 "\n+ boot_menu {\n  left=10%\n  top=10%\n  width=80%\n  height=68%\n" +
                 "  item_color=\"#C8D4E0\"\n  selected_item_color=\"#FFFFFF\"\n" +
