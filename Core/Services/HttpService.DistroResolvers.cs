@@ -226,8 +226,17 @@ namespace ULM.Core.Services
 
         private async Task<(string, string, string)> ResolveHirensAsync()
         {
-            const string url="https://www.hirensbootcd.org/files/HBCD_PE_x64.iso";
-            return await IsReachableAsync(url,8).ConfigureAwait(false)?("1.0.8",url,"HBCD_PE_x64.iso"):Empty;
+            // BUGFIX: die Version war hier frueher hartkodiert ("1.0.8") — der Resolver meldete
+            // dadurch JEDE (auch veraltete) lokale Version als aktuell und ein echtes neues Release
+            // waere nie erkannt worden. Jetzt wird die tatsaechlich aktuelle Version von der
+            // Downloadseite gelesen (siehe ParseHirensVersion); ohne verlässlichen Seiteninhalt gilt
+            // der Versuch als nicht aufgeloest, statt eine geratene Version zurueckzugeben.
+            const string url = "https://www.hirensbootcd.org/files/HBCD_PE_x64.iso";
+            const string fname = "HBCD_PE_x64.iso";
+            string? html = await GetStringAsync("https://www.hirensbootcd.org/download/").ConfigureAwait(false);
+            string? ver = html is null ? null : ParseHirensVersion(html);
+            if (ver is null) return Empty;
+            return await IsReachableAsync(url, 8).ConfigureAwait(false) ? (ver, url, fname) : Empty;
         }
 
         private async Task<(string, string, string)> ResolveDrWebAsync()

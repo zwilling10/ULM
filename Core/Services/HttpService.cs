@@ -358,6 +358,22 @@ namespace ULM.Core.Services
         }
 
         /// <summary>
+        /// Extrahiert die aktuelle Versionsnummer aus der Hiren's-BootCD-PE-Downloadseite
+        /// (https://www.hirensbootcd.org/download/, Fließtext "Hiren's BootCD PE x64 (v1.0.8) -
+        /// ISO Content"). Ersetzt eine frühere hartkodierte Konstante "1.0.8" in ResolveHirensAsync,
+        /// die JEDE Version als aktuell meldete, ohne die Seite je zu prüfen — ein echtes neues
+        /// Release wäre so NIE erkannt worden (umgekehrtes Problem zum vorherigen Fix: dort meldete
+        /// IsUpdateAvailable fälschlich IMMER ein Update, hier hätte der Resolver selbst ein echtes
+        /// Update NIE gefunden).
+        /// </summary>
+        internal static string? ParseHirensVersion(string html)
+        {
+            if (string.IsNullOrEmpty(html)) return null;
+            var m = Regex.Match(html, @"Hiren's BootCD PE x64 \(v([\d.]+)\)");
+            return m.Success ? m.Groups[1].Value : null;
+        }
+
+        /// <summary>
         /// Vergleicht zwei Versions-STRINGS (z.B. "24.04", "7.9.1") numerisch, teilweise-für-teil.
         /// Public, damit Worker-Klassen (z.B. UpdateScanWorker) echte Versionsvergleiche nutzen
         /// können statt reiner Dateinamens-String-Gleichheit — zwei unterschiedliche Dateinamen

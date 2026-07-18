@@ -233,6 +233,34 @@ public class HttpServiceChecksumParserTests
         => Assert.Null(HttpService.ParseBsdStyleChecksum(BsdStyleFixture, "does-not-exist.iso"));
 }
 
+public class HttpServiceParseHirensVersionTests
+{
+    // Ausschnitt aus der echten Downloadseite (https://www.hirensbootcd.org/download/), live
+    // abgerufen zur Verifikation dieses Fixes — die Version steckt im Fließtext, nicht in einem
+    // eigenen strukturierten Feld.
+    private const string HirensPageFixture =
+        "<span style=\"font-family: Antic Slab;\">Hiren's BootCD PE x64 (v1.0.8) - ISO Content</span>" +
+        "<span> (<a href=\"https://www.hirensbootcd.org/changelog/\">changelog</a>)</span>";
+
+    [Fact]
+    public void ParseHirensVersion_FindsVersionInDownloadPage()
+        => Assert.Equal("1.0.8", HttpService.ParseHirensVersion(HirensPageFixture));
+
+    [Fact]
+    public void ParseHirensVersion_NewerVersionFormat_StillMatches()
+        // Regression: ResolveHirensAsync gab frueher IMMER "1.0.8" zurueck, unabhaengig vom
+        // tatsaechlichen Seiteninhalt — ein echtes neues Release waere so NIE erkannt worden.
+        => Assert.Equal("1.0.9", HttpService.ParseHirensVersion("Hiren's BootCD PE x64 (v1.0.9) - ISO Content"));
+
+    [Fact]
+    public void ParseHirensVersion_UnrecognizedPage_ReturnsNull()
+        => Assert.Null(HttpService.ParseHirensVersion("<html>voellig anderer Seiteninhalt</html>"));
+
+    [Fact]
+    public void ParseHirensVersion_EmptyContent_ReturnsNull()
+        => Assert.Null(HttpService.ParseHirensVersion(string.Empty));
+}
+
 public class HttpServiceMatchUlmReleaseAssetsTests
 {
     [Fact]
