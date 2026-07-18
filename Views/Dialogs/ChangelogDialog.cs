@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.36.1", new[]
+            {
+                "Fehlerbehebung: Beim Start vom Ventoy-Stick erschien manchmal statt des Bootmenüs die Meldung „Failed to boot both default and fallback entries“ oder ein Absturz mit „alloc magic is broken“ — beides behoben.",
+                "Fehlerbehebung: Im Bootmenü stand oben eine veraltete Versionsnummer und unten überlagerten sich mehrere Textzeilen; Titel, Versionsnummer und Stick-Auslastung (Speicherplatz, Anzahl ISOs) werden jetzt live und stets aktuell angezeigt.",
+            }),
             ("2.36.0", new[]
             {
                 "Neu: Button „🔧 Quelle manuell suchen/eintragen“ pro Distro-Zeile — erscheint nur noch als Sicherheitsnetz für echte Härtefälle, bei denen die automatische Quellensuche wiederholt erfolglos bleibt. Öffnet ein Fenster mit den bekannten Bearbeiten-Feldern plus Suchfunktion: findet ULM selbst nichts, öffnet ein Klick auf „Suchen“ stattdessen direkt eine vorausgefüllte Browser-Suche.",
