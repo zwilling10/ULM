@@ -167,7 +167,7 @@ foreach ($v in $vols) {
         private static void WriteThemeTxt(string dir, string letter, double totalMb, double freeMb, int isoCount)
         {
             string subtitle = $"Multiboot USB Stick Manager  v{Constants.AppVersion}   |   " +
-                $"{letter}:  {totalMb / 1024.0:F1} GB gesamt  |  {freeMb / 1024.0:F1} GB frei  |  {isoCount} ISOs";
+                $"{letter}  {totalMb / 1024.0:F1} GB gesamt  |  {freeMb / 1024.0:F1} GB frei  |  {isoCount} ISOs";
             string c =
                 "# Universal Linux Manager Boot-Theme\n" +
                 "desktop-image: \"background.png\"\n" +
