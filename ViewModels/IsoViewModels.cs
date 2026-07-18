@@ -111,6 +111,12 @@ namespace ULM.ViewModels
             }
         }
 
+        // Steuert die Sichtbarkeit des "Quelle manuell suchen/eintragen"-Buttons in der Hauptliste
+        // (Views/MainWindow.xaml). Bewusst NUR bei einer zusammenhängenden Fehlschlagsserie der
+        // automatischen Auflösung sichtbar (siehe HttpService.ApplyResolveOutcome) — der Button ist
+        // ein Sicherheitsnetz für Härtefälle wie Shadowfetch, kein Dauerelement in jeder Zeile.
+        public bool ShowManualSearchButton => _entry.FailedResolveStreak >= Constants.ManualSearchFailureThreshold;
+
         public string StatusBracket
         {
             get
@@ -203,6 +209,7 @@ namespace ULM.ViewModels
             OnPropertyChanged(nameof(HasHashStatus));
             OnPropertyChanged(nameof(HashStatusBrush));
             OnPropertyChanged(nameof(HashStatusTooltip));
+            OnPropertyChanged(nameof(ShowManualSearchButton));
         }
     }
 

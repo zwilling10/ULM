@@ -29,6 +29,7 @@ namespace ULM.Core.Models
         public const long MinIsoSizeBytes   = 314_572_800L; // 300 MB
         public const int  MaxParallelSlots  = 6;
         public const int  AutoCheckIntervalDays = 3;
+        public const int  ManualSearchFailureThreshold = 3; // ab so vielen Fehlschlagversuchen in Folge gilt ein Eintrag als Haertefall
         public const long MaxLogSizeBytes   = 5 * 1024 * 1024; // 5 MB — ab hier wird ulm_log.txt rotiert
 
         public static readonly string[] Categories =
