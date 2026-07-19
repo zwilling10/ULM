@@ -214,6 +214,15 @@ namespace ULM.Core.Workers
         // weiterer (bereits vom Mirror-Race gemessener) Kandidat übrig ist — steuert die
         // Sichtbarkeit des "(schneller)"-Buttons im Fortschrittsfenster.
         public bool   CanRequestFasterMirror { get; set; }
+
+        // True, wenn ResolveLatestAsync für diesen Eintrag GAR KEINE URL ermitteln konnte (kein
+        // dedizierter Resolver zuständig UND generische Selbstlern-Auflösung erfolglos). Steuert die
+        // Sichtbarkeit des "🔧 Quelle manuell suchen"-Buttons im Fortschrittsfenster — unabhängig vom
+        // IsoEntry.FailedResolveStreak-Zähler (der Button in der Hauptliste erscheint erst ab 3
+        // aufeinanderfolgenden automatischen Fehlschlägen), damit ein frisch über "ISO suchen"
+        // hinzugefügter Eintrag mit sofortigem Download-Fehlschlag nicht erst auf zwei weitere
+        // App-Starts warten muss, bis ein Ausweg sichtbar wird.
+        public bool   NoUrlFound { get; set; }
     }
 
     public sealed class DownloadWorker
@@ -352,7 +361,7 @@ namespace ULM.Core.Workers
 
                         if (string.IsNullOrWhiteSpace(resolvedUrl))
                         {
-                            sa.Status = "❌ Keine URL gefunden"; SlotUpdated?.Invoke(sa);
+                            sa.Status = "❌ Keine URL gefunden"; sa.NoUrlFound = true; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke($"   ❌ {entry.Name}: Keine Download-URL ermittelt.");
                             return;
                         }
@@ -732,6 +741,14 @@ namespace ULM.Core.Workers
         // docs/superpowers/specs/2026-07-18-manual-search-hardcase-design.md.
         public bool AnyStreakChanged { get; private set; }
 
+        // Namen der Einträge, deren FailedResolveStreak in DIESEM Lauf erstmals die Härtefall-
+        // Schwelle (Constants.ManualSearchFailureThreshold) erreicht/überschritten hat — der
+        // 🔧-Button in der Hauptliste erscheint für sie also gerade JETZT neu. Treibt den
+        // Härtefall-Hinweis in MainViewModel.ReportHardCases (Popup bei genau einem neuen Treffer,
+        // sonst ein dezentes Banner, damit bei mehreren gleichzeitigen Treffern keine Popups
+        // stapeln).
+        public List<string> NewHardCases { get; } = new();
+
         public UrlCheckWorker(IReadOnlyList<IsoEntry> entries) => _entries = entries;
         public void Cancel() => _cts.Cancel();
 
@@ -767,6 +784,8 @@ namespace ULM.Core.Workers
                         ok = !string.IsNullOrWhiteSpace(resolvedUrl);
                         if (ok && urlWasEmpty && !string.IsNullOrWhiteSpace(e.Url)) AnyUrlDiscovered = true;
                         if (e.FailedResolveStreak != streakBefore) AnyStreakChanged = true;
+                        if (streakBefore < Constants.ManualSearchFailureThreshold && e.FailedResolveStreak >= Constants.ManualSearchFailureThreshold)
+                            NewHardCases.Add(e.Name);
                     }
 
                     e.UrlOk = ok; e.UrlChecked = true;
@@ -796,6 +815,7 @@ namespace ULM.Core.Workers
         public event Action<VersionCheckEntryResult>? EntryChecked;
         public bool AnyUrlDiscovered => _internalWorker.AnyUrlDiscovered;
         public bool AnyStreakChanged  => _internalWorker.AnyStreakChanged;
+        public List<string> NewHardCases => _internalWorker.NewHardCases;
         public AutoVersionCheckWorker(IReadOnlyList<IsoEntry> entries, string downloadDir = "")
         {
             _internalWorker = new UpdateScanWorker(entries, string.IsNullOrEmpty(downloadDir) ? AppPaths.Instance.DownloadDir : downloadDir, checkAllEntries: true);
@@ -834,6 +854,10 @@ namespace ULM.Core.Workers
         // Aufrufer (TriggerAutoVersionCheck/OnCheckUpdates/RunHealthCheck statt OnCheckUrls).
         public bool AnyStreakChanged { get; private set; }
 
+        // Siehe UrlCheckWorker.NewHardCases fuer die Begruendung — identische Sammlung, andere
+        // Aufrufer (TriggerAutoVersionCheck/OnCheckUpdates/RunHealthCheck statt OnCheckUrls).
+        public List<string> NewHardCases { get; } = new();
+
         public UpdateScanWorker(IReadOnlyList<IsoEntry> entries, string downloadDir, bool checkAllEntries = false)
         { _entries = entries; _downloadDir = downloadDir; _checkAllEntries = checkAllEntries; }
         public void Cancel() => _cts.Cancel();
@@ -868,6 +892,8 @@ namespace ULM.Core.Workers
                 try { (remoteVer, url, fname) = await HttpService.Instance.ResolveLatestAsync(e).ConfigureAwait(false); }
                 catch (Exception ex) { Debug.WriteLine($"[UpdateScanWorker] {e.Name}: {ex.GetType().Name}: {ex.Message}"); }
                 if (e.FailedResolveStreak != streakBefore) AnyStreakChanged = true;
+                if (streakBefore < Constants.ManualSearchFailureThreshold && e.FailedResolveStreak >= Constants.ManualSearchFailureThreshold)
+                    NewHardCases.Add(e.Name);
                 Progress?.Invoke(++processed, count);
                 bool res = !string.IsNullOrWhiteSpace(remoteVer) && !string.IsNullOrWhiteSpace(url) && !string.IsNullOrWhiteSpace(fname);
                 bool hasUpdate = false;

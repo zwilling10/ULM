@@ -28,6 +28,13 @@ namespace ULM.Views
         private bool   _orphanCheckDone;
         private string _lastDriveSignatureUi = string.Empty;
 
+        // Ziel-Laufwerk/Kopier-Optionen des aktuell laufenden bzw. zuletzt gestarteten Download-
+        // Batches — von StartDownloadWithProgressDialog gesetzt. Ermöglicht OpenManualSearchFromDownloadFailure,
+        // nach erfolgreicher manueller Quellen-Eintragung GENAU DIESEN Eintrag mit denselben
+        // Einstellungen (Ziel-Stick, Kopieren-danach) automatisch neu herunterzuladen.
+        private string _activeDownloadDrive = string.Empty;
+        private bool   _activeDownloadCopyAfter, _activeDownloadDeleteAfter;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -124,8 +131,21 @@ namespace ULM.Views
                 else AppendLog($"ℹ Stick-Wartung übersprungen ({fresh.Count} Datei(en) behalten).");
             };
 
-            _vm.DownloadItemProgress   += (name, pct, status, canFaster) => _downloadProgressDialog?.UpdateDownload(name, pct, status, canFaster);
-            _vm.DownloadBatchCompleted += (ok, failed, _) => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete($"{ok} erfolgreich" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + "."); };
+            _vm.DownloadItemProgress   += (name, pct, status, canFaster, noUrlFound) => _downloadProgressDialog?.UpdateDownload(name, pct, status, canFaster, noUrlFound);
+            // BUGFIX: die Kopfzeile wurde bisher blind aus ok/failed DIESES EINEN DownloadBatchCompleted-
+            // Events gebaut — nach einem Einzel-Retry über "🔧 Quelle manuell suchen" (siehe
+            // OpenManualSearchFromDownloadFailure) feuert für nur den einen nachträglich erfolgreichen
+            // Eintrag ein NEUER Event mit NUR dessen eigenen Zahlen (z.B. "1 erfolgreich"), der die
+            // ursprüngliche Zusammenfassung (z.B. "0 erfolgreich, 1 fehlgeschlagen") komplett überschrieb
+            // statt sie zu korrigieren. GetOverallCounts() zählt stattdessen den ECHTEN Stand über ALLE
+            // je in diesem Fenster gezeigten Zeilen.
+            _vm.DownloadBatchCompleted += (_, _, _) =>
+            {
+                if (_downloadProgressDialog is null) return;
+                var (succeeded, total) = _downloadProgressDialog.GetOverallCounts();
+                int failedTotal = total - succeeded;
+                _downloadProgressDialog.SetOverallComplete($"{succeeded} erfolgreich" + (failedTotal > 0 ? $", {failedTotal} fehlgeschlagen" : "") + ".");
+            };
             _vm.CopyItemProgress       += (name, pct, detail) => _downloadProgressDialog?.UpdateCopy(name, pct, detail);
             _vm.CopyBatchCompleted     += count => { if (_downloadProgressDialog is null) return; _downloadProgressDialog.SetOverallComplete(count > 0 ? $"{count} ISO(s) auf den Stick kopiert." : "Nichts kopiert."); };
 
@@ -139,6 +159,11 @@ namespace ULM.Views
             // Unauffällige Bestätigung für URL-/Update-/Integritätsprüfung (nicht modal, schließt
             // sich nach 5s von selbst) — siehe QuickCheckSucceeded-Dokumentation im ViewModel.
             _vm.QuickCheckSucceeded += message => new QuickConfirmationWindow(message) { Owner = this }.Show();
+
+            // Härtefall-Hinweis für GENAU EINEN neu betroffenen Eintrag — bei mehreren gleichzeitig
+            // übernimmt stattdessen das Härtefall-Banner (siehe MainViewModel.ReportHardCases).
+            _vm.HardCaseNoticeRequested += name => new QuickConfirmationWindow(
+                $"🔧 Manuelle Quellen-Suche jetzt möglich für: {name}") { Owner = this }.Show();
 
             _vm.HealthCheckCompleted += results => new DbHealthCheckDialog(results) { Owner = this }.ShowDialog();
 
@@ -211,6 +236,7 @@ namespace ULM.Views
         }
 
         private void BtnUpdateDismiss_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdateBanner();
+        private void BtnHardCaseDismiss_Click(object sender, RoutedEventArgs e) => _vm.DismissHardCaseBanner();
 
         private async void BtnUpdateDownload_Click(object sender, RoutedEventArgs e)
         {
@@ -704,6 +730,7 @@ namespace ULM.Views
 
         private async void StartDownloadWithProgressDialog(List<IsoEntry> queue, string drive, bool copyAfter, bool deleteAfter, int slots)
         {
+            _activeDownloadDrive = drive; _activeDownloadCopyAfter = copyAfter; _activeDownloadDeleteAfter = deleteAfter;
             OpenProgressDialog(queue.Select(q => q.Name), hasDownload: true, hasCopy: copyAfter); SetBusyUi(true);
             await Task.Run(() => _vm.StartDownload(queue, drive, copyAfter, deleteAfter, slots));
             SetBusyUi(false);
@@ -716,10 +743,53 @@ namespace ULM.Views
             _downloadProgressDialog = new DownloadProgressDialog(nameList, hasDownload, hasCopy) { Owner = this };
             _downloadProgressDialog.CancelRequested += () => _vm.CancelCommand.Execute(null);
             _downloadProgressDialog.FasterMirrorRequested += name => _vm.RequestFasterMirror(name);
+            _downloadProgressDialog.ManualSearchRequested += OpenManualSearchFromDownloadFailure;
             _downloadProgressDialog.Closed += (_, _) => _downloadProgressDialog = null;
             // Reiner Kopiervorgang (kein Download davor): Zeilen sofort als "Kopiere auf Stick" labeln.
             if (hasCopy && !hasDownload) foreach (string n in nameList) _downloadProgressDialog.SetPhaseLabel(n, "Kopiere auf Stick");
             _downloadProgressDialog.Show();
+        }
+
+        // Öffnet ManualSourceSearchDialog direkt aus dem Download-Fortschritt-Fenster heraus, wenn
+        // ResolveLatestAsync für DIESEN Versuch gar keine URL fand (DownloadProgressDialog.
+        // ManualSearchRequested, siehe UpdateDownload/NoUrlFound). Ergänzt den 🔧-Button in der
+        // Hauptliste (BtnManualSearch_Click), der erst ab Constants.ManualSearchFailureThreshold
+        // aufeinanderfolgenden automatischen Fehlschlägen sichtbar wird — ohne diesen direkten Weg
+        // müsste ein frisch über "ISO suchen" hinzugefügter, sofort fehlschlagender Eintrag erst auf
+        // zwei weitere App-Starts warten, bis ein Ausweg sichtbar ist. Gleiches Speicherverhalten wie
+        // BtnManualSearch_Click (Streak-Reset bei eingetragener URL, Save, RebuildTree).
+        private async void OpenManualSearchFromDownloadFailure(string name)
+        {
+            var entry = IsoDatabaseService.Instance.Entries
+                .FirstOrDefault(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (entry is null) return;
+            var dlg = new ManualSourceSearchDialog(entry) { Owner = _downloadProgressDialog };
+            if (dlg.ShowDialog() != true) return;
+            bool urlNowSet = !string.IsNullOrWhiteSpace(entry.Url);
+            if (urlNowSet) entry.FailedResolveStreak = 0;
+            IsoDatabaseService.Instance.Save();
+            _vm.RebuildTree();
+            if (!urlNowSet) return;
+
+            // Sofort-Retry: der Download war NUR wegen der fehlenden URL gescheitert — jetzt, wo eine
+            // URL manuell hinterlegt wurde, den Download für GENAU diesen Eintrag automatisch neu
+            // anstoßen (dasselbe Ziel-Laufwerk/Kopieren-danach wie der ursprüngliche Batch), statt den
+            // Nutzer Fenster schließen → Hauptliste → erneut "Herunterladen" klicken zu lassen. Läuft
+            // die ursprüngliche Stapel-Verarbeitung noch (weitere parallele Slots aktiv, z.B. ein
+            // parallel laufender Gesundheitscheck setzt zwar NICHT IsBusy, ein noch laufender zweiter
+            // Download-Slot schon), wird NICHT automatisch neu gestartet — ein zweiter gleichzeitiger
+            // StartDownload-Aufruf würde den Worker-/Busy-Zustand des noch laufenden Batches
+            // durcheinanderbringen; die neu hinterlegte URL wird dann einfach beim nächsten regulären
+            // Download-Versuch verwendet.
+            if (_vm.IsBusy || _downloadProgressDialog is null)
+            {
+                AppendLog($"🔧 {entry.Name}: Quelle manuell hinterlegt — wird beim nächsten Download automatisch verwendet.");
+                return;
+            }
+            AppendLog($"🔧 {entry.Name}: Quelle manuell hinterlegt — Download wird automatisch erneut versucht …");
+            SetBusyUi(true);
+            await Task.Run(() => _vm.StartDownload(new List<IsoEntry> { entry }, _activeDownloadDrive, _activeDownloadCopyAfter, _activeDownloadDeleteAfter, 1));
+            SetBusyUi(false);
         }
 
         private async void BtnUpdates_Click(object sender, RoutedEventArgs e) { if (_vm.IsBusy) return; SetBusyUi(true); await Task.Run(() => _vm.CheckUpdatesCommand.Execute(null)); SetBusyUi(false); }

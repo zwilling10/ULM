@@ -146,6 +146,10 @@ namespace ULM.Views.Dialogs
         // Geschwindigkeits-Wächter-Schwelle (sonst wäre der Download schon automatisch abgebrochen
         // worden), ist dem Anwender aber trotzdem zu langsam. Träger ist der Distro-Name.
         public event Action<string>? FasterMirrorRequested;
+        // Klick auf "🔧 Quelle manuell suchen" bei einem Eintrag, für den ResolveLatestAsync gar
+        // keine URL fand (DownloadWorker.DownloadSlotArgs.NoUrlFound) — siehe UpdateDownload/AddRow.
+        // Trägt wie FasterMirrorRequested den Distro-Namen.
+        public event Action<string>? ManualSearchRequested;
 
         private readonly StackPanel  _itemsPanel;
         private readonly TextBlock   _summaryText;
@@ -164,6 +168,7 @@ namespace ULM.Views.Dialogs
             public required TextBlock   PercentText;
             public required TextBlock   StatusText;
             public required Button      FasterBtn;
+            public required Button      ManualSearchBtn;
             public required string      OriginalName;
         }
 
@@ -263,12 +268,29 @@ namespace ULM.Views.Dialogs
 
             var bar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8, Margin = new Thickness(0, 5, 0, 3) };
             stack.Children.Add(bar);
-            var stat = new TextBlock { Text = "Wartet ...", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), TextTrimming = TextTrimming.CharacterEllipsis };
-            stack.Children.Add(stat);
+
+            // Statuszeile: Text links, "🔧 Quelle manuell suchen" rechts — erscheint nur, wenn
+            // ResolveLatestAsync für DIESEN Versuch gar keine URL fand (siehe UpdateDownload). Der
+            // Nutzer soll den Härtefall-Ausweg genau dort sehen, wo der Fehlschlag angezeigt wird,
+            // statt bis zu 2 weitere App-Starts auf den 🔧-Button in der Hauptliste warten zu müssen
+            // (siehe IsoEntryViewModel.ShowManualSearchButton / Constants.ManualSearchFailureThreshold).
+            var statRow = new DockPanel();
+            var manualBtn = new Button
+            {
+                Content = "🔧 Quelle manuell suchen", Style = AppRes.Style("BtnGhost"),
+                FontSize = 10, Padding = new Thickness(6, 1, 6, 1), Height = 20,
+                Visibility = Visibility.Collapsed, Margin = new Thickness(8, 0, 0, 0),
+            };
+            manualBtn.Click += (_, _) => ManualSearchRequested?.Invoke(name);
+            DockPanel.SetDock(manualBtn, Dock.Right);
+            statRow.Children.Add(manualBtn);
+            var stat = new TextBlock { Text = "Wartet ...", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+            statRow.Children.Add(stat); // zuletzt hinzugefügt → füllt (DockPanel.LastChildFill) den Rest der Zeile
+            stack.Children.Add(statRow);
 
             border.Child = stack;
             _itemsPanel.Children.Add(border);
-            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, FasterBtn = fasterBtn, OriginalName = name };
+            return new Row { Container = border, NameText = nameText, Bar = bar, PercentText = pctText, StatusText = stat, FasterBtn = fasterBtn, ManualSearchBtn = manualBtn, OriginalName = name };
         }
 
         // Kleiner, pillenförmiger ("runder") Button mit Text "(schneller)" — bricht auf Klick den
@@ -322,7 +344,7 @@ namespace ULM.Views.Dialogs
 
         // Download-Fortschritt eines Eintrags. Im reinen Download-Modus (keine Stick-Kopie) gilt der
         // Eintrag bei 100 % als erfolgreich fertig und wird entfernt.
-        public void UpdateDownload(string name, int percent, string status, bool canFasterMirror = false)
+        public void UpdateDownload(string name, int percent, string status, bool canFasterMirror = false, bool noUrlFound = false)
         {
             var it = GetOrCreate(name); if (it.Done) return;
             int c = Math.Max(0, Math.Min(100, percent));
@@ -331,6 +353,7 @@ namespace ULM.Views.Dialogs
             {
                 r.Bar.Value = c; r.Bar.Foreground = ProgressColor(c); r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
                 r.FasterBtn.Visibility = canFasterMirror ? Visibility.Visible : Visibility.Collapsed;
+                r.ManualSearchBtn.Visibility = noUrlFound ? Visibility.Visible : Visibility.Collapsed;
             }
             if (!_hasCopy && c >= 100) { MarkDone(name, removeRow: true); return; }
             RecomputeOverall();
@@ -370,6 +393,15 @@ namespace ULM.Views.Dialogs
             if (removeRow && it.UiRow is { } r) { _itemsPanel.Children.Remove(r.Container); it.UiRow = null; }
             RecomputeOverall();
         }
+
+        // Liefert (erfolgreich, gesamt) über ALLE jemals in diesem Fenster angezeigten Einträge — nicht
+        // nur die des zuletzt abgeschlossenen Teil-Vorgangs. Grundlage für eine korrekte Kopfzeilen-
+        // Zusammenfassung auch nach einem Einzel-Retry (siehe MainWindow.OpenManualSearchFromDownloadFailure):
+        // ein per "🔧 Quelle manuell suchen" nachträglich erfolgreicher Eintrag löste bisher einen NEUEN
+        // DownloadBatchCompleted-Event mit NUR seinen eigenen Zahlen (z.B. "1 erfolgreich") aus, der die
+        // ursprüngliche Zusammenfassung (z.B. "0 erfolgreich, 1 fehlgeschlagen") komplett überschrieb, statt
+        // sie zu korrigieren.
+        public (int Succeeded, int Total) GetOverallCounts() => (_items.Values.Count(i => i.Done), _total);
 
         private void RecomputeOverall()
         {

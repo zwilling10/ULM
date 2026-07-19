@@ -154,6 +154,35 @@ namespace ULM.ViewModels
         // Blendet das Banner nur für die laufende Sitzung aus (kein persistenter Zustand).
         public void DismissUpdateBanner() => UpdateBannerVisible = false;
 
+        // Härtefall-Hinweis: sobald ein Eintrag die Constants.ManualSearchFailureThreshold-Schwelle
+        // erreicht, erscheint der 🔧-Button in der Hauptliste neu — ohne Hinweis leicht zu übersehen,
+        // gerade wenn das bei einem unbeobachteten Hintergrund-Check passiert (siehe
+        // UpdateScanWorker/UrlCheckWorker.NewHardCases). Trifft es GENAU EINEN Eintrag, reicht ein
+        // kurzes, sich selbst schließendes Popup (HardCaseNoticeRequested, siehe MainWindow →
+        // QuickConfirmationWindow). Treffen mehrere gleichzeitig, würden mehrere Popups stapeln —
+        // stattdessen ein dezentes, dauerhaftes Banner (analog Update-Banner oben), das alle
+        // gesammelt nennt und erst per Klick verschwindet. Ist das Banner einmal sichtbar, sammelt
+        // JEDER weitere Treffer dort ein statt ein eigenes Popup zu öffnen — sonst könnte ein Popup
+        // parallel zum bereits sichtbaren Banner aufblitzen.
+        private readonly List<string> _pendingHardCaseNames = new();
+        public event Action<string>? HardCaseNoticeRequested;
+        private bool _hardCaseBannerVisible;
+        public bool HardCaseBannerVisible { get => _hardCaseBannerVisible; private set => SetField(ref _hardCaseBannerVisible, value); }
+        private string _hardCaseBannerText = string.Empty;
+        public string HardCaseBannerText { get => _hardCaseBannerText; private set => SetField(ref _hardCaseBannerText, value); }
+        public void DismissHardCaseBanner() { _pendingHardCaseNames.Clear(); HardCaseBannerVisible = false; }
+
+        private void ReportHardCases(List<string> names)
+        {
+            if (names.Count == 0) return;
+            if (!HardCaseBannerVisible && names.Count == 1) { HardCaseNoticeRequested?.Invoke(names[0]); return; }
+            foreach (string n in names) if (!_pendingHardCaseNames.Contains(n)) _pendingHardCaseNames.Add(n);
+            HardCaseBannerText = _pendingHardCaseNames.Count == 1
+                ? $"🔧 Manuelle Quellen-Suche jetzt möglich für: {_pendingHardCaseNames[0]}"
+                : $"🔧 Manuelle Quellen-Suche jetzt möglich für {_pendingHardCaseNames.Count} Distros: {string.Join(", ", _pendingHardCaseNames)}";
+            HardCaseBannerVisible = true;
+        }
+
         private string _gitHubToken = string.Empty;
         // Optional — hebt nur das API-Limit für GitHub-basierte Resolver/Ventoy-Update-Check von
         // 60 auf 5000 Anfragen/Std an (siehe HttpService.GitHubToken). Ohne Token funktioniert alles
@@ -183,7 +212,7 @@ namespace ULM.ViewModels
         public event Action<List<UsbService.StickIso>, string>? IncompleteIsosOnStickDetected;
         public event Action<List<VersionCheckEntryResult>>?     HealthCheckCompleted;
         public event Action<List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>, string>? NewerVersionsOnStickDetected;
-        public event Action<string, int, string, bool>? DownloadItemProgress;
+        public event Action<string, int, string, bool, bool>? DownloadItemProgress;
         public event Action<int, int, int>?       DownloadBatchCompleted;
         public event Action<string, int, string>? CopyItemProgress;
         public event Action<int>?                 CopyBatchCompleted;
@@ -230,7 +259,7 @@ namespace ULM.ViewModels
             // Fortschritts-Events, statt jede der zahlreichen DownloadItemProgress/CopyItemProgress-
             // Aufrufstellen einzeln anzufassen — beide Events feuern bereits über _ui.Invoke, hier
             // also kein zusätzliches Thread-Marshalling nötig.
-            DownloadItemProgress += (name, _, detail, _) => { CurrentOperationItem = name; CurrentOperationDetail = detail; };
+            DownloadItemProgress += (name, _, detail, _, _) => { CurrentOperationItem = name; CurrentOperationDetail = detail; };
             CopyItemProgress     += (name, _, detail)    => { CurrentOperationItem = name; CurrentOperationDetail = detail; };
         }
 
@@ -687,6 +716,7 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
+                ReportHardCases(worker.NewHardCases);
                 ApplyResolvedUpdatesAndOfferStickUpdate(updates, worker.AnyUrlDiscovered || worker.AnyStreakChanged);
                 // OnlineScanCurrentItem bleibt bewusst stehen (nicht auf "—" zurückgesetzt) —
                 // zeigt im Status-Reiter weiterhin, welcher Eintrag zuletzt geprüft wurde, auch
@@ -816,12 +846,12 @@ namespace ULM.ViewModels
                     if (success && entry.IsLocallyAvailable(_paths.DownloadDir))
                     {
                         pipelineChannel.Writer.TryWrite(entry);
-                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
+                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false, false); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
                     }
                 };
             }
             worker.OverallProgress += (pct, detail) => _ui.Invoke(() => { ProgressPercent = pct; StatusText = $"⬇ {detail}"; });
-            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror); });
+            worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror, p.NoUrlFound); });
             worker.Completed += (ok, failed, _) => _ui.Invoke(() =>
             {
                 _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen.");
@@ -1135,6 +1165,7 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
+                ReportHardCases(worker.NewHardCases);
                 // BUGFIX: siehe TriggerAutoVersionCheck — auch ohne echtes Update speichern, wenn
                 // eine zuvor fehlende Download-Quelle neu gefunden wurde.
                 SetBusy(false); if (updates.Count > 0 || worker.AnyUrlDiscovered || worker.AnyStreakChanged) _db.Save(); RefreshAllEntries();
@@ -1158,6 +1189,7 @@ namespace ULM.ViewModels
             });
             worker.Completed += (wasCompleted, _) => _ui.Invoke(() =>
             {
+                ReportHardCases(worker.NewHardCases);
                 // BUGFIX: neu entdeckte Quellen (siehe UrlCheckWorker.AnyUrlDiscovered) gingen bisher
                 // ohne Save beim nächsten Start wieder verloren — der teure Auflösungsweg
                 // (DistroWatch-Suche/Websuche) hätte bei jedem künftigen Check neu durchlaufen müssen.
@@ -1201,6 +1233,7 @@ namespace ULM.ViewModels
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
+                ReportHardCases(worker.NewHardCases);
                 int failed = results.Count(r => !r.Resolved);
                 HealthCheckActive = false; HealthCheckPercent = 100;
                 StatusText = failed == 0 ? $"🩺 Alle {results.Count} Distros online erreichbar." : $"🩺 {failed}/{results.Count} nicht erreichbar.";
