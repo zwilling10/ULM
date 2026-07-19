@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.37.0", new[]
+            {
+                "Neu: Schlägt ein Download mangels gefundener Quelle fehl, erscheint der Button „🔧 Quelle manuell suchen“ jetzt sofort direkt im Download-Fortschritt-Fenster — nicht erst nach mehreren aufeinanderfolgenden automatischen Fehlschlägen in der Hauptliste. Nach dem Eintragen einer Quelle startet der Download für diesen Eintrag automatisch neu.",
+                "Neu: Erscheint der „🔧“-Button in der Hauptliste neu, weil die automatische Auflösung wiederholt scheitert, gibt es jetzt einen kurzen Hinweis dazu — bei genau einem betroffenen Eintrag ein sich selbst schließendes Popup, bei mehreren gleichzeitig ein dezentes Banner statt mehrerer Popups.",
+            }),
             ("2.36.1", new[]
             {
                 "Fehlerbehebung: Beim Start vom Ventoy-Stick erschien manchmal statt des Bootmenüs die Meldung „Failed to boot both default and fallback entries“ oder ein Absturz mit „alloc magic is broken“ — beides behoben.",
