@@ -28,6 +28,9 @@ namespace ULM.Views
         private bool   _orphanCheckDone;
         private string _lastDriveSignatureUi = string.Empty;
 
+        private string     _updateCurrentExePath = string.Empty;
+        private InstallKind _updateInstallKind    = InstallKind.Portable;
+
         // Ziel-Laufwerk/Kopier-Optionen des aktuell laufenden bzw. zuletzt gestarteten Download-
         // Batches — von StartDownloadWithProgressDialog gesetzt. Ermöglicht OpenManualSearchFromDownloadFailure,
         // nach erfolgreicher manueller Quellen-Eintragung GENAU DIESEN Eintrag mit denselben
@@ -221,10 +224,11 @@ namespace ULM.Views
         }
 
         /// <summary>
-        /// Rein informativer Hinweis, falls eine neuere ULM-Version auf GitHub verfügbar ist —
-        /// läuft unabhängig im Hintergrund (fire-and-forget), blockiert nichts und unterbricht den
-        /// Nutzer nicht mit einem Dialog. Ergebnis erscheint nur als Protokollzeile, analog zu den
-        /// "🆕 neue Version gefunden"-Meldungen der Distro-Versionschecks.
+        /// Läuft unabhängig im Hintergrund (fire-and-forget), blockiert nichts und unterbricht den
+        /// Nutzer nicht. Findet CheckForUlmUpdateAsync eine neuere Version, lädt ULM die zur
+        /// erkannten Installationsart passende Datei automatisch herunter (SelfUpdateService) und
+        /// wechselt das Banner in den ReadyToInstall-Zustand. Schlägt der Download fehl, bleibt der
+        /// bestehende manuelle UpdateDownloadDialog als Fallback erreichbar (Available-Zustand).
         /// </summary>
         private async Task CheckUlmUpdateAsync()
         {
@@ -233,12 +237,62 @@ namespace ULM.Views
             AppendLog($"🆕 Neue ULM-Version verfügbar: v{info.LatestVersion} (aktuell installiert: v{Constants.AppVersion})");
             if (!string.IsNullOrWhiteSpace(info.ReleaseUrl)) AppendLog($"   {info.ReleaseUrl}");
             _vm.SetAvailableUpdate(info);
+
+            _updateCurrentExePath = GetCurrentExePath();
+            _updateInstallKind    = SelfUpdateService.Instance.DetectInstallKind(_updateCurrentExePath);
+            _vm.SetUpdateDownloading();
+
+            string tempDir = Path.Combine(Path.GetTempPath(), "ULM_Update");
+            string? downloaded = null;
+            try
+            {
+                downloaded = await SelfUpdateService.Instance
+                    .DownloadUpdateAsync(info, _updateInstallKind, tempDir, null, System.Threading.CancellationToken.None)
+                    .ConfigureAwait(true);
+            }
+            catch (Exception ex) { AppendLog($"⚠ Automatischer Update-Download fehlgeschlagen: {ex.Message}"); }
+
+            if (string.IsNullOrEmpty(downloaded))
+            {
+                AppendLog("⚠ Automatischer Update-Download fehlgeschlagen — manueller Download bleibt über den Banner-Button möglich.");
+                _vm.SetAvailableUpdate(info);
+                return;
+            }
+            AppendLog($"✅ Update heruntergeladen: {downloaded}");
+            _vm.SetUpdateReadyToInstall(downloaded);
         }
+
+        // Bevorzugt Environment.ProcessPath (zuverlässig bei Single-File-Publish, siehe
+        // UniversalLinuxManager.csproj PublishSingleFile=true) mit Process.MainModule als Fallback.
+        private static string GetCurrentExePath() =>
+            Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule!.FileName;
 
         private void BtnUpdateDismiss_Click(object sender, RoutedEventArgs e) => _vm.DismissUpdateBanner();
         private void BtnHardCaseDismiss_Click(object sender, RoutedEventArgs e) => _vm.DismissHardCaseBanner();
 
         private async void BtnUpdateDownload_Click(object sender, RoutedEventArgs e)
+        {
+            switch (_vm.UpdateBannerState)
+            {
+                case UpdateBannerState.ReadyToInstall:
+                    string? downloaded = _vm.DownloadedUpdatePath;
+                    if (string.IsNullOrEmpty(downloaded)) return;
+                    SelfUpdateService.Instance.ApplyUpdateAndRestart(downloaded, _updateInstallKind, GetCurrentExePath());
+                    return;
+                case UpdateBannerState.Downloading:
+                    // Button ist waehrend Downloading deaktiviert (IsEnabled-Binding) — hier zur
+                    // Sicherheit trotzdem ignorieren, falls der Klick knapp vor der Zustandsaenderung landet.
+                    return;
+                default:
+                    await ManualUpdateDownloadFallbackAsync();
+                    return;
+            }
+        }
+
+        // Fallback, falls der automatische Hintergrund-Download (CheckUlmUpdateAsync) fehlgeschlagen
+        // ist: unveraendertes bisheriges Verhalten — Nutzer waehlt manuell Portable/Setup, ULM laedt
+        // herunter und oeffnet den Ziel-Ordner im Explorer, Ausfuehren macht der Nutzer selbst.
+        private async Task ManualUpdateDownloadFallbackAsync()
         {
             var info = _vm.AvailableUpdate;
             if (info is null) return;

@@ -305,7 +305,8 @@
                     <TextBlock Grid.Column="0" Text="{Binding UpdateBannerText}"
                                Foreground="White" FontWeight="SemiBold" FontSize="12.5"
                                VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" x:Name="BtnUpdateDownload" Content="⬇ Herunterladen …"
+                    <Button Grid.Column="1" x:Name="BtnUpdateDownload" Content="{Binding UpdateBannerButtonText}"
+                            IsEnabled="{Binding UpdateBannerButtonEnabled}"
                             Style="{DynamicResource BtnSuccess}" Margin="0,0,8,0"
                             Click="BtnUpdateDownload_Click"/>
                     <Button Grid.Column="2" x:Name="BtnUpdateDismiss" Content="Ausblenden"
