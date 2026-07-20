@@ -1,0 +1,10 @@
+# Jekyll-Konfiguration fuer GitHub Pages (Quelle: ./docs).
+#
+# docs/superpowers/ enthaelt interne Engineering-Dokumentation (Specs/Plaene), keine
+# oeffentlichen Seiten. Jekyll rendert sonst standardmaessig JEDE Markdown-Datei im
+# Source-Verzeichnis inkl. Liquid-Templating -- Code-Bloecke mit doppelten geschweiften
+# Klammern (z.B. C#-String-Interpolation "{{ ... }}" in generiertem PowerShell-Code)
+# werden dann faelschlich als Liquid-Variablen interpretiert und brechen den GESAMTEN
+# Pages-Build ab, inklusive der eigentlichen index.html. Deshalb komplett ausschliessen.
+exclude:
+  - superpowers/
