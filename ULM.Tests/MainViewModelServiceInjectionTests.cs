@@ -1,9 +1,7 @@
 // ULM.Tests/MainViewModelServiceInjectionTests.cs
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Windows.Threading;
 using ULM.Core.Models;
-using ULM.Core.Services;
 using ULM.ViewModels;
 using Xunit;
 
@@ -15,32 +13,6 @@ namespace ULM.Tests;
 // bestehendes, unverändertes Verhalten des Konstruktors; hier nur dokumentiert, nicht behoben.
 public class MainViewModelServiceInjectionTests
 {
-    private sealed class FakeHttpService : IHttpService
-    {
-        public string? GitHubToken { get; set; }
-    }
-
-    private sealed class FakeUsbService : IUsbService
-    {
-        public List<UsbDrive> DrivesToReturn { get; set; } = new();
-        public List<UsbDrive> ListRemovableDrives() => DrivesToReturn;
-        public Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries)
-            => Task.FromResult((new List<UsbService.StickIso>(), new List<UsbService.StickIso>()));
-    }
-
-    private sealed class FakeIsoDatabaseService : IIsoDatabaseService
-    {
-        private readonly List<IsoEntry> _entries = new();
-        public IReadOnlyList<IsoEntry> Entries => _entries;
-        public int Count => _entries.Count;
-        public void Load() { }
-        public void Save() { }
-        public void SaveFilenames() { }
-        public void Add(IsoEntry entry) => _entries.Add(entry);
-        public void Remove(int index) => _entries.RemoveAt(index);
-        public void SaveExpectedSize(IsoEntry entry, long bytes) { }
-    }
-
     [Fact]
     public void GitHubToken_Set_ForwardsToInjectedHttpService()
     {

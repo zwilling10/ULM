@@ -17,6 +17,10 @@ using ULM.Infrastructure;
 
 namespace ULM.ViewModels
 {
+    // Zustand des Selbst-Update-Banners, siehe MainViewModel.SetAvailableUpdate/
+    // SetUpdateDownloading/SetUpdateReadyToInstall.
+    public enum UpdateBannerState { Available, Downloading, ReadyToInstall }
+
     public sealed class MainViewModel : ViewModelBase
     {
         private readonly IIsoDatabaseService _db;
@@ -135,21 +139,55 @@ namespace ULM.ViewModels
         private bool _showInfoPopup = true;
         public  bool ShowInfoPopup { get => _showInfoPopup; set => SetField(ref _showInfoPopup, value); }
 
-        // Selbst-Update-Banner: nur sichtbar, wenn CheckForUlmUpdateAsync eine neuere Programmversion
-        // gefunden hat (SetAvailableUpdate wird vom MainWindow nur dann aufgerufen).
+        // Selbst-Update-Banner: durchläuft Available -> Downloading -> ReadyToInstall, sobald
+        // CheckForUlmUpdateAsync eine neuere Programmversion gefunden hat (SetAvailableUpdate wird
+        // vom MainWindow nur dann aufgerufen). Available = automatischer Download läuft noch nicht
+        // oder ist fehlgeschlagen (Button öffnet dann den manuellen Fallback-Dialog); Downloading =
+        // automatischer Hintergrund-Download läuft (Button deaktiviert); ReadyToInstall = Datei liegt
+        // bereit, Button installiert/ersetzt automatisch und startet ULM neu.
         private UlmUpdateInfo? _availableUpdate;
         public UlmUpdateInfo? AvailableUpdate => _availableUpdate;
         private bool _updateBannerVisible;
         public bool UpdateBannerVisible { get => _updateBannerVisible; private set => SetField(ref _updateBannerVisible, value); }
         private string _updateBannerText = string.Empty;
         public string UpdateBannerText { get => _updateBannerText; private set => SetField(ref _updateBannerText, value); }
+        private UpdateBannerState _updateBannerState = UpdateBannerState.Available;
+        public UpdateBannerState UpdateBannerState { get => _updateBannerState; private set => SetField(ref _updateBannerState, value); }
+        private string _updateBannerButtonText = "⬇ Herunterladen …";
+        public string UpdateBannerButtonText { get => _updateBannerButtonText; private set => SetField(ref _updateBannerButtonText, value); }
+        private bool _updateBannerButtonEnabled = true;
+        public bool UpdateBannerButtonEnabled { get => _updateBannerButtonEnabled; private set => SetField(ref _updateBannerButtonEnabled, value); }
+        private string? _downloadedUpdatePath;
+        public string? DownloadedUpdatePath => _downloadedUpdatePath;
 
         // Vom MainWindow nach erfolgreichem Update-Check aufgerufen — macht das Banner sichtbar.
+        // Auch der Fehler-Fallback (automatischer Download schlägt fehl) ruft dies erneut auf, um
+        // zurück in den Available-Zustand mit aktivem "Herunterladen"-Button zu wechseln.
         public void SetAvailableUpdate(UlmUpdateInfo info)
         {
             _availableUpdate = info;
+            UpdateBannerState = UpdateBannerState.Available;
             UpdateBannerText = $"🆕 Neue Version verfügbar: v{info.LatestVersion} (installiert: v{Constants.AppVersion})";
+            UpdateBannerButtonText = "⬇ Herunterladen …";
+            UpdateBannerButtonEnabled = true;
             UpdateBannerVisible = true;
+        }
+        // Vom MainWindow aufgerufen, sobald der automatische Hintergrund-Download startet.
+        public void SetUpdateDownloading()
+        {
+            UpdateBannerState = UpdateBannerState.Downloading;
+            UpdateBannerText = "⬇ Update wird heruntergeladen …";
+            UpdateBannerButtonText = "⬇ Wird heruntergeladen …";
+            UpdateBannerButtonEnabled = false;
+        }
+        // Vom MainWindow aufgerufen, sobald der Download fertig und die Datei bereit zur Installation ist.
+        public void SetUpdateReadyToInstall(string downloadedFilePath)
+        {
+            _downloadedUpdatePath = downloadedFilePath;
+            UpdateBannerState = UpdateBannerState.ReadyToInstall;
+            UpdateBannerText = $"✅ Update bereit — v{_availableUpdate?.LatestVersion}";
+            UpdateBannerButtonText = "✅ Jetzt installieren & neu starten";
+            UpdateBannerButtonEnabled = true;
         }
         // Blendet das Banner nur für die laufende Sitzung aus (kein persistenter Zustand).
         public void DismissUpdateBanner() => UpdateBannerVisible = false;
