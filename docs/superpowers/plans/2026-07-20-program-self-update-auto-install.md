@@ -458,6 +458,10 @@ git commit -m "feat: Installer schliesst/startet laufende ULM-Instanz beim Silen
 
 **Files:**
 - Modify: `ViewModels/MainViewModel.cs:138-155`
+- Create: `ULM.Tests/TestDoubles.cs` (Fakes aus `MainViewModelServiceInjectionTests.cs` extrahiert,
+  damit `MainViewModelUpdateBannerTests.cs` sie mitbenutzt statt sie zu duplizieren)
+- Modify: `ULM.Tests/MainViewModelServiceInjectionTests.cs` (nutzt die extrahierten Fakes statt
+  eigener privater Kopien)
 - Test: `ULM.Tests/MainViewModelUpdateBannerTests.cs`
 
 **Interfaces:**
@@ -467,46 +471,115 @@ git commit -m "feat: Installer schliesst/startet laufende ULM-Instanz beim Silen
   `MainViewModel.UpdateBannerButtonText : string`, `MainViewModel.UpdateBannerButtonEnabled : bool`,
   `MainViewModel.DownloadedUpdatePath : string?`,
   `MainViewModel.SetUpdateDownloading() : void`,
-  `MainViewModel.SetUpdateReadyToInstall(string downloadedFilePath) : void`.
+  `MainViewModel.SetUpdateReadyToInstall(string downloadedFilePath) : void`,
+  `ULM.Tests.FakeHttpService`/`FakeUsbService`/`FakeIsoDatabaseService` (verschoben von `private`
+  nested classes in `MainViewModelServiceInjectionTests.cs` zu `internal sealed` Top-Level-Klassen
+  in `TestDoubles.cs`).
   (`SetAvailableUpdate(UlmUpdateInfo info)` und `DismissUpdateBanner()` bleiben bestehen, ihr
   Verhalten wird erweitert.)
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Extract shared test doubles into `TestDoubles.cs`**
+
+Aktuell dupliziert `MainViewModelServiceInjectionTests.cs:18-42` drei private Fake-Klassen, die der
+neue Test in Step 2 identisch bräuchte. Statt sie ein zweites Mal zu schreiben, zuerst extrahieren:
+
+```csharp
+// ULM.Tests/TestDoubles.cs
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using ULM.Core.Models;
+using ULM.Core.Services;
+
+namespace ULM.Tests;
+
+internal sealed class FakeHttpService : IHttpService
+{
+    public string? GitHubToken { get; set; }
+}
+
+internal sealed class FakeUsbService : IUsbService
+{
+    public List<UsbDrive> DrivesToReturn { get; set; } = new();
+    public List<UsbDrive> ListRemovableDrives() => DrivesToReturn;
+    public Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries)
+        => Task.FromResult((new List<UsbService.StickIso>(), new List<UsbService.StickIso>()));
+}
+
+internal sealed class FakeIsoDatabaseService : IIsoDatabaseService
+{
+    private readonly List<IsoEntry> _entries = new();
+    public IReadOnlyList<IsoEntry> Entries => _entries;
+    public int Count => _entries.Count;
+    public void Load() { }
+    public void Save() { }
+    public void SaveFilenames() { }
+    public void Add(IsoEntry entry) => _entries.Add(entry);
+    public void Remove(int index) => _entries.RemoveAt(index);
+    public void SaveExpectedSize(IsoEntry entry, long bytes) { }
+}
+```
+
+In `ULM.Tests/MainViewModelServiceInjectionTests.cs` die private verschachtelten Klassen
+(Zeilen 18-42) entfernen — die Datei nutzt danach die Top-Level-Fakes aus `TestDoubles.cs` (gleicher
+Namespace `ULM.Tests`, kein neuer `using` nötig). Datei danach:
+
+```csharp
+// ULM.Tests/MainViewModelServiceInjectionTests.cs
+using System.Collections.Generic;
+using System.Windows.Threading;
+using ULM.Core.Models;
+using ULM.ViewModels;
+using Xunit;
+
+namespace ULM.Tests;
+
+// Hinweis: MainViewModel liest/schreibt im Konstruktor Einstellungen über AppPaths.Instance.SettingsIni
+// (ulm_settings.ini neben der Test-Assembly, nicht die echte App-Konfiguration — AppPaths leitet den
+// Pfad von AppContext.BaseDirectory ab, das im Testlauf auf ULM.Tests/bin/... zeigt). Das ist
+// bestehendes, unverändertes Verhalten des Konstruktors; hier nur dokumentiert, nicht behoben.
+public class MainViewModelServiceInjectionTests
+{
+    [Fact]
+    public void GitHubToken_Set_ForwardsToInjectedHttpService()
+    {
+        var fakeHttp = new FakeHttpService();
+        var vm = new MainViewModel(Dispatcher.CurrentDispatcher, fakeHttp, new FakeUsbService(), new FakeIsoDatabaseService());
+
+        vm.GitHubToken = "abc123";
+
+        Assert.Equal("abc123", fakeHttp.GitHubToken);
+    }
+
+    [Fact]
+    public void RefreshDrives_UsesInjectedUsbService_NotRealHardware()
+    {
+        var fakeUsb = new FakeUsbService { DrivesToReturn = new List<UsbDrive> { new("Z:", "TestStick", 32_000_000_000, "NTFS") } };
+        var vm = new MainViewModel(Dispatcher.CurrentDispatcher, new FakeHttpService(), fakeUsb, new FakeIsoDatabaseService());
+
+        vm.RefreshDrives();
+
+        Assert.Single(vm.Drives);
+        Assert.Equal("Z:", vm.Drives[0].Letter);
+    }
+}
+```
+
+Run: `dotnet test ULM.Tests --filter MainViewModelServiceInjectionTests`
+Expected: PASS (2 Tests) — reines Refactoring, Verhalten unverändert.
+
+- [ ] **Step 2: Write the failing test**
 
 ```csharp
 // ULM.Tests/MainViewModelUpdateBannerTests.cs
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Windows.Threading;
-using ULM.Core.Models;
 using ULM.Core.Services;
 using ULM.ViewModels;
+using System.Windows.Threading;
 using Xunit;
 
 namespace ULM.Tests;
 
 public class MainViewModelUpdateBannerTests
 {
-    private sealed class FakeHttpService : IHttpService { public string? GitHubToken { get; set; } }
-    private sealed class FakeUsbService : IUsbService
-    {
-        public List<UsbDrive> ListRemovableDrives() => new();
-        public Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries)
-            => Task.FromResult((new List<UsbService.StickIso>(), new List<UsbService.StickIso>()));
-    }
-    private sealed class FakeIsoDatabaseService : IIsoDatabaseService
-    {
-        private readonly List<IsoEntry> _entries = new();
-        public IReadOnlyList<IsoEntry> Entries => _entries;
-        public int Count => _entries.Count;
-        public void Load() { }
-        public void Save() { }
-        public void SaveFilenames() { }
-        public void Add(IsoEntry entry) => _entries.Add(entry);
-        public void Remove(int index) => _entries.RemoveAt(index);
-        public void SaveExpectedSize(IsoEntry entry, long bytes) { }
-    }
-
     private static MainViewModel NewVm() =>
         new(Dispatcher.CurrentDispatcher, new FakeHttpService(), new FakeUsbService(), new FakeIsoDatabaseService());
 
@@ -551,12 +624,12 @@ public class MainViewModelUpdateBannerTests
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 3: Run tests to verify they fail**
 
 Run: `dotnet test ULM.Tests --filter MainViewModelUpdateBannerTests`
 Expected: FAIL — Kompilierfehler, `UpdateBannerState`/`SetUpdateDownloading`/`SetUpdateReadyToInstall`/`DownloadedUpdatePath` existieren noch nicht.
 
-- [ ] **Step 3: Replace the update-banner block in `MainViewModel.cs`**
+- [ ] **Step 4: Replace the update-banner block in `MainViewModel.cs`**
 
 Aktueller Block (`ViewModels/MainViewModel.cs:138-155`):
 
@@ -648,20 +721,20 @@ Ersetzen durch:
 
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 5: Run tests to verify they pass**
 
 Run: `dotnet test ULM.Tests --filter MainViewModelUpdateBannerTests`
 Expected: PASS (3 Tests)
 
-- [ ] **Step 5: Run the full test suite to confirm nothing else broke**
+- [ ] **Step 6: Run the full test suite to confirm nothing else broke**
 
 Run: `dotnet test ULM.Tests`
 Expected: PASS (alle Tests)
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add ViewModels/MainViewModel.cs ULM.Tests/MainViewModelUpdateBannerTests.cs
+git add ViewModels/MainViewModel.cs ULM.Tests/TestDoubles.cs ULM.Tests/MainViewModelServiceInjectionTests.cs ULM.Tests/MainViewModelUpdateBannerTests.cs
 git commit -m "feat: MainViewModel bekommt UpdateBannerState fuer automatischen Update-Flow"
 ```
 
