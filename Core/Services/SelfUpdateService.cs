@@ -71,16 +71,20 @@ namespace ULM.Core.Services
             {
                 Process.Start(new ProcessStartInfo(downloadedFilePath, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART")
                 { UseShellExecute = true });
+                // ULM bleibt hier bewusst am Laufen: installer/ULM.iss hat CloseApplications=yes/
+                // RestartApplications=yes (Windows Restart Manager) — der RM kann ULM nur automatisch
+                // schließen UND später neu starten, wenn er den Prozess beim Scan noch laufend
+                // vorfindet. Ein eigenes Application.Shutdown() hier würde ULM schon vor dem RM-Scan
+                // beenden, wodurch RestartApplications nichts mehr zum Neustarten hätte.
+                return;
             }
-            else
-            {
-                string scriptPath = Path.Combine(Path.GetDirectoryName(downloadedFilePath)!, "apply.ps1");
-                string script = BuildApplyScript(Environment.ProcessId, downloadedFilePath, currentExePath);
-                File.WriteAllText(scriptPath, script);
-                Process.Start(new ProcessStartInfo("powershell.exe",
-                    $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
-                { UseShellExecute = false, CreateNoWindow = true });
-            }
+
+            string scriptPath = Path.Combine(Path.GetDirectoryName(downloadedFilePath)!, "apply.ps1");
+            string script = BuildApplyScript(Environment.ProcessId, downloadedFilePath, currentExePath);
+            File.WriteAllText(scriptPath, script);
+            Process.Start(new ProcessStartInfo("powershell.exe",
+                $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
+            { UseShellExecute = false, CreateNoWindow = true });
             System.Windows.Application.Current.Shutdown();
         }
 
@@ -89,14 +93,19 @@ namespace ULM.Core.Services
         // Prozessende freigegeben wird), startet ULM vom ursprünglichen Pfad neu und räumt auf.
         // Bricht der Kopierversuch dauerhaft ab (Datei weiterhin gesperrt), bleibt die alte .exe
         // unangetastet — kein Datenverlust, der Check läuft beim nächsten Start erneut.
-        internal static string BuildApplyScript(int processId, string newExePath, string targetExePath) =>
-            $"while (Get-Process -Id {processId} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
-            "for ($i = 0; $i -lt 20; $i++) {\n" +
-            $"    try {{ Copy-Item -Path '{newExePath}' -Destination '{targetExePath}' -Force; break }}\n" +
-            "    catch { Start-Sleep -Milliseconds 500 }\n" +
-            "}\n" +
-            $"Start-Process -FilePath '{targetExePath}'\n" +
-            $"Remove-Item -Path '{newExePath}' -ErrorAction SilentlyContinue\n" +
-            "Remove-Item -Path $PSCommandPath -ErrorAction SilentlyContinue\n";
+        internal static string BuildApplyScript(int processId, string newExePath, string targetExePath)
+        {
+            string safeNewExePath = newExePath.Replace("'", "''");
+            string safeTargetExePath = targetExePath.Replace("'", "''");
+            return
+                $"while (Get-Process -Id {processId} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
+                "for ($i = 0; $i -lt 20; $i++) {\n" +
+                $"    try {{ Copy-Item -Path '{safeNewExePath}' -Destination '{safeTargetExePath}' -Force; break }}\n" +
+                "    catch { Start-Sleep -Milliseconds 500 }\n" +
+                "}\n" +
+                $"Start-Process -FilePath '{safeTargetExePath}'\n" +
+                $"Remove-Item -Path '{safeNewExePath}' -ErrorAction SilentlyContinue\n" +
+                "Remove-Item -Path $PSCommandPath -ErrorAction SilentlyContinue\n";
+        }
     }
 }

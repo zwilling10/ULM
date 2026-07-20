@@ -40,10 +40,10 @@ WizardStyle=modern
 ; eine Installation pro Benutzer in dessen lokalem AppData, ganz ohne UAC-Abfrage beim Setup selbst.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-; Automatisches Selbst-Update (SelfUpdateService.ApplyUpdateAndRestart): schließt beim Silent-Install
-; zuverlässig alle laufenden ULM-Instanzen (Sicherheitsnetz, falls die App sich nicht rechtzeitig
-; selbst beendet hat) und startet sie danach automatisch neu — auch im /VERYSILENT-Modus.
-AppMutex=UniversalLinuxManagerSingleInstance
+; Automatisches Selbst-Update (SelfUpdateService.ApplyUpdateAndRestart): ULM beendet sich bei der
+; Installer-Variante bewusst NICHT selbst, bevor der Installer startet — der Windows Restart Manager
+; (CloseApplications=yes) muss die laufende Instanz noch vorfinden, um sie zu schließen und nach der
+; Installation automatisch neu zu starten (RestartApplications=yes), auch im /VERYSILENT-Modus.
 CloseApplications=yes
 RestartApplications=yes
 

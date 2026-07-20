@@ -78,4 +78,13 @@ public class SelfUpdateServiceBuildApplyScriptTests
         Assert.Contains(@"C:\Tools\ULM\UniversalLinuxManager.exe", script);
         Assert.Contains("Start-Process", script);
     }
+
+    [Fact]
+    public void BuildApplyScript_PathWithApostrophe_EscapesForPowerShell()
+    {
+        string script = SelfUpdateService.BuildApplyScript(4242, @"C:\Users\O'Brien\new.exe", @"C:\Users\O'Brien\UniversalLinuxManager.exe");
+
+        Assert.Contains("O''Brien", script);
+        Assert.DoesNotContain("O'Brien\\new.exe'", script);
+    }
 }
