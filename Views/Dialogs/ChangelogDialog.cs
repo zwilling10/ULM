@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.38.0", new[]
+            {
+                "Neu: Findet ULM eine neuere Programmversion, wird sie jetzt automatisch im Hintergrund heruntergeladen. Das Banner bietet danach „Jetzt installieren & neu starten“ an — ULM installiert bzw. ersetzt sich selbst und startet mit der neuen Version neu. Schlägt der automatische Download ausnahmsweise fehl, bleibt wie bisher die manuelle Auswahl zwischen portabler EXE und Setup-Installer verfügbar.",
+            }),
             ("2.37.0", new[]
             {
                 "Neu: Schlägt ein Download mangels gefundener Quelle fehl, erscheint der Button „🔧 Quelle manuell suchen“ jetzt sofort direkt im Download-Fortschritt-Fenster — nicht erst nach mehreren aufeinanderfolgenden automatischen Fehlschlägen in der Hauptliste. Nach dem Eintragen einer Quelle startet der Download für diesen Eintrag automatisch neu.",
