@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ULM.Core.Services
 {
@@ -10,6 +12,8 @@ namespace ULM.Core.Services
     public interface ISelfUpdateService
     {
         InstallKind DetectInstallKind(string currentExePath);
+        Task<string?> DownloadUpdateAsync(UlmUpdateInfo info, InstallKind kind, string tempDir,
+            IProgress<(int Percent, string Detail)>? progress, CancellationToken ct);
     }
 
     public sealed class SelfUpdateService : ISelfUpdateService
@@ -29,6 +33,27 @@ namespace ULM.Core.Services
             if (!string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, InstalledMarkerFileName)))
                 return InstallKind.Installed;
             return InstallKind.Portable;
+        }
+
+        // Wählt die zur erkannten Verteilungsform passende Asset-URL — reine Logik, testbar ohne
+        // Netzwerk. Leer, falls das jeweilige Asset im Release fehlt (siehe UlmUpdateInfo-Doku).
+        internal static string SelectDownloadUrl(UlmUpdateInfo info, InstallKind kind)
+            => kind == InstallKind.Installed ? info.SetupExeUrl : info.PortableExeUrl;
+
+        // Lädt automatisch die zur Verteilungsform passende Datei nach tempDir herunter (nutzt das
+        // bestehende HttpService.DownloadAsync, kein neuer Download-Code). Liefert null, wenn kein
+        // passendes Asset existiert oder der Download fehlschlägt — der Aufrufer fällt dann auf den
+        // bestehenden manuellen UpdateDownloadDialog zurück.
+        public async Task<string?> DownloadUpdateAsync(UlmUpdateInfo info, InstallKind kind, string tempDir,
+            IProgress<(int Percent, string Detail)>? progress, CancellationToken ct)
+        {
+            string url = SelectDownloadUrl(info, kind);
+            if (string.IsNullOrWhiteSpace(url)) return null;
+            Directory.CreateDirectory(tempDir);
+            string fileName = Path.GetFileName(new Uri(url).AbsolutePath);
+            string dest = Path.Combine(tempDir, fileName);
+            bool ok = await HttpService.Instance.DownloadAsync(url, dest, progress, ct).ConfigureAwait(false);
+            return ok ? dest : null;
         }
     }
 }

@@ -40,3 +40,28 @@ public class SelfUpdateServiceDetectInstallKindTests
         finally { Directory.Delete(tempDir, true); }
     }
 }
+
+public class SelfUpdateServiceSelectDownloadUrlTests
+{
+    [Fact]
+    public void SelectDownloadUrl_Installed_ReturnsSetupUrl()
+    {
+        var info = new UlmUpdateInfo(true, "3.0.0", "https://example.test/release",
+            "https://example.test/portable.exe", "https://example.test/setup.exe");
+
+        string url = SelfUpdateService.SelectDownloadUrl(info, InstallKind.Installed);
+
+        Assert.Equal("https://example.test/setup.exe", url);
+    }
+
+    [Fact]
+    public void SelectDownloadUrl_Portable_ReturnsPortableUrl()
+    {
+        var info = new UlmUpdateInfo(true, "3.0.0", "https://example.test/release",
+            "https://example.test/portable.exe", "https://example.test/setup.exe");
+
+        string url = SelfUpdateService.SelectDownloadUrl(info, InstallKind.Portable);
+
+        Assert.Equal("https://example.test/portable.exe", url);
+    }
+}
