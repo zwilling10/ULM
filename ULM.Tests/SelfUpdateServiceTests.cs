@@ -65,3 +65,17 @@ public class SelfUpdateServiceSelectDownloadUrlTests
         Assert.Equal("https://example.test/portable.exe", url);
     }
 }
+
+public class SelfUpdateServiceBuildApplyScriptTests
+{
+    [Fact]
+    public void BuildApplyScript_ContainsProcessIdAndBothPaths()
+    {
+        string script = SelfUpdateService.BuildApplyScript(4242, @"C:\Temp\ULM_Update\new.exe", @"C:\Tools\ULM\UniversalLinuxManager.exe");
+
+        Assert.Contains("-Id 4242", script);
+        Assert.Contains(@"C:\Temp\ULM_Update\new.exe", script);
+        Assert.Contains(@"C:\Tools\ULM\UniversalLinuxManager.exe", script);
+        Assert.Contains("Start-Process", script);
+    }
+}
