@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.38.1", new[]
+            {
+                "Fehlerbehebung: Eine nach einem von ULM selbst durchgeführten Stick-Update überflüssig gewordene alte ISO-Version wurde fälschlich als „unbekannte Distro“ statt als zu löschendes Duplikat gemeldet — dabei konnte der Katalog-Eintrag versehentlich auf die alte Version zurückfallen.",
+                "Fehlerbehebung: Die Versionsermittlung für Debian konnte je nachdem, welcher Spiegelserver zuerst antwortete, mal eine ältere, mal die aktuelle Version als „neueste“ melden.",
+            }),
             ("2.38.0", new[]
             {
                 "Neu: Findet ULM eine neuere Programmversion, wird sie jetzt automatisch im Hintergrund heruntergeladen. Das Banner bietet danach „Jetzt installieren & neu starten“ an — ULM installiert bzw. ersetzt sich selbst und startet mit der neuen Version neu. Schlägt der automatische Download ausnahmsweise fehl, bleibt wie bisher die manuelle Auswahl zwischen portabler EXE und Setup-Installer verfügbar.",

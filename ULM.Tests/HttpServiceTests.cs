@@ -287,3 +287,52 @@ public class HttpServiceMatchUlmReleaseAssetsTests
         Assert.Equal("", setup);
     }
 }
+
+public class HttpServicePickHighestVersionCandidateTests
+{
+    [Fact]
+    public void NoCandidates_ReturnsEmpty()
+    {
+        var result = HttpService.PickHighestVersionCandidate(
+            new List<(string Version, string Url, string Filename)>());
+        Assert.Equal(("", "", ""), result);
+    }
+
+    [Fact]
+    public void SingleCandidate_ReturnsIt()
+    {
+        var result = HttpService.PickHighestVersionCandidate(new List<(string, string, string)>
+        { ("13.5.0", "https://a/debian-live-13.5.0-amd64-xfce.iso", "debian-live-13.5.0-amd64-xfce.iso") });
+        Assert.Equal("13.5.0", result.Version);
+    }
+
+    [Fact]
+    public void MultipleCandidates_PicksHighestRegardlessOfOrder()
+    {
+        // Regression: genau der real beobachtete Fall — ResolveDebianLiveAsync nahm bisher den
+        // ERSTEN Mirror, der überhaupt antwortete, ohne zu prüfen, ob ein LANGSAMERER/später
+        // gefragter Mirror bereits eine neuere Version hat. Ein nicht synchroner erster Mirror lieferte
+        // dadurch scheinbar-zufällig mal 13.5.0, mal 13.6.0 als "aktuellste" Version zurück, je
+        // nachdem, welcher Mirror zuerst antwortete — nicht danach, welche Version tatsächlich neuer ist.
+        var candidates = new List<(string Version, string Url, string Filename)>
+        {
+            ("13.5.0", "https://mirror-lagging/debian-live-13.5.0-amd64-xfce.iso", "debian-live-13.5.0-amd64-xfce.iso"),
+            ("13.6.0", "https://mirror-current/debian-live-13.6.0-amd64-xfce.iso", "debian-live-13.6.0-amd64-xfce.iso"),
+        };
+        var result = HttpService.PickHighestVersionCandidate(candidates);
+        Assert.Equal("13.6.0", result.Version);
+        Assert.Equal("https://mirror-current/debian-live-13.6.0-amd64-xfce.iso", result.Url);
+    }
+
+    [Fact]
+    public void CandidatesWithEmptyVersion_AreIgnored()
+    {
+        var candidates = new List<(string Version, string Url, string Filename)>
+        {
+            ("", "https://broken/x.iso", "x.iso"),
+            ("13.6.0", "https://ok/debian-live-13.6.0-amd64-xfce.iso", "debian-live-13.6.0-amd64-xfce.iso"),
+        };
+        var result = HttpService.PickHighestVersionCandidate(candidates);
+        Assert.Equal("13.6.0", result.Version);
+    }
+}

@@ -49,20 +49,8 @@ namespace ULM.ViewModels
         private readonly HashSet<string> _newerVersionKeys    = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _incompleteStickKeys = new(StringComparer.OrdinalIgnoreCase);
 
-        // BUGFIX: TriggerUsbScan() (z.B. der Scan direkt nach einer von ULM selbst durchgeführten
-        // Update-Kopie, siehe StartDownload → TriggerUsbScan() VOR DownloadBatchCompleted) läuft
-        // immer mit leerem oldFn (kein Versionscheck-Kontext) und kann die noch physisch vorhandene
-        // ALTE Datei deshalb nicht als "veraltet/behandelt" erkennen — sie fiel bislang durch die
-        // Unbekannt-Erkennung und öffnete während/direkt nach dem Lösch-Angebot (OfferDeleteOldIsos-
-        // AfterUpdate) zusätzlich einen "ISO importieren"-Dialog für genau diese alte Datei. Diese
-        // Menge merkt sich, für welche Laufwerk+Dateiname-Kombinationen gerade eine Lösch-Entscheidung
-        // aussteht, damit ProcessStickScanResults sie in der Zwischenzeit nicht als unbekannt meldet.
-        private readonly HashSet<string> _pendingOldFileDecisions = new(StringComparer.OrdinalIgnoreCase);
-
         public bool MarkCopyOffered(string drive, string filename)               => _offeredCopyKeys.Add($"{drive}|{filename}");
         public bool MarkUnknownStickIsoOffered(string drive, string filename)    => _importedStickKeys.Add($"{drive}|{filename}");
-        public void MarkPendingOldFileDecision(string drive, string filename)    => _pendingOldFileDecisions.Add($"{drive}|{filename}");
-        public void ClearPendingOldFileDecision(string drive, string filename)   => _pendingOldFileDecisions.Remove($"{drive}|{filename}");
         public bool MarkNewerVersionOffered(string drive, string filename)       => _newerVersionKeys.Add($"{drive}|{filename}");
         public bool MarkIncompleteStickIsoOffered(string drive, string filename) => _incompleteStickKeys.Add($"{drive}|{filename}");
 
@@ -422,10 +410,19 @@ namespace ULM.ViewModels
             var existing = _db.Entries.FirstOrDefault(d => DistroMatcher.AreSameDistro(d, e));
             if (existing != null)
             {
-                Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — Dateiname übernommen statt Duplikat angelegt.");
-                existing.Filename = e.Filename;
-                existing.ImportedFromStick = true;
-                _db.Save();
+                // BUGFIX: siehe DistroMatcher.ShouldAdoptImportedFilename — ein importierter
+                // Dateiname darf einen bestehenden Katalog-Eintrag nur ersetzen, wenn er wirklich
+                // neuer ist (oder der Eintrag noch keinen Dateinamen hatte). Eine ÄLTERE Version darf
+                // den Katalog nicht rückwärts degradieren.
+                if (DistroMatcher.ShouldAdoptImportedFilename(existing.Filename, e.Filename))
+                {
+                    Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — Dateiname übernommen statt Duplikat angelegt.");
+                    existing.Filename = e.Filename;
+                    existing.ImportedFromStick = true;
+                    _db.Save();
+                }
+                else
+                    Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — ältere/gleiche Version, Dateiname NICHT übernommen.");
                 return;
             }
             _db.Add(e); Log($"   + [{e.Category}] {e.Name}  ({e.Filename})");
@@ -540,7 +537,8 @@ namespace ULM.ViewModels
                 });
             });
 
-            // Veraltet-/Duplikat-Trennung (nur mit Versionscheck-Kontext; sonst oldFn leer → leere Listen).
+            // Veraltet-/Duplikat-Trennung (nur mit Versionscheck-Kontext; sonst oldFn leer → leere Listen,
+            // die "echten Duplikate" unten holt die kontextfreie FindKnownDistroForStickFile-Erkennung nach).
             var stickFn = new HashSet<string>(found.Select(f => f.Filename), StringComparer.OrdinalIgnoreCase);
             var (od, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, _db.Entries, stickFn);
             if (od.Count > 0)
@@ -549,16 +547,8 @@ namespace ULM.ViewModels
                 foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}");
                 StickUpdateAvailable?.Invoke(od, drive);
             }
-            if (duplicates.Count > 0)
-            {
-                Log($"🗑 {duplicates.Count} veraltete Duplikat-ISO(s) auf {drive} (aktuelle Version bereits vorhanden).");
-                foreach (var (e, oldFilename) in duplicates) Log($"   🗑 {e.Name}: {oldFilename}");
-                StaleDuplicatesOnStickDetected?.Invoke(duplicates, drive);
-            }
-            if (od.Count == 0 && duplicates.Count == 0 && found.Count > 0)
-                Log($"✅ Alle ISOs auf {drive} aktuell.");
 
-            // Bereits als veraltet/Duplikat gemeldete alte Dateinamen aus der Neuer-/Unbekannt-Erkennung
+            // Bereits als veraltet gemeldete alte Dateinamen aus der Neuer-/Unbekannt-Erkennung
             // ausschließen, sonst würde dieselbe Datei doppelt gemeldet (einmal "veraltet", einmal "unbekannt").
             var handled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (_, oldFilename) in od)         handled.Add(oldFilename);
@@ -570,20 +560,34 @@ namespace ULM.ViewModels
             var initialUnknowns = found.Where(f => !string.IsNullOrWhiteSpace(f.Filename)
                                                 && !dbFn.Contains(f.Filename)
                                                 && !newerFnSet.Contains(f.Filename)
-                                                && !handled.Contains(f.Filename)
-                                                && !_pendingOldFileDecisions.Contains($"{drive}|{f.Filename}")).ToList();
+                                                && !handled.Contains(f.Filename)).ToList();
 
-            var additionalNewer = new List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>();
-            var trueUnknowns    = new List<UsbService.StickIso>();
+            // BUGFIX: erkennt "bekannte Distro, nur andere Version" jetzt UNABHÄNGIG vom oldFn-Kontext
+            // (siehe DistroMatcher.FindKnownDistroForStickFile) — vorher fiel eine ÄLTERE, bereits
+            // durch ein Update abgelöste Datei (z.B. der Rest einer eben erst erfolgreich
+            // aktualisierten Distro) fälschlich in "unbekannte Distro gefunden", weil der alte
+            // Namens-Fallback hier nur "Stick-Version neuer als Katalog" abdeckte und die
+            // "veraltet"-Erkennung oben nur innerhalb desselben Versionscheck-Laufs funktionierte.
+            var additionalNewer      = new List<(IsoEntry DbEntry, UsbService.StickIso StickIso)>();
+            var staleKnownDuplicates = new List<(IsoEntry Entry, string OldFilename)>();
+            var trueUnknowns         = new List<UsbService.StickIso>();
             foreach (var stickIso in initialUnknowns)
             {
-                var match = _db.Entries.Where(e => !string.IsNullOrWhiteSpace(e.Name))
-                    .FirstOrDefault(e => DistroMatcher.IsLikelySameDistroByName(e.Name, stickIso.Filename) &&
-                        (string.IsNullOrWhiteSpace(e.Filename) ||
-                         DistroMatcher.IsVersionNewer(HttpService.ExtractVersion(stickIso.Filename), HttpService.ExtractVersion(e.Filename))));
-                if (match != null) additionalNewer.Add((match, stickIso));
-                else               trueUnknowns.Add(stickIso);
+                var match = DistroMatcher.FindKnownDistroForStickFile(_db.Entries, stickIso.Filename);
+                if (match is null)              trueUnknowns.Add(stickIso);
+                else if (match.Value.StickIsNewer) additionalNewer.Add((match.Value.Entry, stickIso));
+                else                             staleKnownDuplicates.Add((match.Value.Entry, stickIso.Filename));
             }
+
+            var allDuplicates = duplicates.Concat(staleKnownDuplicates).ToList();
+            if (allDuplicates.Count > 0)
+            {
+                Log($"🗑 {allDuplicates.Count} veraltete Duplikat-ISO(s) auf {drive} (aktuelle Version bereits vorhanden).");
+                foreach (var (e, oldFilename) in allDuplicates) Log($"   🗑 {e.Name}: {oldFilename}");
+                StaleDuplicatesOnStickDetected?.Invoke(allDuplicates, drive);
+            }
+            if (od.Count == 0 && allDuplicates.Count == 0 && found.Count > 0)
+                Log($"✅ Alle ISOs auf {drive} aktuell.");
 
             var allNewer = newerOnStick.Concat(additionalNewer).ToList();
             if (allNewer.Count > 0) NewerVersionsOnStickDetected?.Invoke(allNewer, drive);

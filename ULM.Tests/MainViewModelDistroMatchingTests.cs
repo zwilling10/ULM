@@ -116,6 +116,38 @@ public class MainViewModelDistroMatchingTests
     public void HasVersionlessFilename_TrueOnlyWithoutExtractableVersion(string filename, bool expected)
         => Assert.Equal(expected, DistroMatcher.HasVersionlessFilename(filename));
 
+    public class MainViewModelShouldAdoptImportedFilenameTests
+    {
+        [Fact]
+        public void ExistingHasNoFilenameYet_Adopts()
+            // Katalogeintrag wurde noch nie aufgelöst (z.B. per "ISO suchen" ohne Dateiname
+            // hinzugefügt) — jeder Fund beim Import ist ein echter Erstbezug.
+            => Assert.True(DistroMatcher.ShouldAdoptImportedFilename("", "debian-live-13.5.0-amd64-xfce.iso"));
+
+        [Fact]
+        public void ImportedVersionNewer_Adopts()
+            => Assert.True(DistroMatcher.ShouldAdoptImportedFilename(
+                "debian-live-13.6.0-amd64-xfce.iso", "debian-live-13.7.0-amd64-xfce.iso"));
+
+        [Fact]
+        public void ImportedVersionOlder_DoesNotAdopt()
+        {
+            // Regression: genau der real aufgetretene Fall. AddImportedEntry übernahm bisher den
+            // Dateinamen einer fälschlich als "unbekannt" einsortierten ISO UNGEPRÜFT — auch wenn sie
+            // eine ÄLTERE Version war als die bereits im Katalog hinterlegte. Das degradierte den
+            // Katalog aktiv rückwärts (Name blieb "13.6.0", Filename fiel zurück auf "13.5.0").
+            Assert.False(DistroMatcher.ShouldAdoptImportedFilename(
+                "debian-live-13.6.0-amd64-xfce.iso", "debian-live-13.5.0-amd64-xfce.iso"));
+        }
+
+        [Fact]
+        public void ImportedVersionEqual_DoesNotAdopt()
+            // Gleiche Version, nur anderer Dateiname (z.B. Mirror-Eigenheit) — kein echter Fortschritt,
+            // der bestehende Eintrag bleibt unangetastet.
+            => Assert.False(DistroMatcher.ShouldAdoptImportedFilename(
+                "debian-live-13.6.0-amd64-xfce.iso", "debian-live-13.6.0-amd64-xfce.iso"));
+    }
+
     public class MainViewModelSplitOutdatedFromDuplicatesTests
     {
         private static IsoEntry Entry(string filename) => new() { Name = filename, Filename = filename };
@@ -186,6 +218,91 @@ public class MainViewModelDistroMatchingTests
             Assert.Single(outdated); Assert.Equal("distro-a-2.0.iso", outdated[0].Entry.Filename);
             Assert.Equal("distro-a-1.0.iso", outdated[0].OldFilename);
             Assert.Single(duplicates); Assert.Equal("distro-b-1.0.iso", duplicates[0].OldFilename);
+        }
+    }
+
+    public class MainViewModelFindKnownDistroForStickFileTests
+    {
+        private static IsoEntry E(string name, string filename) => new() { Name = name, Filename = filename };
+
+        [Fact]
+        public void StickVersionNewer_ReturnsEntryWithStickIsNewerTrue()
+        {
+            var entries = new List<IsoEntry> { E("Ubuntu 24.04 LTS", "ubuntu-24.04-desktop-amd64.iso") };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "ubuntu-26.04-desktop-amd64.iso");
+
+            Assert.NotNull(result);
+            Assert.Same(entries[0], result!.Value.Entry);
+            Assert.True(result.Value.StickIsNewer);
+        }
+
+        [Fact]
+        public void StickVersionOlder_ReturnsEntryWithStickIsNewerFalse()
+        {
+            // Regression: genau der real gemeldete Fall. Der Katalog wurde bereits per Versionscheck
+            // auf 13.6.0 umbenannt, die alte 13.5.0-Datei liegt nach einem erfolgreichen Update noch
+            // physisch auf dem Stick — OHNE oldFn-Kontext (z.B. weil der Scan aus einem anderen
+            // Aufrufpfad als dem Versionscheck-Abschluss kommt). Muss trotzdem als "bekannt, nur
+            // überholte Version" erkannt werden statt als "unbekannte Distro".
+            var entries = new List<IsoEntry> { E("Debian 13.6.0 Trixie Live XFCE", "debian-live-13.6.0-amd64-xfce.iso") };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "debian-live-13.5.0-amd64-xfce.iso");
+
+            Assert.NotNull(result);
+            Assert.Same(entries[0], result!.Value.Entry);
+            Assert.False(result.Value.StickIsNewer);
+        }
+
+        [Fact]
+        public void NoMatchingDistro_ReturnsNull()
+        {
+            var entries = new List<IsoEntry> { E("Ubuntu 26.04 LTS", "ubuntu-26.04-desktop-amd64.iso") };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "fedora-Workstation-Live-44-1.7.x86_64.iso");
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void EntryFilenameEmpty_TreatsFirstFindAsNewer()
+        {
+            // Noch nie aufgelöster Katalogeintrag (z.B. per "ISO suchen" hinzugefügt) — jeder Fund
+            // auf dem Stick zählt als Erstbezug, nicht als "überholt".
+            var entries = new List<IsoEntry> { E("Zorin OS 18 Core", "") };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "Zorin-OS-18-Core-64-bit-r1.iso");
+
+            Assert.NotNull(result);
+            Assert.True(result!.Value.StickIsNewer);
+        }
+
+        [Fact]
+        public void ExactFilenameMatch_ReturnsNull()
+        {
+            // Wird vom Aufrufer normalerweise schon vorher rausgefiltert (dbFn-Check) — die Funktion
+            // muss trotzdem für sich allein korrekt sein und keinen falschen Kandidaten liefern.
+            var entries = new List<IsoEntry> { E("Ubuntu 24.04 LTS", "ubuntu-24.04-desktop-amd64.iso") };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "ubuntu-24.04-desktop-amd64.iso");
+
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void MultipleEntries_MatchesOnlyTheRightOne()
+        {
+            var entries = new List<IsoEntry>
+            {
+                E("Fedora Workstation 44", "Fedora-Workstation-Live-44-1.7.x86_64.iso"),
+                E("Debian 13.6.0 Trixie Live XFCE", "debian-live-13.6.0-amd64-xfce.iso"),
+            };
+
+            var result = DistroMatcher.FindKnownDistroForStickFile(entries, "debian-live-13.5.0-amd64-xfce.iso");
+
+            Assert.NotNull(result);
+            Assert.Same(entries[1], result!.Value.Entry);
+            Assert.False(result.Value.StickIsNewer);
         }
     }
 

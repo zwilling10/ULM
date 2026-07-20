@@ -15,9 +15,9 @@
     <Company>ULM Project</Company>
     <Copyright>© 2025 ULM Project. Open Source.</Copyright>
     <Description>Portabler Linux-ISO-Manager mit Ventoy-USB-Unterstützung. Kein Installer nötig — einfach starten.</Description>
-    <Version>2.38.0</Version>
-    <AssemblyVersion>2.38.0.0</AssemblyVersion>
-    <FileVersion>2.38.0.0</FileVersion>
+    <Version>2.38.1</Version>
+    <AssemblyVersion>2.38.1.0</AssemblyVersion>
+    <FileVersion>2.38.1.0</FileVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
 
     <!-- ── Portable Single-File EXE ─────────────────────────────────── -->

@@ -126,6 +126,24 @@ namespace ULM.Core.Services
             return (outdated, duplicates);
         }
 
+        /// <summary>
+        /// Entscheidet, ob ein beim Import einer "unbekannten" ISO gefundener Dateiname den bereits
+        /// im Katalog hinterlegten ERSETZEN darf.
+        ///
+        /// BUGFIX: MainViewModel.AddImportedEntry übernahm bisher IMMER den importierten Dateinamen,
+        /// sobald AreSameDistro einen bestehenden Eintrag erkannte — ungeprüft, auch wenn die
+        /// importierte Datei eine ÄLTERE Version war als die bereits im Katalog vermerkte (z.B. ein
+        /// liegen gebliebener Rest einer schon ersetzten Version, der über einen anderen Pfad als
+        /// "unbekannt" gemeldet wurde). Das degradierte den Katalog aktiv rückwärts — real
+        /// beobachtet: Name blieb "Debian 13.6.0 …", Filename fiel auf "…13.5.0…" zurück und blieb
+        /// dauerhaft inkonsistent, bis ein zufälliger künftiger Online-Fund das wieder geradebog. Nur
+        /// ein echter Neuzugang (Katalog kennt noch keinen Dateinamen) oder eine nachweislich NEUERE
+        /// Version dürfen übernommen werden.
+        /// </summary>
+        internal static bool ShouldAdoptImportedFilename(string? existingFilename, string importedFilename)
+            => string.IsNullOrWhiteSpace(existingFilename)
+               || IsVersionNewer(HttpService.ExtractVersion(importedFilename), HttpService.ExtractVersion(existingFilename));
+
         internal static bool HasVersionlessFilename(string filename)
             => !string.IsNullOrWhiteSpace(filename) && string.IsNullOrEmpty(HttpService.ExtractVersion(filename));
 
@@ -135,6 +153,41 @@ namespace ULM.Core.Services
             foreach (string cn in _platformCodenames)
             { s = s.Replace("." + cn, string.Empty); s = s.Replace("-" + cn, string.Empty); s = s.Replace("_" + cn, string.Empty); }
             return s;
+        }
+
+        /// <summary>
+        /// Ordnet eine auf dem Stick gefundene Datei, die NICHT exakt zu einem Katalog-Dateinamen
+        /// passt, über den Namens-Fallback (IsLikelySameDistroByName) einem bekannten Katalogeintrag
+        /// zu — UNABHÄNGIG davon, ob die Stick-Version NEUER oder ÄLTER als die aktuell im Katalog
+        /// hinterlegte Version ist.
+        ///
+        /// BUGFIX: Der bisherige Aufrufer (MainViewModel.ProcessStickScanResults) erkannte über diesen
+        /// Namens-Fallback nur den Fall "Stick-Version neuer als Katalog". Eine ÄLTERE, bereits durch
+        /// ein Update abgelöste Version — z.B. die alte Datei, die nach einem erfolgreichen
+        /// automatischen Update noch physisch auf dem Stick liegt — fiel dadurch fälschlich in
+        /// "unbekannte Distro gefunden", obwohl die Distro dem Katalog längst bekannt ist. Diese
+        /// Erkennung hing bisher ausschließlich am transienten oldFn-Dictionary
+        /// (SplitOutdatedFromDuplicates), das NUR der Versionscheck-Abschluss befüllt — jeder andere
+        /// Aufrufer eines Stick-Scans (manueller Scan, Stick neu eingesteckt, Scan direkt nach
+        /// Download+Kopie) übergibt ein leeres oldFn und hatte dadurch keine Möglichkeit, eine
+        /// überholte Version als bekannt zu erkennen. Diese Funktion braucht keinen solchen
+        /// Kontext — sie leitet "bekannt, nur andere Version" ausschließlich aus dem aktuellen
+        /// Katalogzustand + dem Stick-Dateinamen ab, funktioniert also bei JEDEM Aufrufpfad gleich.
+        /// </summary>
+        internal static (IsoEntry Entry, bool StickIsNewer)? FindKnownDistroForStickFile(
+            IReadOnlyList<IsoEntry> entries, string stickFilename)
+        {
+            if (string.IsNullOrWhiteSpace(stickFilename)) return null;
+            foreach (var e in entries)
+            {
+                if (string.IsNullOrWhiteSpace(e.Name)) continue;
+                if (string.Equals(e.Filename, stickFilename, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!IsLikelySameDistroByName(e.Name, stickFilename)) continue;
+                if (string.IsNullOrWhiteSpace(e.Filename)) return (e, true); // noch nie aufgelöst -> Erstfund zählt als "neu"
+                bool stickNewer = IsVersionNewer(HttpService.ExtractVersion(stickFilename), HttpService.ExtractVersion(e.Filename));
+                return (e, stickNewer);
+            }
+            return null;
         }
 
         internal static bool IsLikelySameDistroByName(string dbEntryName, string stickFilename)

@@ -427,6 +427,22 @@ namespace ULM.Core.Services
         private static readonly (string, string, string) Empty = (string.Empty, string.Empty, string.Empty);
 
         /// <summary>
+        /// Wählt aus mehreren Mirror-Kandidaten denjenigen mit der höchsten Version aus.
+        ///
+        /// BUGFIX: Mehr-Mirror-Resolver (z.B. ResolveDebianLiveAsync) nahmen bisher den ERSTEN
+        /// Mirror, der überhaupt antwortete, ohne zu prüfen, ob ein anderer bereits eine neuere
+        /// Version listet. Mirrors synchronisieren nicht alle gleichzeitig — welcher Mirror zuerst
+        /// antwortet, sagt nichts darüber aus, welche Version tatsächlich die neueste ist. Kandidaten
+        /// ohne extrahierbare Version werden ignoriert (können nicht sinnvoll verglichen werden).
+        /// </summary>
+        internal static (string Version, string Url, string Filename) PickHighestVersionCandidate(
+            IEnumerable<(string Version, string Url, string Filename)> candidates)
+        {
+            var valid = candidates.Where(c => !string.IsNullOrWhiteSpace(c.Version)).ToList();
+            return valid.Count == 0 ? Empty : valid.OrderByDescending(c => c.Version, VersionComparer.Instance).First();
+        }
+
+        /// <summary>
         /// Entfernt alle Nicht-Alphanumerischen Zeichen und normalisiert Groß-/Kleinschreibung.
         /// Manuell hinzugefügte oder vom Stick importierte Einträge haben oft einen aus dem
         /// Dateinamen abgeleiteten Namen mit abweichender Zeichensetzung (Leerzeichen statt "-"/"_"/"!",

@@ -46,16 +46,26 @@ namespace ULM.Core.Services
             return Empty;
         }
 
+        // BUGFIX: Nahm bisher den ERSTEN Mirror, der überhaupt antwortete, ohne zu prüfen, ob ein
+        // anderer, später abgefragter Mirror bereits eine neuere Version listet. Debian-Mirrors
+        // synchronisieren "current-live" nicht alle gleichzeitig — ein Mirror, der (noch) auf einem
+        // älteren Stand ist, aber am schnellsten/zuerst antwortet, lieferte dadurch scheinbar-zufällig
+        // eine ÄLTERE "aktuellste" Version zurück, je nachdem WELCHER Mirror zuerst antwortete, nicht
+        // WELCHE Version tatsächlich neuer ist (real beobachtet: derselbe Eintrag löste in
+        // aufeinanderfolgenden Läufen abwechselnd auf 13.5.0 und 13.6.0 auf). Fragt jetzt ALLE Mirror ab
+        // und behält den mit der höchsten Version — siehe HttpService.PickHighestVersionCandidate.
         private async Task<(string, string, string)> ResolveDebianLiveAsync(string edition)
         {
+            var candidates = new List<(string Version, string Url, string Filename)>();
             foreach (string m in new[]{"https://ftp.halifax.rwth-aachen.de/debian-cd/current-live/amd64/iso-hybrid/","https://ftp.fau.de/debian-cd/current-live/amd64/iso-hybrid/","https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/"})
             {
                 string? html=await GetStringAsync(m).ConfigureAwait(false); if(html is null)continue;
                 var hits=Regex.Matches(html,$@"(debian-live-[\d.]+-amd64-{Regex.Escape(edition)}\.iso)").Cast<Match>().Select(x=>x.Groups[1].Value).ToList();
                 if(hits.Count==0)continue; string fname=hits.OrderByDescending(f=>f).First();
-                return(ExtractVersion(fname),m+fname,fname);
+                candidates.Add((ExtractVersion(fname), m+fname, fname));
             }
-            return Empty;
+            var best = PickHighestVersionCandidate(candidates);
+            return (best.Version, best.Url, best.Filename);
         }
 
         private async Task<(string, string, string)> ResolveTailsAsync()

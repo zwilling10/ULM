@@ -496,67 +496,15 @@ namespace ULM.Views
             foreach (var (entry, _) in outdated) sb.AppendLine($"  • {entry.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt aktualisieren?");
             if (MessageBox.Show(sb.ToString(), "💾 Stick-Aktualisierung", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
-            var entries      = outdated.Select(x => x.Entry).ToList();
-            var oldFilenames = outdated.Select(x => x.OldFilename).ToList();
+            var entries = outdated.Select(x => x.Entry).ToList();
             foreach (var e in entries) e.IsSelected = true; _vm.RefreshAllEntries();
 
-            // BUGFIX: Der Pipeline-Abschluss ruft VOR DownloadBatchCompleted bereits TriggerUsbScan()
-            // auf (siehe MainViewModel.cs, StartDownload) — dieser Scan hat keinen Versionscheck-
-            // Kontext und erkennt die jetzt überflüssige ALTE Datei fälschlich als "unbekannt", was
-            // zusätzlich zum Lösch-Angebot unten einen "ISO importieren"-Dialog für die alte Datei
-            // öffnete. Als "ausstehende Entscheidung" markieren, bis der Lösch-Dialog beantwortet ist.
-            foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.MarkPendingOldFileDecision(drive, fn);
-
-            // Nach ERFOLGREICHEM Download + Stick-Kopie (DownloadBatchCompleted feuert erst danach mit den
-            // echten Kopier-Erfolgszahlen) das Löschen der jetzt überflüssigen alten Datei anbieten. Der
-            // Handler entfernt sich beim ersten Feuern selbst — Downloads laufen serialisiert (SetBusy),
-            // das erste Batch-Ende nach dem Abonnieren gehört daher zu genau diesem Update.
-            void OnBatchDone(int ok, int failed, int _unused)
-            {
-                _vm.DownloadBatchCompleted -= OnBatchDone;
-                if (ok <= 0) // Update fehlgeschlagen → alte Datei unangetastet lassen
-                {
-                    foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
-                    return;
-                }
-                OfferDeleteOldIsosAfterUpdate(oldFilenames, drive);
-            }
-            _vm.DownloadBatchCompleted += OnBatchDone;
-
+            // Die jetzt überflüssige ALTE Datei wird hier bewusst NICHT mehr extra behandelt: der
+            // automatische Stick-Scan nach Download+Kopie (TriggerUsbScan in MainViewModel.StartDownload)
+            // erkennt sie über DistroMatcher.FindKnownDistroForStickFile selbst als "bekannt, überholte
+            // Version" und bietet das Löschen über OnStaleDuplicatesOnStick unten an — kontextfrei,
+            // funktioniert also unabhängig davon, über welchen Weg der Download/die Kopie angestoßen wurde.
             StartDownloadWithProgressDialog(entries, drive, copyAfter: true, deleteAfter: false, slots: Math.Min(entries.Count, Constants.MaxParallelSlots));
-        }
-
-        // Bietet nach einer von ULM selbst durchgeführten Aktualisierung das Löschen der alten,
-        // jetzt ersetzten ISO-Datei(en) an — Standard: löschen (angehakt), wie beim Duplikat-Dialog.
-        private void OfferDeleteOldIsosAfterUpdate(List<string> oldFilenames, string drive)
-        {
-            string root = UsbService.DriveRoot(drive);
-            var files = new List<(string Path, long Size)>();
-            foreach (string fn in oldFilenames)
-            {
-                if (string.IsNullOrWhiteSpace(fn)) continue;
-                string? path = FindOldDuplicatePath(root, fn);
-                if (path != null) files.Add((path, IsoEntry.GetRobustLength(path)));
-            }
-            if (files.Count == 0)
-            {
-                foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
-                return; // alte Datei schon weg / nie gefunden
-            }
-
-            var dlg = new OrphanedDownloadsDialog(files,
-                "Alte ISO-Version(en) auf dem Stick",
-                "alte ISO(s), die durch das Update ersetzt wurden") { Owner = this };
-            if (dlg.ShowDialog() == true)
-            {
-                int deleted = 0, failed = 0;
-                foreach (string path in dlg.ToDelete)
-                { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {Path.GetFileName(path)}"); } else failed++; }
-                AppendLog($"🗑 {deleted} alte ISO-Version(en) auf {drive} gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
-                if (deleted > 0) _vm.TriggerVentoyMenuUpdate(drive);
-            }
-            else AppendLog($"ℹ Alte ISO-Version(en) behalten ({files.Count} Datei(en)).");
-            foreach (string fn in oldFilenames) if (!string.IsNullOrWhiteSpace(fn)) _vm.ClearPendingOldFileDecision(drive, fn);
         }
 
         // BUGFIX: siehe SplitOutdatedFromDuplicates — diese Einträge sind bereits aktuell (der neue
