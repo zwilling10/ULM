@@ -88,3 +88,25 @@ public class SelfUpdateServiceBuildApplyScriptTests
         Assert.DoesNotContain("O'Brien\\new.exe'", script);
     }
 }
+
+public class SelfUpdateServiceBuildRestartAfterInstallScriptTests
+{
+    [Fact]
+    public void BuildRestartAfterInstallScript_ContainsSetupProcessIdAndTargetPath()
+    {
+        string script = SelfUpdateService.BuildRestartAfterInstallScript(4242, @"C:\Tools\ULM\UniversalLinuxManager.exe");
+
+        Assert.Contains("-Id 4242", script);
+        Assert.Contains(@"C:\Tools\ULM\UniversalLinuxManager.exe", script);
+        Assert.Contains("Start-Process", script);
+        Assert.DoesNotContain("Copy-Item", script);
+    }
+
+    [Fact]
+    public void BuildRestartAfterInstallScript_PathWithApostrophe_EscapesForPowerShell()
+    {
+        string script = SelfUpdateService.BuildRestartAfterInstallScript(4242, @"C:\Users\O'Brien\UniversalLinuxManager.exe");
+
+        Assert.Contains("O''Brien", script);
+    }
+}

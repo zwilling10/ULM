@@ -77,33 +77,72 @@ namespace ULM.Core.Services
         }
 
         // Installer-Variante: startet das heruntergeladene Setup silent — installer/ULM.iss hat
-        // CloseApplications=yes/RestartApplications=yes, das schließt laufende ULM-Instanzen
-        // zuverlässig und startet sie nach der Installation automatisch neu. SmartScreen erscheint
+        // CloseApplications=yes, das schliesst die laufende ULM-Instanz zuverlässig (per echtem
+        // Restart-Manager-Log verifiziert: "RestartManager found an application..." /
+        // "Shutting down applications using our files." greifen JEDES Mal). SmartScreen erscheint
         // hier weiterhin einmalig (unsigniertes Setup.exe) — das wird bewusst NICHT umgangen.
         //
+        // BUGFIX (User-Report: "Neustart passiert nicht"): frühere Version verliess sich für den
+        // Neustart auf Inno Setups RestartApplications=yes (Windows Restart Manager). Per echtem
+        // Vergleichstest (gleicher Ablauf, /LOG ausgewertet) erwies sich das als unzuverlässig —
+        // "Attempting to restart applications." im Setup-Log wurde nie von einer tatsächlichen
+        // Restart-Zeile gefolgt, in den meisten Läufen blieb ULM einfach zu. Root Cause ist also
+        // nicht ein falsches Kommandozeilen-Flag, sondern die Abhängigkeit von einem bekanntermassen
+        // unzuverlässigen Windows-Mechanismus. Fix: denselben bereits für die Portable-Variante
+        // bewährten Ansatz verwenden — ein externes PowerShell-Skript wartet UNABHÄNGIG von ULMs
+        // eigenem Prozess (der ja gleich von CloseApplications beendet wird) auf das Setup-Ende und
+        // startet ULM danach selbst neu, statt sich auf Inno Setups eigenen Restart zu verlassen.
+        // installer/ULM.iss behält deshalb bewusst NUR CloseApplications=yes — RestartApplications
+        // wurde entfernt, um bei den seltenen Fällen, in denen Inno doch selbst neu startet, keinen
+        // doppelten ULM-Prozess zu riskieren.
+        //
         // Portable-Variante: eine laufende .exe kann sich unter Windows nicht selbst überschreiben,
-        // daher übernimmt ein per PowerShell gestartetes Hilfsskript das Kopieren nach Prozessende.
+        // daher übernimmt ebenfalls ein per PowerShell gestartetes Hilfsskript das Kopieren nach
+        // Prozessende.
         public void ApplyUpdateAndRestart(string downloadedFilePath, InstallKind kind, string currentExePath)
         {
             if (kind == InstallKind.Installed)
             {
-                Process.Start(new ProcessStartInfo(downloadedFilePath, "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART")
+                var setupProcess = Process.Start(new ProcessStartInfo(downloadedFilePath, "/SILENT /SUPPRESSMSGBOXES /NORESTART")
                 { UseShellExecute = true });
-                // ULM bleibt hier bewusst am Laufen: installer/ULM.iss hat CloseApplications=yes/
-                // RestartApplications=yes (Windows Restart Manager) — der RM kann ULM nur automatisch
-                // schließen UND später neu starten, wenn er den Prozess beim Scan noch laufend
-                // vorfindet. Ein eigenes Application.Shutdown() hier würde ULM schon vor dem RM-Scan
-                // beenden, wodurch RestartApplications nichts mehr zum Neustarten hätte.
+                // ULM bleibt hier bewusst am Laufen: CloseApplications=yes braucht den Prozess beim
+                // RM-Scan noch laufend vor, um ihn schliessen und dabei den Datei-Lock auf die eigene
+                // .exe freigeben zu können. Der Neustart erfolgt NICHT mehr über RestartApplications
+                // (siehe Kommentar oben), sondern über das unten gestartete, unabhängige Skript.
+                if (setupProcess != null)
+                {
+                    string scriptPath = Path.Combine(Path.GetDirectoryName(downloadedFilePath)!, "apply_installed.ps1");
+                    File.WriteAllText(scriptPath, BuildRestartAfterInstallScript(setupProcess.Id, currentExePath));
+                    Process.Start(new ProcessStartInfo("powershell.exe",
+                        $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
+                    { UseShellExecute = false, CreateNoWindow = true });
+                }
                 return;
             }
 
-            string scriptPath = Path.Combine(Path.GetDirectoryName(downloadedFilePath)!, "apply.ps1");
+            string portableScriptPath = Path.Combine(Path.GetDirectoryName(downloadedFilePath)!, "apply.ps1");
             string script = BuildApplyScript(Environment.ProcessId, downloadedFilePath, currentExePath);
-            File.WriteAllText(scriptPath, script);
+            File.WriteAllText(portableScriptPath, script);
             Process.Start(new ProcessStartInfo("powershell.exe",
-                $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
+                $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{portableScriptPath}\"")
             { UseShellExecute = false, CreateNoWindow = true });
             System.Windows.Application.Current.Shutdown();
+        }
+
+        // Reine String-Erzeugung, testbar ohne Prozess-/Dateisystem-Zugriff. Wartet auf das Ende des
+        // Setup-Prozesses (nicht auf ULM selbst — das wird ja parallel von CloseApplications beendet)
+        // und startet danach die (vom Installer bereits ersetzte) Ziel-.exe neu. Kein Copy-Item nötig,
+        // das übernimmt der Installer selbst — anders als bei der Portable-Variante.
+        internal static string BuildRestartAfterInstallScript(int setupProcessId, string targetExePath)
+        {
+            string safeTargetExePath = targetExePath.Replace("'", "''");
+            return
+                $"while (Get-Process -Id {setupProcessId} -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 300 }}\n" +
+                // Kurzer Puffer: Setup meldet sein Prozessende ggf. bevor der Datei-Handle auf die
+                // frisch installierte .exe vollständig freigegeben ist.
+                "Start-Sleep -Milliseconds 500\n" +
+                $"Start-Process -FilePath '{safeTargetExePath}'\n" +
+                "Remove-Item -Path $PSCommandPath -ErrorAction SilentlyContinue\n";
         }
 
         // Reine String-Erzeugung, testbar ohne Prozess-/Dateisystem-Zugriff. Wartet auf Prozessende,

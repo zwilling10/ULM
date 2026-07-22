@@ -42,10 +42,14 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ; Automatisches Selbst-Update (SelfUpdateService.ApplyUpdateAndRestart): ULM beendet sich bei der
 ; Installer-Variante bewusst NICHT selbst, bevor der Installer startet — der Windows Restart Manager
-; (CloseApplications=yes) muss die laufende Instanz noch vorfinden, um sie zu schließen und nach der
-; Installation automatisch neu zu starten (RestartApplications=yes), auch im /VERYSILENT-Modus.
+; (CloseApplications=yes) muss die laufende Instanz noch vorfinden, um sie schliessen und dabei den
+; Datei-Lock auf die eigene .exe freigeben zu können.
+; BEWUSST OHNE RestartApplications=yes: per echtem Vergleichstest (siehe Kommentar in
+; SelfUpdateService.ApplyUpdateAndRestart) erwies sich Inno Setups eigener Restart-Manager-basierter
+; Neustart als unzuverlässig (funktionierte nur in 1 von 5 kontrollierten Testläufen). Der Neustart
+; erfolgt stattdessen über ein von SelfUpdateService selbst gestartetes, unabhängiges PowerShell-
+; Skript — RestartApplications bliebe hier nur eine Quelle für gelegentliche doppelte ULM-Prozesse.
 CloseApplications=yes
-RestartApplications=yes
 
 [Languages]
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
