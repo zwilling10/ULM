@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.39.1", new[]
+            {
+                "Fehlerbehebung: Nach einem automatischen Selbst-Update (installierte Variante) startete ULM manchmal nicht von selbst neu, obwohl die Installation erfolgreich war — man musste es manuell über das Icon erneut öffnen. ULM verlässt sich für den Neustart jetzt nicht mehr auf Windows' eingebauten Mechanismus dafür, sondern startet sich zuverlässig selbst neu.",
+            }),
             ("2.39.0", new[]
             {
                 "Neu: Ein automatisch heruntergeladenes Update wird jetzt vor der Installation per SHA256-Prüfsumme verifiziert — bei einer Abweichung wird es verworfen, statt es zu übernehmen.",
