@@ -279,8 +279,11 @@
 
                     <Button x:Name="BtnThemeToggle" Style="{DynamicResource BtnGhost}"
                             Foreground="White" BorderBrush="#4A6785"
-                            ToolTip="Erscheinungsbild umschalten: System / Hell / Dunkel"
                             Click="BtnThemeToggle_Click" Width="130" Margin="0,0,8,0"/>
+
+                    <Button x:Name="BtnLanguageToggle" Style="{DynamicResource BtnGhost}"
+                            Foreground="White" BorderBrush="#4A6785"
+                            Click="BtnLanguageToggle_Click" Width="110" Margin="0,0,8,0"/>
 
                     <Button x:Name="BtnHelp" Content="❓ Hilfe"
                             Style="{DynamicResource BtnGhost}"
@@ -386,7 +389,7 @@
         <!-- ── Haupt-Inhalt ────────────────────────────────────────────── -->
         <TabControl Grid.Row="3" x:Name="MainTabs" Margin="0">
 
-            <TabItem Header="ISO-Auswahl">
+            <TabItem x:Name="IsoTab" Header="ISO-Auswahl">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
