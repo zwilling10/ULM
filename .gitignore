@@ -6,6 +6,7 @@ obj/
 # GitHub-Release-Asset hochgeladen, nicht ins Repo committet)
 release/*.exe
 release/*.zip
+release/SHA256SUMS
 
 # Laufzeit-Daten (ISOs, Datenbank, Logs — nicht Teil des Quellcodes)
 ISOs/

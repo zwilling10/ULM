@@ -118,7 +118,8 @@ gh release view vX.Y.Z
 
 Erwartet: `UniversalLinuxManager-Setup-vX.Y.Z-win-x64.exe`,
 `UniversalLinuxManager-vX.Y.Z-win-x64.exe`,
-`UniversalLinuxManager-vX.Y.Z-win-x64.zip`.
+`UniversalLinuxManager-vX.Y.Z-win-x64.zip`,
+`SHA256SUMS`.
 
 ## 11. Alte Releases aufräumen
 

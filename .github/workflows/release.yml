@@ -46,6 +46,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
-          gh release create "$TAG" release/*.exe release/*.zip \
+          gh release create "$TAG" release/*.exe release/*.zip release/SHA256SUMS \
             --title "Universal Linux Manager $TAG" \
             --generate-notes

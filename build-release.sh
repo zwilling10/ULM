@@ -57,6 +57,11 @@ SIZE=$(du -h "${OUT_DIR}/${RELEASE_EXE_NAME}" | cut -f1)
 echo "✅ Fertig: ${OUT_DIR}/${RELEASE_EXE_NAME}  (${SIZE})"
 echo "   Läuft ohne Installation auf jedem Windows 10/11 x64 — einfach kopieren und starten."
 
+# Sammelt die in diesem Lauf tatsächlich erzeugten Artefakte für SHA256SUMS (siehe Ende des
+# Skripts) — bewusst kein Glob auf $OUT_DIR, damit Dateien aus früheren lokalen Builds im
+# selben Ordner nicht fälschlich mit in die Prüfsummendatei aufgenommen werden.
+RELEASE_FILES=("$RELEASE_EXE_NAME")
+
 if [ "$DO_ZIP" = "1" ]; then
     ZIP_NAME="UniversalLinuxManager-v${VERSION}-win-x64.zip"
     # BUGFIX: 'zip' ist auf dem GitHub-Actions windows-latest-Runner nicht installiert — das ließ
@@ -66,6 +71,7 @@ if [ "$DO_ZIP" = "1" ]; then
     # Windows-System (10/11, jeder CI-Runner) garantiert vorhanden — kein externes Tool nötig.
     (cd "$OUT_DIR" && rm -f "$ZIP_NAME" && powershell -NoProfile -Command "Compress-Archive -Path '$RELEASE_EXE_NAME' -DestinationPath '$ZIP_NAME' -Force")
     echo "📦 Zusätzlich gepackt: ${OUT_DIR}/${ZIP_NAME}"
+    RELEASE_FILES+=("$ZIP_NAME")
 fi
 
 if [ "$DO_INSTALLER" = "1" ]; then
@@ -103,4 +109,14 @@ if [ "$DO_INSTALLER" = "1" ]; then
     fi
     SETUP_SIZE=$(du -h "$SETUP_EXE" | cut -f1)
     echo "✅ Fertig: ${SETUP_EXE}  (${SETUP_SIZE})"
+    RELEASE_FILES+=("$(basename "$SETUP_EXE")")
 fi
+
+# Prüfsummen für alle in diesem Lauf erzeugten Artefakte — ermöglicht Nutzern eine eigene
+# Integritätsprüfung und ist die Grundlage für die automatische Hash-Prüfung im
+# Selbst-Update-Feature (SelfUpdateService). sha256sum ist Teil der Git-Bash/MSYS-Coreutils,
+# mit denen dieses Skript ohnehin läuft (siehe du/mkdir/cp oben) — kein neues Tool nötig,
+# auch auf dem windows-latest-CI-Runner vorhanden. Läuft aus $OUT_DIR heraus, damit die
+# Datei relative Dateinamen enthält (Format, das HttpService.ParseSha256SumsLine erwartet).
+(cd "$OUT_DIR" && sha256sum "${RELEASE_FILES[@]}" > SHA256SUMS)
+echo "🔐 Prüfsummen: ${OUT_DIR}/SHA256SUMS"
