@@ -18,6 +18,11 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.39.0", new[]
+            {
+                "Neu: Ein automatisch heruntergeladenes Update wird jetzt vor der Installation per SHA256-Prüfsumme verifiziert — bei einer Abweichung wird es verworfen, statt es zu übernehmen.",
+                "Neu: Jedes Release enthält ab sofort zusätzlich eine SHA256SUMS-Datei, mit der sich heruntergeladene Dateien eigenständig auf Unversehrtheit prüfen lassen.",
+            }),
             ("2.38.1", new[]
             {
                 "Fehlerbehebung: Eine nach einem von ULM selbst durchgeführten Stick-Update überflüssig gewordene alte ISO-Version wurde fälschlich als „unbekannte Distro“ statt als zu löschendes Duplikat gemeldet — dabei konnte der Katalog-Eintrag versehentlich auf die alte Version zurückfallen.",
