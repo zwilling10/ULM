@@ -288,6 +288,34 @@ public class HttpServiceMatchUlmReleaseAssetsTests
     }
 }
 
+public class HttpServiceFindAssetUrlTests
+{
+    [Fact]
+    public void FindAssetUrl_ExactNameMatch_ReturnsUrl()
+    {
+        var assets = new List<(string, string)>
+        {
+            ("UniversalLinuxManager-v2.34.0-win-x64.exe", "https://x/portable.exe"),
+            ("SHA256SUMS",                                "https://x/SHA256SUMS"),
+        };
+        Assert.Equal("https://x/SHA256SUMS", HttpService.FindAssetUrl(assets, "SHA256SUMS"));
+    }
+
+    [Fact]
+    public void FindAssetUrl_IsCaseInsensitive()
+    {
+        var assets = new List<(string, string)> { ("sha256sums", "https://x/SHA256SUMS") };
+        Assert.Equal("https://x/SHA256SUMS", HttpService.FindAssetUrl(assets, "SHA256SUMS"));
+    }
+
+    [Fact]
+    public void FindAssetUrl_NoMatch_ReturnsNull()
+    {
+        var assets = new List<(string, string)> { ("UniversalLinuxManager-v2.34.0-win-x64.exe", "https://x/portable.exe") };
+        Assert.Null(HttpService.FindAssetUrl(assets, "SHA256SUMS"));
+    }
+}
+
 public class HttpServicePickHighestVersionCandidateTests
 {
     [Fact]

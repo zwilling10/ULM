@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using ULM.Core.Models;
 
 namespace ULM.Core.Services
 {
@@ -44,8 +45,12 @@ namespace ULM.Core.Services
 
         // Lädt automatisch die zur Verteilungsform passende Datei nach tempDir herunter (nutzt das
         // bestehende HttpService.DownloadAsync, kein neuer Download-Code). Liefert null, wenn kein
-        // passendes Asset existiert oder der Download fehlschlägt — der Aufrufer fällt dann auf den
-        // bestehenden manuellen UpdateDownloadDialog zurück.
+        // passendes Asset existiert, der Download fehlschlägt oder — falls eine Referenz-Prüfsumme
+        // aus dem SHA256SUMS-Release-Asset vorliegt — der Hash nicht übereinstimmt (die Datei wird in
+        // diesem Fall gelöscht statt potenziell manipuliert übernommen zu werden). Fehlt die
+        // Referenz-Prüfsumme (älteres Release ohne SHA256SUMS-Asset), läuft der Download ungeprüft
+        // durch wie bisher. Der Aufrufer fällt bei null in jedem Fall auf den bestehenden manuellen
+        // UpdateDownloadDialog zurück.
         public async Task<string?> DownloadUpdateAsync(UlmUpdateInfo info, InstallKind kind, string tempDir,
             IProgress<(int Percent, string Detail)>? progress, CancellationToken ct)
         {
@@ -55,7 +60,20 @@ namespace ULM.Core.Services
             string fileName = Path.GetFileName(new Uri(url).AbsolutePath);
             string dest = Path.Combine(tempDir, fileName);
             bool ok = await HttpService.Instance.DownloadAsync(url, dest, progress, ct).ConfigureAwait(false);
-            return ok ? dest : null;
+            if (!ok) return null;
+
+            string? expectedHash = kind == InstallKind.Installed ? info.SetupSha256 : info.PortableSha256;
+            if (!string.IsNullOrEmpty(expectedHash))
+            {
+                string actualHash = await IsoEntry.ComputeSha256Async(dest, ct).ConfigureAwait(false);
+                if (!actualHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    Debug.WriteLine($"[SelfUpdate] Hash-Mismatch für {dest} — erwartet {expectedHash}, erhalten {actualHash}");
+                    try { File.Delete(dest); } catch (Exception ex) { Debug.WriteLine($"[SelfUpdate] Löschen nach Hash-Mismatch fehlgeschlagen: {ex.Message}"); }
+                    return null;
+                }
+            }
+            return dest;
         }
 
         // Installer-Variante: startet das heruntergeladene Setup silent — installer/ULM.iss hat

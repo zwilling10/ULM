@@ -17,10 +17,13 @@ namespace ULM.Core.Services
 {
     // Ergebnis der ULM-Selbst-Update-Prüfung: ob eine neuere Version existiert, welche, die
     // Release-Seite (Fallback) sowie die direkten Download-URLs für portable EXE und Setup-Installer
-    // (leer, wenn das jeweilige Asset im Release fehlt).
+    // (leer, wenn das jeweilige Asset im Release fehlt). PortableSha256/SetupSha256 kommen aus einem
+    // optionalen "SHA256SUMS"-Release-Asset (siehe build-release.sh) — null, wenn das Release keine
+    // Prüfsummendatei mitliefert (ältere Releases vor Einführung dieses Features).
     public sealed record UlmUpdateInfo(
         bool HasUpdate, string LatestVersion, string ReleaseUrl,
-        string PortableExeUrl, string SetupExeUrl)
+        string PortableExeUrl, string SetupExeUrl,
+        string? PortableSha256 = null, string? SetupSha256 = null)
     {
         public static readonly UlmUpdateInfo None = new(false, string.Empty, string.Empty, string.Empty, string.Empty);
     }
@@ -279,6 +282,16 @@ namespace ULM.Core.Services
             return (portable, setup);
         }
 
+        // Sucht ein Release-Asset mit exaktem Namen (z.B. "SHA256SUMS") — reine Logik, testbar ohne
+        // Netzwerk. Liefert null, wenn kein Asset diesen Namen trägt.
+        internal static string? FindAssetUrl(IEnumerable<(string Name, string Url)> assets, string exactName)
+        {
+            foreach (var (name, url) in assets)
+                if (string.Equals(name, exactName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(url))
+                    return url;
+            return null;
+        }
+
         public async Task<UlmUpdateInfo> CheckForUlmUpdateAsync(string currentVersion, string repo = "zwilling10/ULM")
         {
             try
@@ -306,7 +319,25 @@ namespace ULM.Core.Services
                         assetList.Add((n, au));
                     }
                 var (portable, setup) = MatchUlmReleaseAssets(assetList);
-                return new UlmUpdateInfo(IsVersionNewer(latest, currentVersion), latest, url, portable, setup);
+
+                // Optionale Prüfsummendatei (siehe build-release.sh) — fehlt sie (älteres Release vor
+                // Einführung dieses Features) oder schlägt der Abruf fehl, bleiben beide Hashes null;
+                // SelfUpdateService überspringt die Hash-Prüfung dann (fail-open, kein Bruch).
+                string? portableSha256 = null, setupSha256 = null;
+                string? sumsUrl = FindAssetUrl(assetList, "SHA256SUMS");
+                if (sumsUrl is not null)
+                {
+                    string? sumsContent = await GetStringAsync(sumsUrl).ConfigureAwait(false);
+                    if (sumsContent is not null)
+                    {
+                        if (!string.IsNullOrEmpty(portable))
+                            portableSha256 = ParseSha256SumsLine(sumsContent, Path.GetFileName(new Uri(portable).AbsolutePath));
+                        if (!string.IsNullOrEmpty(setup))
+                            setupSha256 = ParseSha256SumsLine(sumsContent, Path.GetFileName(new Uri(setup).AbsolutePath));
+                    }
+                }
+
+                return new UlmUpdateInfo(IsVersionNewer(latest, currentVersion), latest, url, portable, setup, portableSha256, setupSha256);
             }
             catch (Exception ex) { Debug.WriteLine($"[UlmUpdateCheck] {ex.Message}"); return UlmUpdateInfo.None; }
         }
