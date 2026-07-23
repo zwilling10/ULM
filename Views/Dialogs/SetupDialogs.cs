@@ -34,7 +34,7 @@ namespace ULM.Views.Dialogs
         {
             ChosenThemeMode = currentThemeMode;
             ChosenLanguage  = currentLanguage;
-            Title  = showWelcome ? "Universal Linux Manager — Einrichtung" : "Universal Linux Manager — Einstellungen";
+            Title  = showWelcome ? LocalizationService.T(Str.Setup_Title_Welcome) : LocalizationService.T(Str.Setup_Title_Settings);
             // BUGFIX: Breite/Höhe waren fest auf 760x(automatisch bis zu ~950 sichtbaren Pixeln)
             // ausgelegt — auf kleinen Bildschirmen (getestet: 800x600) ragte das Fenster oben UND
             // unten über den sichtbaren Arbeitsbereich hinaus, wodurch der "Übernehmen"-Button in
@@ -85,12 +85,12 @@ namespace ULM.Views.Dialogs
             var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             titleStack.Children.Add(new TextBlock
             {
-                Text = showWelcome ? "Willkommen beim Universal Linux Manager" : "Einstellungen",
+                Text = showWelcome ? LocalizationService.T(Str.Setup_Header_Welcome) : LocalizationService.T(Str.Setup_Header_Settings),
                 FontSize = 19, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
             });
             titleStack.Children.Add(new TextBlock
             {
-                Text = showWelcome ? "Kurze Einrichtung, dann kann's losgehen." : "Änderungen wirken nach Klick auf „✔ Übernehmen“.",
+                Text = showWelcome ? LocalizationService.T(Str.Setup_Subtitle_Welcome) : LocalizationService.T(Str.Setup_Subtitle_Settings),
                 FontSize = 12, Foreground = ThemeColors.Dim, Margin = new Thickness(0, 3, 0, 0),
             });
             headerContent.Children.Add(titleStack);
@@ -122,7 +122,7 @@ namespace ULM.Views.Dialogs
                 var section = new StackPanel();
                 section.Children.Add(new TextBlock
                 {
-                    Text = "Speicherort für ISO-Downloads und Einstellungsdateien:", FontSize = 12,
+                    Text = LocalizationService.T(Str.Setup_Directory_Header), FontSize = 12,
                     FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 8),
                 });
 
@@ -142,13 +142,13 @@ namespace ULM.Views.Dialogs
                 Grid.SetColumn(txtPathRef, 0);
                 pathRow.Children.Add(txtPathRef);
 
-                var btnBrowse = MakeButton("📂 Durchsuchen", ThemeColors.Card, ThemeColors.Mid, 110, 34);
+                var btnBrowse = MakeButton(LocalizationService.T(Str.Setup_Btn_Browse), ThemeColors.Card, ThemeColors.Mid, 110, 34);
                 btnBrowse.Margin = new Thickness(8, 0, 0, 0);
                 btnBrowse.Click += (_, _) =>
                 {
                     var dlg = new Microsoft.Win32.OpenFolderDialog
                     {
-                        Title = "Arbeitsverzeichnis für den Universal Linux Manager wählen",
+                        Title = LocalizationService.T(Str.Setup_FolderDialog_Title),
                         InitialDirectory = Directory.Exists(txtPathRef.Text) ? txtPathRef.Text : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                     };
                     if (dlg.ShowDialog() == true) txtPathRef.Text = dlg.FolderName;
@@ -157,14 +157,14 @@ namespace ULM.Views.Dialogs
                 pathRow.Children.Add(btnBrowse);
                 section.Children.Add(pathRow);
 
-                var btnDefault = MakeButton("Standard-Pfad übernehmen", ThemeColors.Bg, ThemeColors.Mid, 190, 30);
+                var btnDefault = MakeButton(LocalizationService.T(Str.Setup_Btn_UseDefaultPath), ThemeColors.Bg, ThemeColors.Mid, 190, 30);
                 btnDefault.BorderBrush = ThemeColors.Border; btnDefault.BorderThickness = new Thickness(1);
                 btnDefault.HorizontalAlignment = HorizontalAlignment.Left;
                 btnDefault.Margin = new Thickness(0, 0, 0, 14);
                 btnDefault.Click += (_, _) => txtPathRef.Text = DefaultBase;
                 section.Children.Add(btnDefault);
 
-                section.Children.Add(new TextBlock { Text = "Folgende Elemente werden angelegt:", FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 6) });
+                section.Children.Add(new TextBlock { Text = LocalizationService.T(Str.Setup_Directory_ItemsIntro), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header, Margin = new Thickness(0, 0, 0, 6) });
                 var previewBorder = new Border
                 {
                     Background = ThemeColors.LBlue, BorderBrush = ThemeColors.Border, BorderThickness = new Thickness(1),
@@ -174,9 +174,9 @@ namespace ULM.Views.Dialogs
                 previewGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 previewGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 for (int i = 0; i < 3; i++) previewGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                AddPreviewRow(previewGrid, 0, "ISO-Downloads",  tbDownloads);
-                AddPreviewRow(previewGrid, 1, "ISO-Datenbank",  tbDatabase);
-                AddPreviewRow(previewGrid, 2, "Protokolldatei", tbLog);
+                AddPreviewRow(previewGrid, 0, LocalizationService.T(Str.Setup_Directory_ItemDownloads), tbDownloads);
+                AddPreviewRow(previewGrid, 1, LocalizationService.T(Str.Setup_Directory_ItemDatabase),  tbDatabase);
+                AddPreviewRow(previewGrid, 2, LocalizationService.T(Str.Setup_Directory_ItemLog),       tbLog);
                 previewBorder.Child = previewGrid;
                 section.Children.Add(previewBorder);
 
