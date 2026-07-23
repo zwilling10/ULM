@@ -441,7 +441,20 @@ namespace ULM.Views
 
             if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
-                Process.Start(new ProcessStartInfo(GetCurrentExePath()) { UseShellExecute = true });
+                // BUGFIX: Process.Start(neue Instanz) direkt gefolgt von Shutdown() startete die neue
+                // Instanz, WAEHREND die alte noch lief und in OnClosed()/SaveAndClose() dieselbe
+                // ulm_isos.ini schrieb -> Race Condition, beide Prozesse griffen gleichzeitig auf die
+                // Datei zu ("IOException: wird bereits von einem anderen Prozess verwendet"). Wie beim
+                // Selbst-Update-Neustart (SelfUpdateService.BuildRestartAfterInstallScript) uebernimmt
+                // ein externes, unabhaengiges Skript den Neustart: es wartet, bis DIESER Prozess
+                // wirklich beendet ist, bevor die neue Instanz startet.
+                string scriptDir  = Path.Combine(Path.GetTempPath(), "ULM_LanguageRestart");
+                Directory.CreateDirectory(scriptDir);
+                string scriptPath = Path.Combine(scriptDir, "restart.ps1");
+                File.WriteAllText(scriptPath, SelfUpdateService.BuildRestartAfterInstallScript(Environment.ProcessId, GetCurrentExePath()));
+                Process.Start(new ProcessStartInfo("powershell.exe",
+                    $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
+                { UseShellExecute = false, CreateNoWindow = true });
                 Application.Current.Shutdown();
             }
         }
