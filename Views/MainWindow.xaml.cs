@@ -46,13 +46,11 @@ namespace ULM.Views
             // bereits dynamisch aus der Assembly, das galt aber nur für den HelpDialog-Titel, nicht
             // für das Hauptfenster selbst.
             Title = Constants.AppFullTitle;
-            UpdateThemeButtonLabel();
             ApplyLocalizedText();
             _vm = new MainViewModel(Dispatcher);
             DataContext = _vm;
             ThemeService.ThemeChanged += () =>
             {
-                UpdateThemeButtonLabel();
                 _vm.RefreshAllEntries();
             };
             _vm.LogMessage += AppendLog;
@@ -367,45 +365,15 @@ namespace ULM.Views
 
         private void UpdateUiMode()
         {
-            BtnModeToggle.Content = _vm.ExpertMode ? "Modus: Experte 🛠" : "Modus: Anwender 👤";
             Visibility vis = _vm.ExpertMode ? Visibility.Visible : Visibility.Collapsed;
             BtnVentoy.Visibility = vis; ChkSecureBoot.Visibility = vis; ExpertBar.Visibility = vis; LogTab.Visibility = Visibility.Visible;
             StatusTab.Visibility = vis;
         }
 
-        private void BtnModeToggle_Click(object sender, RoutedEventArgs e) { _vm.ExpertMode = !_vm.ExpertMode; UpdateUiMode(); }
-
-        // ── Design (Hell/Dunkel) ────────────────────────────────────────────
-        // Schaltet live um (kein Neustart nötig): ThemeService tauscht die gemergte
-        // ResourceDictionary aus, DynamicResource-Bindungen in dieser XAML sowie implizite
-        // Styles (TextBox, ComboBox, TabItem, …) reagieren automatisch. Die Zeilenfarben in der
-        // Distro-Liste sind dagegen normale C#-Properties (ForegroundBrush) — die werden erst
-        // durch den expliziten RefreshAllEntries()-Aufruf im ThemeChanged-Handler neu ausgelesen.
-        private void UpdateThemeButtonLabel()
-        {
-            BtnThemeToggle.Content = ThemeService.CurrentMode switch
-            {
-                AppThemeMode.Light => "☀ Design: Hell",
-                AppThemeMode.Dark  => "🌙 Design: Dunkel",
-                _                  => "🌓 Design: System",
-            };
-        }
-
-        private void BtnThemeToggle_Click(object sender, RoutedEventArgs e)
-        {
-            AppThemeMode next = ThemeService.CurrentMode switch
-            {
-                AppThemeMode.System => AppThemeMode.Light,
-                AppThemeMode.Light  => AppThemeMode.Dark,
-                _                   => AppThemeMode.System,
-            };
-            ThemeService.SetMode(next);
-        }
-
         // ── Sprache (Deutsch/Englisch) ──────────────────────────────────────
-        // Wirkt bewusst NICHT live (anders als der Theme-Umschalter oben) — ein
-        // Sprachwechsel wird sofort gespeichert, greift aber erst nach einem
-        // Neustart von ULM. Siehe docs/superpowers/specs/2026-07-22-bilingual-ui-infrastructure-design.md.
+        // Wirkt bewusst NICHT live (anders als Design/Modus) — ein Sprachwechsel wird sofort
+        // gespeichert, greift aber erst nach einem Neustart von ULM. Siehe
+        // docs/superpowers/specs/2026-07-22-bilingual-ui-infrastructure-design.md.
         private void ApplyLocalizedText()
         {
             IsoTab.Header    = LocalizationService.T(Str.Tab_IsoSelection);
@@ -415,39 +383,37 @@ namespace ULM.Views
             BtnUpdates.Content  = LocalizationService.T(Str.Btn_CheckForUpdates);
             BtnCancel.Content   = LocalizationService.T(Str.Btn_Cancel);
             BtnHelp.Content     = LocalizationService.T(Str.Btn_Help);
-            BtnThemeToggle.ToolTip = LocalizationService.T(Str.Tooltip_ThemeToggle);
-            UpdateLanguageButtonLabel();
         }
 
-        // Zeigt die JEWEILS ANDERE Sprache als Klick-Ziel an (Sprachnamen werden
-        // immer in der eigenen Sprache angezeigt, unabhängig von der aktuell
-        // aktiven UI-Sprache — üblicherweise Konvention bei Sprachumschaltern).
-        private void UpdateLanguageButtonLabel()
-        {
-            BtnLanguageToggle.Content = LocalizationService.Current == AppLanguage.German ? "🌐 English" : "🌐 Deutsch";
-            BtnLanguageToggle.ToolTip = LocalizationService.T(Str.Tooltip_LanguageToggle);
-        }
-
-        private void BtnLanguageToggle_Click(object sender, RoutedEventArgs e)
+        // ── Einstellungen (Design/Sprache/Modus) ─────────────────────────────
+        // Konsolidiert die frueher drei einzelnen Umschalter-Buttons (Modus/Design/Sprache) in
+        // einen einzigen Button, der das bestehende SetupDialog im "Lite"-Modus (kein
+        // Willkommenstext/keine Ordner-Auswahl) erneut oeffnet. Siehe
+        // docs/superpowers/specs/2026-07-23-settings-consolidation-design.md.
+        private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
             AppLanguage oldLang = LocalizationService.Current;
-            AppLanguage newLang = oldLang == AppLanguage.German ? AppLanguage.English : AppLanguage.German;
+            var dlg = new SetupDialog(showDirectory: false, showWelcome: false, currentExpertMode: _vm.ExpertMode,
+                currentThemeMode: ThemeService.CurrentMode, currentLanguage: oldLang)
+            { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+
+            _vm.ExpertMode = dlg.ExpertModeChosen;
+            UpdateUiMode();
+            ThemeService.SetMode(dlg.ChosenThemeMode);
+
+            if (dlg.ChosenLanguage == oldLang) return;
 
             string title   = LocalizationService.T(Str.LanguageChangeConfirm_Title, oldLang);
             string message = LocalizationService.T(Str.LanguageChangeConfirm_Message, oldLang);
 
-            LocalizationService.SetLanguage(newLang);
-            UpdateLanguageButtonLabel();
+            LocalizationService.SetLanguage(dlg.ChosenLanguage);
 
             if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
             {
-                // BUGFIX: Process.Start(neue Instanz) direkt gefolgt von Shutdown() startete die neue
-                // Instanz, WAEHREND die alte noch lief und in OnClosed()/SaveAndClose() dieselbe
-                // ulm_isos.ini schrieb -> Race Condition, beide Prozesse griffen gleichzeitig auf die
-                // Datei zu ("IOException: wird bereits von einem anderen Prozess verwendet"). Wie beim
-                // Selbst-Update-Neustart (SelfUpdateService.BuildRestartAfterInstallScript) uebernimmt
-                // ein externes, unabhaengiges Skript den Neustart: es wartet, bis DIESER Prozess
-                // wirklich beendet ist, bevor die neue Instanz startet.
+                // Race-freier Neustart (siehe Commit 45fe972 / SelfUpdateService.BuildRestartAfterInstallScript):
+                // ein externes, unabhaengiges Skript wartet, bis DIESER Prozess wirklich beendet ist
+                // (Datei-Lock auf ulm_isos.ini u.ae. freigegeben), bevor die neue Instanz startet.
                 string scriptDir  = Path.Combine(Path.GetTempPath(), "ULM_LanguageRestart");
                 Directory.CreateDirectory(scriptDir);
                 string scriptPath = Path.Combine(scriptDir, "restart.ps1");

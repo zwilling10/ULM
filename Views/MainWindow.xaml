@@ -273,17 +273,9 @@
                         </Border.Style>
                     </Border>
 
-                    <Button x:Name="BtnModeToggle" Style="{DynamicResource BtnGhost}"
+                    <Button x:Name="BtnSettings" Content="⚙ Einstellungen" Style="{DynamicResource BtnGhost}"
                             Foreground="White" BorderBrush="#4A6785"
-                            Click="BtnModeToggle_Click" Width="160" Margin="0,0,8,0"/>
-
-                    <Button x:Name="BtnThemeToggle" Style="{DynamicResource BtnGhost}"
-                            Foreground="White" BorderBrush="#4A6785"
-                            Click="BtnThemeToggle_Click" Width="130" Margin="0,0,8,0"/>
-
-                    <Button x:Name="BtnLanguageToggle" Style="{DynamicResource BtnGhost}"
-                            Foreground="White" BorderBrush="#4A6785"
-                            Click="BtnLanguageToggle_Click" Width="110" Margin="0,0,8,0"/>
+                            Click="BtnSettings_Click" Width="140" Margin="0,0,8,0"/>
 
                     <Button x:Name="BtnHelp" Content="❓ Hilfe"
                             Style="{DynamicResource BtnGhost}"
