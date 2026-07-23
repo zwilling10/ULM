@@ -34,7 +34,7 @@ namespace ULM.Views.Dialogs
         {
             ChosenThemeMode = currentThemeMode;
             ChosenLanguage  = currentLanguage;
-            Title  = "Universal Linux Manager — Einrichtung";
+            Title  = showWelcome ? "Universal Linux Manager — Einrichtung" : "Universal Linux Manager — Einstellungen";
             // BUGFIX: Breite/Höhe waren fest auf 760x(automatisch bis zu ~950 sichtbaren Pixeln)
             // ausgelegt — auf kleinen Bildschirmen (getestet: 800x600) ragte das Fenster oben UND
             // unten über den sichtbaren Arbeitsbereich hinaus, wodurch der "Übernehmen"-Button in
@@ -76,11 +76,23 @@ namespace ULM.Views.Dialogs
                 Margin = new Thickness(0, 0, 16, 0), VerticalAlignment = VerticalAlignment.Center,
                 Effect = new DropShadowEffect { Color = ((SolidColorBrush)ThemeColors.Blue).Color, Opacity = 0.45, BlurRadius = 16, ShadowDepth = 0 },
             };
-            icon.Child = new TextBlock { Text = "🚀", FontSize = 26, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            // BUGFIX: Header-Banner war bisher IMMER "Willkommen ..." — unabhängig von
+            // showWelcome, das bisher nur die separate "ℹ Über ULM"-Karte weiter unten steuerte.
+            // Beim erneuten Öffnen über ⚙ Einstellungen (showWelcome:false) wirkte das verwirrend
+            // ("Willkommen" mitten in einer laufenden Sitzung).
+            icon.Child = new TextBlock { Text = showWelcome ? "🚀" : "⚙", FontSize = 26, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             headerContent.Children.Add(icon);
             var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            titleStack.Children.Add(new TextBlock { Text = "Willkommen beim Universal Linux Manager", FontSize = 19, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-            titleStack.Children.Add(new TextBlock { Text = "Kurze Einrichtung, dann kann's losgehen.", FontSize = 12, Foreground = ThemeColors.Dim, Margin = new Thickness(0, 3, 0, 0) });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = showWelcome ? "Willkommen beim Universal Linux Manager" : "Einstellungen",
+                FontSize = 19, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+            });
+            titleStack.Children.Add(new TextBlock
+            {
+                Text = showWelcome ? "Kurze Einrichtung, dann kann's losgehen." : "Änderungen wirken nach Klick auf „✔ Übernehmen“.",
+                FontSize = 12, Foreground = ThemeColors.Dim, Margin = new Thickness(0, 3, 0, 0),
+            });
             headerContent.Children.Add(titleStack);
             header.Child = headerContent;
             Grid.SetRow(header, 0);
