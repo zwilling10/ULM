@@ -72,7 +72,42 @@ Explizit **ausgeschlossen** (nicht Teil dieser Phase):
   Stellen, „Ja"/„Nein"/„Ungeprüft" in mehreren `IsoViewModels`-Properties)
   bekommen JE EINEN `Str`-Wert, an mehreren Call-Sites wiederverwendet —
   keine Kopien.
-- **Neu: `string.Format(...)` für mehrere eingebettete Laufzeitwerte.**
+- **Neu entdeckt beim genauen Lesen aller 5 Dateien: `UpdateBannerButtonText`**
+  (3 feste Texte am Update-Banner-Button: „⬇ Herunterladen …", „⬇ Wird
+  heruntergeladen …", „✅ Jetzt installieren & neu starten") war in der
+  ursprünglichen Bestandsaufnahme nicht erfasst — kommt dazu (128 statt 125
+  `Str`-Werte insgesamt).
+- **Architektur-Korrektur für `MainWindow.xaml` (XAML, nicht C#):** Anders
+  als `SetupDialogs.cs` (reiner C#-Code, `LocalizationService.T(...)` direkt
+  im Ausdruck aufrufbar) ist `MainWindow.xaml` deklaratives Markup — ein
+  XAML-Attribut wie `Text="..."` kann keine C#-Methode aufrufen. Drei
+  Fallgruppen, alle bereits etablierte Muster aus Phase 1/2:
+  1. **Statische Texte ohne `x:Name`:** Element bekommt ein neues `x:Name`
+     (≈30 Elemente betroffen — Spaltenüberschriften, Status-Tab-Labels,
+     Sektions-Überschriften etc.), `ApplyLocalizedText()` (bereits
+     bestehende Methode in `MainWindow.xaml.cs`, aktuell für `BtnDownload`
+     & Co.) setzt `Text`/`Content`/`ToolTip` nach `InitializeComponent()`.
+     Bereits benannte Elemente (Buttons/Checkboxes mit Click-Handler)
+     brauchen kein neues `x:Name`, nur eine neue Zeile in
+     `ApplyLocalizedText()`.
+  2. **Zustandsabhängige Texte in `DataTrigger`/`Setter`** (3 Stellen: „Kein
+     Vorgang aktiv." + 2 Alternativtexte; „läuft …"/„inaktiv" ×2 Paare) —
+     ein `Setter Property="Text" Value="..."` kann `T(...)` nicht aufrufen.
+     Werden durch neue berechnete Properties auf `MainViewModel` ersetzt
+     (`{Binding NeuePropertyName}` statt `DataTrigger`), exakt das Muster
+     des bereits bestehenden `ScanHintText` (ebenfalls ein aus zwei Bools
+     berechneter String).
+  3. **Tooltips in Zeilen-/Kategorie-Vorlagen** (`Quelle manuell
+     suchen/eintragen`, `Alle Distros dieser Kategorie an-/abwählen`) —
+     diese `DataTemplate`s werden pro Zeile/Kategorie mehrfach instanziiert,
+     `ApplyLocalizedText()` liefe nur einmal fürs Fenster. Werden zu
+     berechneten Properties auf `IsoEntryViewModel`/`IsoCategoryViewModel`
+     (exakt das Muster von `TipTooltip`/`HashStatusTooltip`, die dort schon
+     existieren) und per `{Binding}` statt festem `ToolTip="..."` gebunden.
+     Deshalb umbenannt zu `Row_ManualSearchTooltip`/
+     `Row_CategorySelectAllTooltip` und der `IsoViewModels.cs`-Gruppe
+     zugeordnet statt der `MainWindow.xaml`-Gruppe.
+- **`string.Format(...)` für mehrere eingebettete Laufzeitwerte.**
   Phase 2 hat für einen einzelnen angehängten technischen Text (`ex.Message`)
   bewusst einfache Verkettung statt eines neuen `T()`-Parameters gewählt. Für
   Texte mit **mehreren, grammatikalisch mitten im Satz eingebetteten**
@@ -91,12 +126,10 @@ Explizit **ausgeschlossen** (nicht Teil dieser Phase):
 
 ## Architektur
 
-### `Infrastructure/Str.cs` — neue Einträge (125 neue Werte, 5 Gruppen)
+### `Infrastructure/Str.cs` — neue Einträge (128 neue Werte, 5 Gruppen)
 
 ```csharp
 // ── Hauptfenster: Rahmen, Toolbar, Spalten, Status-Tab ──────────────
-Main_Tooltip_ManualSearch,
-Main_Tooltip_CategorySelectAll,
 Main_HeaderSubtitle,
 Main_Chip_OnlineScan,
 Main_Chip_UsbScan,
@@ -198,10 +231,15 @@ Msg_VentoyInstall_Title,
 Banner_UpdateAvailable,
 Banner_UpdateDownloading,
 Banner_UpdateReady,
+Banner_UpdateBtn_Available,
+Banner_UpdateBtn_Downloading,
+Banner_UpdateBtn_ReadyToInstall,
 Banner_HardCaseSingle,
 Banner_HardCasePlural,
 
 // ── Distro-Zeilen: Status-Texte + Tooltips (IsoViewModels.cs) ───────
+Row_ManualSearchTooltip,
+Row_CategorySelectAllTooltip,
 Row_Local,
 Row_NotLocal,
 Row_Yes,
@@ -272,25 +310,37 @@ public string VersionStatus
 }
 ```
 
-Die vollständige Deutsch/Englisch-Textliste aller 125 Werte wird im
+Die vollständige Deutsch/Englisch-Textliste aller 128 Werte wird im
 Implementierungsplan Task für Task mit exaktem Vorher-/Nachher-Code
 mitgeliefert (wie in Phase 2) — hier nur das Architekturmuster.
 
 ### Betroffene Dateien
 
-- `Infrastructure/Str.cs` — 125 neue Enum-Werte.
+- `Infrastructure/Str.cs` — 128 neue Enum-Werte.
 - `Infrastructure/LocalizationService.cs` — je ein DE- und EN-Eintrag pro
   neuem Wert.
-- `Views/MainWindow.xaml` — 52 Ersetzungen (Buttons, Labels, Tooltips,
-  Spaltenüberschriften, Status-Tab-Texte).
+- `Views/MainWindow.xaml` — 50 Ersetzungen (Buttons, Labels,
+  Spaltenüberschriften; ≈30 Elemente bekommen dabei ein neues `x:Name`,
+  siehe Architektur-Korrektur oben). Die 3 zustandsabhängigen Texte werden
+  von `DataTrigger`/`Setter` auf `{Binding}` gegen neue
+  `MainViewModel`-Properties umgestellt (kein XAML-Literal mehr, siehe
+  unten). Die 2 Zeilen-/Kategorie-Tooltips wandern zu
+  `ViewModels/IsoViewModels.cs`.
 - `Views/MainWindow.xaml.cs` — 44 Ersetzungen (MessageBox-Dialoge,
   Footer-Text; teilt `Banner_HardCaseSingle` mit `MainViewModel.cs`, da
   derselbe Text an beiden Stellen verwendet wird).
-- `ViewModels/MainViewModel.cs` — 5 Ersetzungen, NUR die drei
-  `UpdateBannerText`- und zwei `HardCaseBannerText`-Zuweisungen. Keine
-  Berührung von `Log(...)`/`StatusText` (Phase 4).
+- `ViewModels/MainViewModel.cs` — 6 direkte `Str`-Ersetzungen (3×
+  `UpdateBannerText`, 3× `UpdateBannerButtonText`, 2× `HardCaseBannerText`
+  — macht zusammen 8 Zuweisungen für die 8 `Banner_*`-Werte) PLUS 3 neue
+  berechnete Properties, die die `MainWindow.xaml`-`DataTrigger`-Texte
+  ersetzen (verwenden `Main_Status_NoOperation`/`OnlineScanRunning`/
+  `UsbScanRunning`/`Running`/`Inactive` intern). Keine Berührung von
+  `Log(...)`/`StatusText` (Phase 4).
 - `ViewModels/IsoViewModels.cs` — 16 Ersetzungen in `LocalStatus`,
-  `UsbStatus`, `VersionStatus`, `HashStatusTooltip`, `TipTooltip`.
+  `UsbStatus`, `VersionStatus`, `HashStatusTooltip`, `TipTooltip`, PLUS 2
+  neue berechnete Properties (`ManualSearchTooltip` auf
+  `IsoEntryViewModel`, `SelectAllTooltip` auf `IsoCategoryViewModel`) für
+  die aus `MainWindow.xaml` verschobenen Zeilen-/Kategorie-Tooltips.
   `StatusBracket` bleibt unangetastet.
 - `Core/Models/Constants.cs` — `CategoryLabel(string)` komplett auf
   `LocalizationService.T(Str.Category_...)` umgestellt.
@@ -299,7 +349,7 @@ mitgeliefert (wie in Phase 2) — hier nur das Architekturmuster.
 
 - Der bestehende Vollständigkeitstest
   (`LocalizationServiceCompletenessTests.AllStrValues_HaveGermanAndEnglishTranslation`)
-  deckt alle 125 neuen Werte automatisch ab.
+  deckt alle 128 neuen Werte automatisch ab.
 - Ein paar neue Spot-Tests für `string.Format(...)`-Fälle (z.B.
   `Msg_StickOutdatedFound`, `Row_UpdatePrefix`) — bestätigen, dass
   Platzhalter UND Wortstellung in beiden Sprachen korrekt sind (das ist die
