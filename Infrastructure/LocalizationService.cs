@@ -66,6 +66,7 @@ namespace ULM.Infrastructure
             [Str.Setup_Subtitle_Welcome]         = "Kurze Einrichtung, dann kann's losgehen.",
             [Str.Setup_Subtitle_Settings]        = "Änderungen wirken nach Klick auf „✔ Übernehmen“.",
 
+            [Str.Setup_Card_Directory]           = "📁 Arbeitsordner",
             [Str.Setup_Directory_Header]         = "Speicherort für ISO-Downloads und Einstellungsdateien:",
             [Str.Setup_Btn_Browse]               = "📂 Durchsuchen",
             [Str.Setup_FolderDialog_Title]       = "Arbeitsverzeichnis für den Universal Linux Manager wählen",
@@ -134,6 +135,7 @@ namespace ULM.Infrastructure
             [Str.Setup_Subtitle_Welcome]         = "Quick setup, then you're ready to go.",
             [Str.Setup_Subtitle_Settings]        = "Changes take effect after clicking “✔ Apply”.",
 
+            [Str.Setup_Card_Directory]           = "📁 Working Directory",
             [Str.Setup_Directory_Header]         = "Storage location for ISO downloads and settings files:",
             [Str.Setup_Btn_Browse]               = "📂 Browse",
             [Str.Setup_FolderDialog_Title]       = "Choose a working directory for Universal Linux Manager",

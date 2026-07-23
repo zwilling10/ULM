@@ -180,7 +180,7 @@ namespace ULM.Views.Dialogs
                 previewBorder.Child = previewGrid;
                 section.Children.Add(previewBorder);
 
-                body.Children.Add(MakeCard("📁 Arbeitsordner", section));
+                body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Directory), section));
                 UpdatePreview(DefaultBase);
             }
 

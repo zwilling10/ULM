@@ -28,6 +28,7 @@ namespace ULM.Infrastructure
         Setup_Subtitle_Settings,
 
         // SetupDialog: Arbeitsordner-Karte
+        Setup_Card_Directory,
         Setup_Directory_Header,
         Setup_Btn_Browse,
         Setup_FolderDialog_Title,
