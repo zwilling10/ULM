@@ -189,22 +189,17 @@ namespace ULM.Views.Dialogs
                 var section = new StackPanel();
                 section.Children.Add(new TextBlock
                 {
-                    Text = "Mit diesem Tool kannst du mühelos 20–30 verschiedene Linux-Distributionen verwalten, " +
-                           "automatisch die neuesten ISOs herunterladen und diese bootfähig auf deinen Ventoy-USB-Stick übertragen.\n\n" +
-                           "Features im Überblick:\n" +
-                           "• Automatisierte URL-Prüfung & Versions-Check\n" +
-                           "• Integrierte Ventoy-Installation & Secure-Boot-Support\n" +
-                           "• Parallele Downloads für maximale Performance",
+                    Text = LocalizationService.T(Str.Setup_WelcomeBody),
                     TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
                     Foreground = ThemeColors.Mid,
                 });
-                body.Children.Add(MakeCard("ℹ Über ULM", section));
+                body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_AboutUlm), section));
             }
 
             var modeSection = new StackPanel();
             var chkExpert = new CheckBox
             {
-                Content = "Experten-Modus aktivieren (alle Funktionen sichtbar)",
+                Content = LocalizationService.T(Str.Setup_Chk_ExpertMode),
                 FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header,
                 VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 8),
                 IsChecked = currentExpertMode, // merkt sich die zuletzt gewählte Einstellung
@@ -212,17 +207,16 @@ namespace ULM.Views.Dialogs
             modeSection.Children.Add(chkExpert);
             modeSection.Children.Add(new TextBlock
             {
-                Text = "Bestimmt, wie viele Funktionen und erweiterte Einstellungen im Hauptprogramm angezeigt werden. " +
-                       "Unmarkiert = Anwender-Modus (empfohlen). Der Modus kann später jederzeit über ⚙ Einstellungen oben rechts geändert werden.",
+                Text = LocalizationService.T(Str.Setup_Hint_Mode),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard("👤 Modus", modeSection));
+            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Mode), modeSection));
 
             // ── Autostart ────────────────────────────────────────────
             var autostartSection = new StackPanel();
             var chkAutostart = new CheckBox
             {
-                Content = "Mit Windows starten",
+                Content = LocalizationService.T(Str.Setup_Chk_Autostart),
                 FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = ThemeColors.Header,
                 VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 0, 8),
                 IsChecked = AutostartService.IsEnabled(),
@@ -230,11 +224,10 @@ namespace ULM.Views.Dialogs
             autostartSection.Children.Add(chkAutostart);
             autostartSection.Children.Add(new TextBlock
             {
-                Text = "ULM startet dann automatisch (sichtbares Fenster) bei jeder Windows-Anmeldung. " +
-                       "Kein Admin-Recht nötig. Kann später hier jederzeit wieder deaktiviert werden.",
+                Text = LocalizationService.T(Str.Setup_Hint_Autostart),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard("🚀 Autostart", autostartSection));
+            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Autostart), autostartSection));
 
             // ── Design (System / Hell / Dunkel) ─────────────────────────
             var themeSection = new StackPanel();
