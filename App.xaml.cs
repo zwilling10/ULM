@@ -19,6 +19,7 @@ namespace ULM
             // VentoyInstallWindow oder MainWindow) konstruiert wird, damit von Anfang an die
             // richtige Farbpalette aktiv ist und kein kurzes Aufblitzen im falschen Theme auftritt.
             ThemeService.Initialize();
+            LocalizationService.Initialize();
 
             // ─────────────────────────────────────────────────────────────
             // Elevation-on-demand: Ventoy Admin-Modus

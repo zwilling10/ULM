@@ -47,6 +47,7 @@ namespace ULM.Views
             // für das Hauptfenster selbst.
             Title = Constants.AppFullTitle;
             UpdateThemeButtonLabel();
+            ApplyLocalizedText();
             _vm = new MainViewModel(Dispatcher);
             DataContext = _vm;
             ThemeService.ThemeChanged += () =>
@@ -399,6 +400,63 @@ namespace ULM.Views
                 _                   => AppThemeMode.System,
             };
             ThemeService.SetMode(next);
+        }
+
+        // ── Sprache (Deutsch/Englisch) ──────────────────────────────────────
+        // Wirkt bewusst NICHT live (anders als der Theme-Umschalter oben) — ein
+        // Sprachwechsel wird sofort gespeichert, greift aber erst nach einem
+        // Neustart von ULM. Siehe docs/superpowers/specs/2026-07-22-bilingual-ui-infrastructure-design.md.
+        private void ApplyLocalizedText()
+        {
+            IsoTab.Header    = LocalizationService.T(Str.Tab_IsoSelection);
+            LogTab.Header    = LocalizationService.T(Str.Tab_Log);
+            StatusTab.Header = LocalizationService.T(Str.Tab_Status);
+            BtnDownload.Content = LocalizationService.T(Str.Btn_Download);
+            BtnUpdates.Content  = LocalizationService.T(Str.Btn_CheckForUpdates);
+            BtnCancel.Content   = LocalizationService.T(Str.Btn_Cancel);
+            BtnHelp.Content     = LocalizationService.T(Str.Btn_Help);
+            BtnThemeToggle.ToolTip = LocalizationService.T(Str.Tooltip_ThemeToggle);
+            UpdateLanguageButtonLabel();
+        }
+
+        // Zeigt die JEWEILS ANDERE Sprache als Klick-Ziel an (Sprachnamen werden
+        // immer in der eigenen Sprache angezeigt, unabhängig von der aktuell
+        // aktiven UI-Sprache — üblicherweise Konvention bei Sprachumschaltern).
+        private void UpdateLanguageButtonLabel()
+        {
+            BtnLanguageToggle.Content = LocalizationService.Current == AppLanguage.German ? "🌐 English" : "🌐 Deutsch";
+            BtnLanguageToggle.ToolTip = LocalizationService.T(Str.Tooltip_LanguageToggle);
+        }
+
+        private void BtnLanguageToggle_Click(object sender, RoutedEventArgs e)
+        {
+            AppLanguage oldLang = LocalizationService.Current;
+            AppLanguage newLang = oldLang == AppLanguage.German ? AppLanguage.English : AppLanguage.German;
+
+            string title   = LocalizationService.T(Str.LanguageChangeConfirm_Title, oldLang);
+            string message = LocalizationService.T(Str.LanguageChangeConfirm_Message, oldLang);
+
+            LocalizationService.SetLanguage(newLang);
+            UpdateLanguageButtonLabel();
+
+            if (MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            {
+                // BUGFIX: Process.Start(neue Instanz) direkt gefolgt von Shutdown() startete die neue
+                // Instanz, WAEHREND die alte noch lief und in OnClosed()/SaveAndClose() dieselbe
+                // ulm_isos.ini schrieb -> Race Condition, beide Prozesse griffen gleichzeitig auf die
+                // Datei zu ("IOException: wird bereits von einem anderen Prozess verwendet"). Wie beim
+                // Selbst-Update-Neustart (SelfUpdateService.BuildRestartAfterInstallScript) uebernimmt
+                // ein externes, unabhaengiges Skript den Neustart: es wartet, bis DIESER Prozess
+                // wirklich beendet ist, bevor die neue Instanz startet.
+                string scriptDir  = Path.Combine(Path.GetTempPath(), "ULM_LanguageRestart");
+                Directory.CreateDirectory(scriptDir);
+                string scriptPath = Path.Combine(scriptDir, "restart.ps1");
+                File.WriteAllText(scriptPath, SelfUpdateService.BuildRestartAfterInstallScript(Environment.ProcessId, GetCurrentExePath()));
+                Process.Start(new ProcessStartInfo("powershell.exe",
+                    $"-WindowStyle Hidden -ExecutionPolicy Bypass -File \"{scriptPath}\"")
+                { UseShellExecute = false, CreateNoWindow = true });
+                Application.Current.Shutdown();
+            }
         }
 
         // ── Hilfe-Dialog ──────────────────────────────────────────────────
