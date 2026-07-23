@@ -55,8 +55,7 @@ namespace ULM.Infrastructure
             [Str.Btn_CheckForUpdates]          = "↻  Updates prüfen",
             [Str.Btn_Cancel]                   = "✕  Stopp",
             [Str.Btn_Help]                     = "❓ Hilfe",
-            [Str.Tooltip_ThemeToggle]          = "Erscheinungsbild umschalten: System / Hell / Dunkel",
-            [Str.Tooltip_LanguageToggle]       = "Sprache wechseln",
+            [Str.Btn_Settings]                 = "⚙ Einstellungen",
             [Str.LanguageChangeConfirm_Title]  = "Sprache geändert",
             [Str.LanguageChangeConfirm_Message] = "ULM jetzt neu starten, um die neue Sprache zu übernehmen?",
         };
@@ -70,8 +69,7 @@ namespace ULM.Infrastructure
             [Str.Btn_CheckForUpdates]          = "↻  Check for Updates",
             [Str.Btn_Cancel]                   = "✕  Stop",
             [Str.Btn_Help]                     = "❓ Help",
-            [Str.Tooltip_ThemeToggle]          = "Switch appearance: System / Light / Dark",
-            [Str.Tooltip_LanguageToggle]       = "Change language",
+            [Str.Btn_Settings]                 = "⚙ Settings",
             [Str.LanguageChangeConfirm_Title]  = "Language changed",
             [Str.LanguageChangeConfirm_Message] = "Restart ULM now to apply the new language?",
         };

@@ -14,8 +14,7 @@ namespace ULM.Infrastructure
         Btn_CheckForUpdates,
         Btn_Cancel,
         Btn_Help,
-        Tooltip_ThemeToggle,
-        Tooltip_LanguageToggle,
+        Btn_Settings,
         LanguageChangeConfirm_Title,
         LanguageChangeConfirm_Message,
     }

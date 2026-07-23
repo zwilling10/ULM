@@ -383,6 +383,7 @@ namespace ULM.Views
             BtnUpdates.Content  = LocalizationService.T(Str.Btn_CheckForUpdates);
             BtnCancel.Content   = LocalizationService.T(Str.Btn_Cancel);
             BtnHelp.Content     = LocalizationService.T(Str.Btn_Help);
+            BtnSettings.Content = LocalizationService.T(Str.Btn_Settings);
         }
 
         // ── Einstellungen (Design/Sprache/Modus) ─────────────────────────────
