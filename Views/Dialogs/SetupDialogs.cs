@@ -24,13 +24,16 @@ namespace ULM.Views.Dialogs
         public bool         DontShowAgain    { get; private set; }
         public bool         ExpertModeChosen { get; private set; }
         public AppThemeMode ChosenThemeMode  { get; private set; }
+        public AppLanguage  ChosenLanguage   { get; private set; }
 
         private static string DefaultBase =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "UniversalLinuxManager");
 
-        public SetupDialog(bool showDirectory, bool showWelcome, bool currentExpertMode = false, AppThemeMode currentThemeMode = AppThemeMode.System)
+        public SetupDialog(bool showDirectory, bool showWelcome, bool currentExpertMode = false,
+            AppThemeMode currentThemeMode = AppThemeMode.System, AppLanguage currentLanguage = AppLanguage.German)
         {
             ChosenThemeMode = currentThemeMode;
+            ChosenLanguage  = currentLanguage;
             Title  = "Universal Linux Manager — Einrichtung";
             // BUGFIX: Breite/Höhe waren fest auf 760x(automatisch bis zu ~950 sichtbaren Pixeln)
             // ausgelegt — auf kleinen Bildschirmen (getestet: 800x600) ragte das Fenster oben UND
@@ -198,7 +201,7 @@ namespace ULM.Views.Dialogs
             modeSection.Children.Add(new TextBlock
             {
                 Text = "Bestimmt, wie viele Funktionen und erweiterte Einstellungen im Hauptprogramm angezeigt werden. " +
-                       "Unmarkiert = Anwender-Modus (empfohlen). Der Modus kann später jederzeit oben rechts gewechselt werden.",
+                       "Unmarkiert = Anwender-Modus (empfohlen). Der Modus kann später jederzeit über ⚙ Einstellungen oben rechts geändert werden.",
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
             body.Children.Add(MakeCard("👤 Modus", modeSection));
@@ -250,10 +253,42 @@ namespace ULM.Views.Dialogs
             themeSection.Children.Add(new TextBlock
             {
                 Text = "\"System\" übernimmt automatisch die aktuelle Windows-Einstellung. Kann später jederzeit " +
-                       "oben rechts im Hauptfenster gewechselt werden — auch live, ohne Neustart.",
+                       "über ⚙ Einstellungen oben rechts geändert werden — auch live, ohne Neustart.",
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
             body.Children.Add(MakeCard("🌓 Design", themeSection));
+
+            // ── Sprache (Deutsch / English) ─────────────────────────────
+            var langSection = new StackPanel();
+            var langRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            var langButtons = new System.Collections.Generic.Dictionary<AppLanguage, Button>();
+            void UpdateLangButtons()
+            {
+                foreach (var (lang, btn) in langButtons)
+                {
+                    bool active = lang == ChosenLanguage;
+                    btn.Background = active ? ThemeColors.Blue : ThemeColors.Card;
+                    btn.Foreground = active ? Brushes.White : ThemeColors.Mid;
+                }
+            }
+            void AddLangButton(AppLanguage lang, string label)
+            {
+                var btn = MakeButton(label, ThemeColors.Card, ThemeColors.Mid, 130, 32);
+                btn.Margin = new Thickness(0, 0, 8, 0);
+                btn.Click += (_, _) => { ChosenLanguage = lang; UpdateLangButtons(); };
+                langButtons[lang] = btn;
+                langRow.Children.Add(btn);
+            }
+            AddLangButton(AppLanguage.German,  "🇩🇪 Deutsch");
+            AddLangButton(AppLanguage.English, "🇬🇧 English");
+            UpdateLangButtons();
+            langSection.Children.Add(langRow);
+            langSection.Children.Add(new TextBlock
+            {
+                Text = "Wirkt nach einem Neustart von ULM. Kann später jederzeit über ⚙ Einstellungen oben rechts geändert werden.",
+                TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
+            });
+            body.Children.Add(MakeCard("🌐 Sprache", langSection));
 
             scroll.Content = body;
             Grid.SetRow(scroll, 1);
