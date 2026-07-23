@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 
@@ -64,7 +64,7 @@ namespace ULM.Infrastructure
             [Str.Setup_Header_Welcome]           = "Willkommen beim Universal Linux Manager",
             [Str.Setup_Header_Settings]          = "Einstellungen",
             [Str.Setup_Subtitle_Welcome]         = "Kurze Einrichtung, dann kann's losgehen.",
-            [Str.Setup_Subtitle_Settings]        = "Änderungen wirken nach Klick auf \"✔ Übernehmen\".",
+            [Str.Setup_Subtitle_Settings]        = "Änderungen wirken nach Klick auf „✔ Übernehmen“.",
 
             [Str.Setup_Directory_Header]         = "Speicherort für ISO-Downloads und Einstellungsdateien:",
             [Str.Setup_Btn_Browse]               = "📂 Durchsuchen",
@@ -132,7 +132,7 @@ namespace ULM.Infrastructure
             [Str.Setup_Header_Welcome]           = "Welcome to Universal Linux Manager",
             [Str.Setup_Header_Settings]          = "Settings",
             [Str.Setup_Subtitle_Welcome]         = "Quick setup, then you're ready to go.",
-            [Str.Setup_Subtitle_Settings]        = "Changes take effect after clicking \"✔ Apply\".",
+            [Str.Setup_Subtitle_Settings]        = "Changes take effect after clicking “✔ Apply”.",
 
             [Str.Setup_Directory_Header]         = "Storage location for ISO downloads and settings files:",
             [Str.Setup_Btn_Browse]               = "📂 Browse",
