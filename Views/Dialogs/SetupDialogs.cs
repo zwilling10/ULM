@@ -250,18 +250,17 @@ namespace ULM.Views.Dialogs
                 themeButtons[mode] = btn;
                 themeRow.Children.Add(btn);
             }
-            AddThemeButton(AppThemeMode.System, "🌓 System");
-            AddThemeButton(AppThemeMode.Light,  "☀ Hell");
-            AddThemeButton(AppThemeMode.Dark,   "🌙 Dunkel");
+            AddThemeButton(AppThemeMode.System, "🌓 " + LocalizationService.T(Str.Setup_Theme_System));
+            AddThemeButton(AppThemeMode.Light,  "☀ "  + LocalizationService.T(Str.Setup_Theme_Light));
+            AddThemeButton(AppThemeMode.Dark,   "🌙 " + LocalizationService.T(Str.Setup_Theme_Dark));
             UpdateThemeButtons();
             themeSection.Children.Add(themeRow);
             themeSection.Children.Add(new TextBlock
             {
-                Text = "\"System\" übernimmt automatisch die aktuelle Windows-Einstellung. Kann später jederzeit " +
-                       "über ⚙ Einstellungen oben rechts geändert werden — auch live, ohne Neustart.",
+                Text = LocalizationService.T(Str.Setup_Hint_Theme),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard("🌓 Design", themeSection));
+            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Design), themeSection));
 
             // ── Sprache (Deutsch / English) ─────────────────────────────
             var langSection = new StackPanel();
@@ -290,10 +289,10 @@ namespace ULM.Views.Dialogs
             langSection.Children.Add(langRow);
             langSection.Children.Add(new TextBlock
             {
-                Text = "Wirkt nach einem Neustart von ULM. Kann später jederzeit über ⚙ Einstellungen oben rechts geändert werden.",
+                Text = LocalizationService.T(Str.Setup_Hint_Language),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard("🌐 Sprache", langSection));
+            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Language), langSection));
 
             scroll.Content = body;
             Grid.SetRow(scroll, 1);
@@ -311,14 +310,14 @@ namespace ULM.Views.Dialogs
 
             var chkDontShowAgain = new CheckBox
             {
-                Content = "Diese Einrichtung beim nächsten Start überspringen (Modus wird gespeichert)",
+                Content = LocalizationService.T(Str.Setup_Chk_DontShowAgain),
                 FontSize = 11, Foreground = ThemeColors.Mid,
                 VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
             };
             Grid.SetColumn(chkDontShowAgain, 0);
             footerGrid.Children.Add(chkDontShowAgain);
 
-            var btnApply = MakeButton("✔ Übernehmen", ThemeColors.Blue, Brushes.White, 160, 40);
+            var btnApply = MakeButton(LocalizationService.T(Str.Setup_Btn_Apply), ThemeColors.Blue, Brushes.White, 160, 40);
             btnApply.FontWeight = FontWeights.SemiBold;
             btnApply.HorizontalAlignment = HorizontalAlignment.Right;
             btnApply.Click += (_, _) =>
@@ -331,7 +330,10 @@ namespace ULM.Views.Dialogs
                     try { Directory.CreateDirectory(chosen); }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ordner konnte nicht erstellt werden:\n{ex.Message}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show(
+                            LocalizationService.T(Str.Setup_Error_FolderCreateFailed) + "\n" + ex.Message,
+                            LocalizationService.T(Str.Setup_Error_Title),
+                            MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
                 }
