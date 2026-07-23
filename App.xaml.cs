@@ -118,7 +118,8 @@ namespace ULM
 
             if (!skipSetupDialog)
             {
-                var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert, currentThemeMode: ThemeService.CurrentMode)
+                var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert,
+                    currentThemeMode: ThemeService.CurrentMode, currentLanguage: LocalizationService.Current)
                 { WindowStartupLocation = WindowStartupLocation.CenterScreen };
                 if (setupDlg.ShowDialog() != true) { Shutdown(); return; }
 
@@ -133,6 +134,9 @@ namespace ULM
                 // Erst NACH Dialog-Schluss anwenden (nicht live während der Auswahl im Dialog
                 // selbst) — MainWindow wird direkt danach mit der korrekten Palette konstruiert.
                 ThemeService.SetMode(setupDlg.ChosenThemeMode);
+                // Kein Neustart-Dialog noetig: MainWindow existiert an dieser Stelle noch gar
+                // nicht, die gewaehlte Sprache wird direkt beim allerersten Aufbau wirksam.
+                LocalizationService.SetLanguage(setupDlg.ChosenLanguage);
             }
 
             // STEP 4: Hauptfenster
