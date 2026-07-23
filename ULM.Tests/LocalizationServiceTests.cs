@@ -23,6 +23,22 @@ public class LocalizationServiceTTests
     {
         Assert.Equal(expected, LocalizationService.T(Str.Btn_Download, language));
     }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "✔ Übernehmen")]
+    [InlineData(AppLanguage.English, "✔ Apply")]
+    public void T_Setup_Btn_Apply_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Setup_Btn_Apply, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Ordner konnte nicht erstellt werden:")]
+    [InlineData(AppLanguage.English, "Could not create folder:")]
+    public void T_Setup_Error_FolderCreateFailed_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Setup_Error_FolderCreateFailed, language));
+    }
 }
 
 public class LocalizationServiceDetectFromCultureTests
