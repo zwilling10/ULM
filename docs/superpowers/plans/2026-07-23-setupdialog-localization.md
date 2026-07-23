@@ -822,6 +822,18 @@ Falls einer der Punkte in Step 2–5 nicht stimmt, zurück zu Phase 1 der system
 
 ---
 
+## Nachtrag (nach Ausführung)
+
+Die manuelle Verifikation in Task 6 deckte eine Lücke im ursprünglichen Plan auf: die
+Kartenüberschrift `MakeCard("📁 Arbeitsordner", section)` in `Views/Dialogs/SetupDialogs.cs`
+war im String-Inventar der Spec nicht erfasst und blieb nach den Tasks 1–5 bei `Language = en`
+hartcodiert Deutsch. Behoben durch einen zusätzlichen `Str.Setup_Card_Directory`-Wert (DE
+"📁 Arbeitsordner" / EN "📁 Working Directory"), nach demselben Muster wie die anderen 5
+Kartenüberschriften ergänzt, per Fix-Subagent umgesetzt, review-geprüft (clean) und durch
+gezielte Re-Verifikation von Task-6-Schritt 2 (Deutsch, Regressionscheck) und Schritt 3
+(Englisch) bestätigt. Siehe `docs/superpowers/specs/2026-07-23-setupdialog-localization-design.md`
+Nachtrag für Details. Commit: `d0c1165`.
+
 ## Self-Review
 
 **Spec-Abdeckung:**

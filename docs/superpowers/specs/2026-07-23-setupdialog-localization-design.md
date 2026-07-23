@@ -81,6 +81,7 @@ public enum Str
     Setup_Subtitle_Settings,
 
     // SetupDialog: Arbeitsordner-Karte
+    Setup_Card_Directory,
     Setup_Directory_Header,
     Setup_Btn_Browse,
     Setup_FolderDialog_Title,
@@ -217,6 +218,18 @@ BUGFIX-Kommentaren im bestehenden Code — reine Text-Substitution.
    (gleiches Risiko wie in Phase 1 vermerkt, hier aber unwahrscheinlicher
    da englische Übersetzungen tendenziell kürzer sind als die deutschen
    Originale).
+
+## Nachtrag (nach Implementierung)
+
+Beim ursprünglichen String-Inventar wurde die Kartenüberschrift der Arbeitsordner-Karte selbst
+(`MakeCard("📁 Arbeitsordner", section)`, separat von `Setup_Directory_Header` — dem Fließtext
+INNERHALB der Karte) übersehen, obwohl alle 5 anderen Karten in diesem Dialog ihre Überschrift
+bereits über `Str.Setup_Card_*` lokalisieren. Erst die manuelle Verifikation nach der
+Implementierung deckte das auf (Karte blieb bei `Language = en` hartcodiert Deutsch). Ergänzt um
+`Str.Setup_Card_Directory` (DE: "📁 Arbeitsordner", EN: "📁 Working Directory"), exakt nach dem
+Muster der anderen Kartenüberschriften. Die tatsächliche Gesamtzahl neuer `Str`-Werte ist damit
+34 (nicht 31/33 wie an früheren Stellen in diesem Dokument gezählt — reine Zähl-Ungenauigkeiten,
+ohne Auswirkung auf den Code).
 
 ## Offene Fragen für spätere Phasen (nicht jetzt entscheiden)
 
