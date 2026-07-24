@@ -197,60 +197,21 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── USB-Stick ──────────────────────────────────────────────────
-            AddSection("💾 USB-Stick-Verwaltung (Ventoy)", "USB-Stick / Ventoy");
-            content.Children.Add(MakeItem("Was ist Ventoy?",
-                "Ventoy richtet einen USB-Stick so ein, dass mehrere Linux-ISOs " +
-                "gleichzeitig gespeichert und beim Booten ausgewählt werden können. " +
-                "Einmal einrichten, dann einfach ISOs draufkopieren — kein Neu-Flashen nötig."));
-            content.Children.Add(MakeItem("Ventoy installieren / aktualisieren",
-                "Nur im Expert-Modus sichtbar. " +
-                "⚠ NEUINSTALLATION löscht ALLE Daten auf dem Stick! " +
-                "Aktualisieren behält bestehende ISOs. Läuft als Administrator (UAC) in einem " +
-                "eigenen ULM-Fenster mit Fortschrittsanzeige und Protokoll — Ventoy2Disk.exe selbst " +
-                "läuft dabei komplett unsichtbar im Hintergrund (offizieller Silent-/CLI-Modus, " +
-                "keine eigene Ventoy-Oberfläche, keine manuelle Bedienung nötig). Während die " +
-                "Installation läuft, pausiert ULM die automatische Laufwerkserkennung — es können " +
-                "keine weiteren Abfragen oder Dialoge parallel erscheinen. Nach Abschluss (Erfolg " +
-                "oder Fehler) muss der 'Schließen'-Button aktiv geklickt werden, um fortzufahren."));
-            content.Children.Add(MakeItem("Mehrere USB-Sticks angeschlossen",
-                "Sind zwei oder mehr USB-Sticks gleichzeitig angeschlossen — egal ob schon beim " +
-                "Programmstart oder erst später —, fragt ULM aktiv nach, mit welchem Stick gearbeitet " +
-                "werden soll (vorbelegt mit der zuletzt aktiven Auswahl). 'Abbrechen' behält einfach die " +
-                "bisherige Auswahl bei. Über das Laufwerks-Dropdown im Hauptfenster lässt sich jederzeit " +
-                "manuell zu einem anderen angeschlossenen Stick wechseln."));
-            content.Children.Add(MakeItem("Ventoy-Bootmenü",
-                "Wird automatisch nach jedem Kopiervorgang UND nach jedem ISO-Import vom Stick aktualisiert. " +
-                "Enthält leserliche Namen, Beschreibungen und Kategorien aus der Datenbank."));
-            content.Children.Add(MakeItem("🔁 Verpasste Kopien nachholen",
-                "Manuelles Sicherheitsnetz (Expert-Modus): kopiert bereits lokal vollständig " +
-                "heruntergeladene, ausgewählte ISOs (erneut) auf den Stick. ULM bietet das normalerweise " +
-                "automatisch an, sobald eine vollständige ISO auf dem Stick fehlt — dieses automatische " +
-                "'Jetzt kopieren?'-Angebot erscheint aber pro Stick und Datei nur EINMAL je Sitzung, egal " +
-                "ob mit Ja oder Nein geantwortet wurde. Wurde es abgelehnt, oder ist eine vorherige Kopie " +
-                "fehlgeschlagen, ist dieser Button ohne Neustart der einzige Weg, es erneut zu versuchen."));
+            AddSection(LocalizationService.T(Str.Help_Sec_UsbStick_Title), LocalizationService.T(Str.Help_Sec_UsbStick_Nav));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_WhatIsVentoy_Label), LocalizationService.T(Str.Help_Item_WhatIsVentoy_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_InstallUpdateVentoy_Label), LocalizationService.T(Str.Help_Item_InstallUpdateVentoy_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_MultipleSticks_Label), LocalizationService.T(Str.Help_Item_MultipleSticks_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_BootMenu_Label), LocalizationService.T(Str.Help_Item_BootMenu_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_CatchUpCopies_Label), LocalizationService.T(Str.Help_Item_CatchUpCopies_Body)));
             content.Children.Add(Spacer());
 
             // ── Datenmüll-Schutz ──────────────────────────────────────────
-            AddSection("🧹 Datenmüll-Schutz — Online-Größenprüfung", "Datenmüll-Schutz");
-            content.Children.Add(MakeText(
-                "Damit weder im Arbeitsordner noch auf dem Stick unbemerkt unvollständige oder " +
-                "beschädigte ISOs liegen bleiben, vergleicht ULM jede gefundene Datei mit der " +
-                "tatsächlichen Original-Größe beim Anbieter."));
-            content.Children.Add(MakeItem("Wann wird geprüft?",
-                "Automatisch: im Arbeitsordner nach dem Start (Datei-Wartung) sowie auf dem Stick bei " +
-                "jedem Scan (Anstecken, Laufwerkswechsel, nach dem automatischen Versionscheck)."));
-            content.Children.Add(MakeItem("Wie wird geprüft?",
-                "ULM fragt per HEAD-Request die Original-Dateigröße ab (RemoteUrl → primäre URL → " +
-                "Mirror1-5 — die erste bekannte Antwort gewinnt) und vergleicht sie mit der gefundenen " +
-                "Dateigröße. Weicht sie um mehr als 2% ab, gilt die Datei als unvollständig. " +
-                "Ist online keine Größe ermittelbar, greift als Rückfallebene die 300-MB-Mindestgröße."));
-            content.Children.Add(MakeItem("Datenmüll im Arbeitsordner",
-                "Wird als 'Unvollständig' bzw. 'Zu klein' protokolliert. Am Ende der Wartung erscheint " +
-                "ein Dialog mit allen betroffenen Dateien — gezielt auswählbar und bedenkenlos löschbar."));
-            content.Children.Add(MakeItem("Datenmüll auf dem Stick",
-                "ISOs auf dem Stick, deren Größe nicht zur Online-Größe passt (z.B. durch einen " +
-                "abgebrochenen Kopiervorgang), zählen NICHT als vorhanden — kein fälschliches 'Ja' in " +
-                "der Spalte 'Auf dem Stick'. Ein Löschdialog wird automatisch angeboten."));
+            AddSection(LocalizationService.T(Str.Help_Sec_JunkProtection_Title), LocalizationService.T(Str.Help_Sec_JunkProtection_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_JunkProtection_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_WhenChecked_Label), LocalizationService.T(Str.Help_Item_WhenChecked_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_HowChecked_Label), LocalizationService.T(Str.Help_Item_HowChecked_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_JunkInFolder_Label), LocalizationService.T(Str.Help_Item_JunkInFolder_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_JunkOnStick_Label), LocalizationService.T(Str.Help_Item_JunkOnStick_Body)));
             content.Children.Add(Spacer());
 
             // ── ISO-Import ────────────────────────────────────────────────
