@@ -362,5 +362,15 @@ namespace ULM.Infrastructure
         Log_EntryUnreachable, Log_UpdateFound, Log_VersionCurrent, Log_UpdatesAppliedStatus,
         Log_AllCurrentStatus, Log_UnreachableStatus, Log_VersionCheckSummary,
         Log_DbNewVersionsSaved, Log_DbNewSourcesSaved, Log_CheckingStick, Log_StickCheckDone,
+
+        // ── Log-Meldungen: Download + Kopieren ──────────────────────────────
+        Log_DownloadStarted, Log_ToDriveSuffix, Log_QueueItem, Log_MovedToCopyQueue, Log_DownloadsDone,
+        Log_PipelineCopyRunningStatus, Log_ZeroDownloadsStatus, Log_DownloadsDonePipelineContinues,
+        Log_StickCopyCancelled, Log_DownloadedAndCopiedStatus, Log_SomeFailedStatus,
+        Log_NoDownloadsStatus, Log_DownloadedCountStatus, Log_FailedSuffix, Log_SourceFileNotFound,
+        Log_FileTooSmall, Log_NotEnoughSpace, Log_CopyingToStick, Log_SizeCheckFailedRemoved,
+        Log_CopyError, Log_CopyDoneItem, Log_LocallyDeletedSuffix, Log_CopyStarted,
+        Log_DeleteAfterSuffix, Log_CopyQueueItem, Log_CopyCancelled, Log_CopyDone,
+        Log_CopiedToStickStatus, Log_NothingToCopyStatus, Log_Deleted, Log_LocalFilesDeleted,
     }
 }

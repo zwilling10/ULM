@@ -885,8 +885,9 @@ namespace ULM.ViewModels
         {
             if (queue.Count == 0) return;
             SetBusy(true);
-            Log($"⬇ Download gestartet: {queue.Count} ISO(s), {slots} parallel" + (string.IsNullOrEmpty(drive) ? "" : $" → {drive}"));
-            foreach (var e in queue) Log($"   • {e.Name}");
+            Log(string.Format(LocalizationService.T(Str.Log_DownloadStarted), queue.Count, slots) +
+                (string.IsNullOrEmpty(drive) ? "" : string.Format(LocalizationService.T(Str.Log_ToDriveSuffix), drive)));
+            foreach (var e in queue) Log(string.Format(LocalizationService.T(Str.Log_QueueItem), e.Name));
             var worker = new DownloadWorker(queue, slots, _paths.DownloadDir, _db, drive, copyAfter, deleteAfter);
             _workerCts = new CancellationTokenSource(); _activeWorker = worker; ProgressPercent = 0;
             worker.LogMessage += msg => _ui.Invoke(() => Log(msg));
@@ -917,7 +918,7 @@ namespace ULM.ViewModels
                     if (success && entry.IsLocallyAvailable(_paths.DownloadDir))
                     {
                         pipelineChannel.Writer.TryWrite(entry);
-                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false, false); Log($"   ↪ {entry.Name} → Kopier-Warteschlange."); });
+                        _ui.Invoke(() => { DownloadItemProgress?.Invoke(entry.Name, 100, "⏳ Warte auf Kopierslot …", false, false); Log(string.Format(LocalizationService.T(Str.Log_MovedToCopyQueue), entry.Name)); });
                     }
                 };
             }
@@ -925,7 +926,7 @@ namespace ULM.ViewModels
             worker.SlotUpdated += p => _ui.Invoke(() => { RefreshEntry(GetEntryIndex(p.IsoName)); DownloadItemProgress?.Invoke(p.IsoName, p.Percent, p.Status, p.CanRequestFasterMirror, p.NoUrlFound); });
             worker.Completed += (ok, failed, _) => _ui.Invoke(() =>
             {
-                _db.Save(); Log($"⬇ Downloads abgeschlossen: {ok} OK, {failed} fehlgeschlagen.");
+                _db.Save(); Log(string.Format(LocalizationService.T(Str.Log_DownloadsDone), ok, failed));
                 if (pipelineChannel != null && pipelineTask != null)
                 {
                     // BUGFIX: DownloadBatchCompleted früher HIER schon ausgelöst — der Download-
@@ -934,8 +935,8 @@ namespace ULM.ViewModels
                     // dauern kann. Feuert jetzt erst unten im ContinueWith, wenn die Kopie WIRKLICH
                     // fertig ist — vorher zeigt UpdateCopy/RecomputeOverall den echten Zwischenstand.
                     pipelineChannel.Writer.Complete();
-                    StatusText = ok > 0 ? $"⬇ {ok} Downloads fertig — Stick-Kopie läuft …" : "⬇ 0 Downloads …";
-                    if (ok > 0) Log("⬇ Downloads fertig. Pipeline-Kopiervorgang läuft weiter …");
+                    StatusText = ok > 0 ? string.Format(LocalizationService.T(Str.Log_PipelineCopyRunningStatus), ok) : LocalizationService.T(Str.Log_ZeroDownloadsStatus);
+                    if (ok > 0) Log(LocalizationService.T(Str.Log_DownloadsDonePipelineContinues));
                     var capDrive = drive; int totalQueued = queue.Count;
                     pipelineTask.ContinueWith(t => _ui.Invoke(() =>
                     {
@@ -947,7 +948,7 @@ namespace ULM.ViewModels
                         // dauerhaft im Busy-Zustand hängen, ohne jede Fehlermeldung.
                         var (copyOk, _) = t.IsFaulted ? (0, 0) : t.Result;
                         if (t.IsFaulted)
-                            Log($"❌ Stick-Kopie abgebrochen: {t.Exception?.GetBaseException().Message}");
+                            Log(string.Format(LocalizationService.T(Str.Log_StickCopyCancelled), t.Exception?.GetBaseException().Message));
                         int totalFailed = totalQueued - copyOk;
                         SetBusy(false); RefreshAllEntries(); ProgressPercent = 100;
                         TriggerVentoyMenuUpdate(capDrive); TriggerUsbScan();
@@ -961,10 +962,16 @@ namespace ULM.ViewModels
                         string msg = BuildPipelineCompletionMessage(copyOk, totalQueued, capDrive);
                         if (copyOk > 0)
                         {
-                            StatusText = $"✅ {copyOk} heruntergeladen und auf {capDrive} kopiert.";
+                            StatusText = string.Format(LocalizationService.T(Str.Log_DownloadedAndCopiedStatus), copyOk, capDrive);
                             Log(StatusText); OperationSucceeded?.Invoke(msg);
                         }
-                        else { StatusText = totalFailed > 0 ? $"❌ {totalFailed} ISO(s) fehlgeschlagen (Download oder Stick-Kopie)." : "⬇ Keine Downloads."; Log(StatusText); }
+                        else
+                        {
+                            StatusText = totalFailed > 0
+                                ? string.Format(LocalizationService.T(Str.Log_SomeFailedStatus), totalFailed)
+                                : LocalizationService.T(Str.Log_NoDownloadsStatus);
+                            Log(StatusText);
+                        }
                     }));
                 }
                 else if (!string.IsNullOrEmpty(drive) && copyAfter && ok > 0)
@@ -973,7 +980,8 @@ namespace ULM.ViewModels
                 {
                     DownloadBatchCompleted?.Invoke(ok, failed, 0);
                     SetBusy(false); RefreshAllEntries();
-                    StatusText = $"{ok}/{queue.Count} heruntergeladen" + (failed > 0 ? $", {failed} fehlgeschlagen" : "");
+                    StatusText = string.Format(LocalizationService.T(Str.Log_DownloadedCountStatus), ok, queue.Count) +
+                        (failed > 0 ? string.Format(LocalizationService.T(Str.Log_FailedSuffix), failed) : "");
                     ProgressPercent = 100;
                     if (!string.IsNullOrEmpty(drive)) TriggerUsbScan();
                     if (ok > 0)
@@ -1045,13 +1053,13 @@ namespace ULM.ViewModels
                 // Abschluss-Meldung den Eintrag schon korrekt als fehlgeschlagen zählte.
                 if (srcPath is null || !File.Exists(srcPath))
                 {
-                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Quelldatei nicht gefunden"); Log($"   ⚠ {entry.Name}: Quelldatei nicht gefunden."); });
+                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Quelldatei nicht gefunden"); Log(string.Format(LocalizationService.T(Str.Log_SourceFileNotFound), entry.Name)); });
                     copyFailedCount++; continue;
                 }
                 long fileSize = IsoEntry.GetRobustLength(srcPath);
                 if (fileSize < Constants.MinIsoSizeBytes)
                 {
-                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Datei zu klein"); Log($"   ⚠ {entry.Name}: zu klein ({fileSize / 1_048_576} MB)."); });
+                    _ui.Invoke(() => { CopyItemProgress?.Invoke(entry.Name, 0, "⚠ Datei zu klein"); Log(string.Format(LocalizationService.T(Str.Log_FileTooSmall), entry.Name, fileSize / 1_048_576)); });
                     copyFailedCount++; continue;
                 }
                 string targetDir = Path.Combine(UsbService.DriveRoot(drive), entry.NormalizedCategory);
@@ -1070,7 +1078,8 @@ namespace ULM.ViewModels
                         _ui.Invoke(() =>
                         {
                             CopyItemProgress?.Invoke(entryName, 0, "❌ Nicht genug Speicherplatz");
-                            Log($"   ❌ {entryName}: nicht genug Speicherplatz auf {drive} (benötigt {fileSize / 1_073_741_824.0:F2} GB, frei {drv.AvailableFreeSpace / 1_073_741_824.0:F2} GB).");
+                            Log(string.Format(LocalizationService.T(Str.Log_NotEnoughSpace), entryName, drive,
+                                (fileSize / 1_073_741_824.0).ToString("F2"), (drv.AvailableFreeSpace / 1_073_741_824.0).ToString("F2")));
                         });
                         copyFailedCount++; continue;
                     }
@@ -1081,7 +1090,7 @@ namespace ULM.ViewModels
                 _ui.Invoke(() =>
                 {
                     CopyItemProgress?.Invoke(entryName, 0, "Kopiere auf Stick …");
-                    Log($"📋 Kopiere auf Stick: {entryName}  ({fileSize / 1_073_741_824.0:F2} GB)");
+                    Log(string.Format(LocalizationService.T(Str.Log_CopyingToStick), entryName, (fileSize / 1_073_741_824.0).ToString("F2")));
                 });
                 bool copyOk = false;
                 try
@@ -1114,7 +1123,7 @@ namespace ULM.ViewModels
                         _ui.Invoke(() =>
                         {
                             CopyItemProgress?.Invoke(nm, 0, "⚠ Größenprüfung fehlgeschlagen");
-                            Log($"   ⚠ {nm}: {ws}/{fileSize} Bytes — entfernt.");
+                            Log(string.Format(LocalizationService.T(Str.Log_SizeCheckFailedRemoved), nm, ws, fileSize));
                         });
                     }
                 }
@@ -1125,7 +1134,7 @@ namespace ULM.ViewModels
                     _ui.Invoke(() =>
                     {
                         CopyItemProgress?.Invoke(nm, 0, $"Fehler: {ex.Message}");
-                        Log($"   ✗ {nm}: {ex.Message}");
+                        Log(string.Format(LocalizationService.T(Str.Log_CopyError), nm, ex.Message));
                     });
                     copyFailedCount++; continue;
                 }
@@ -1147,8 +1156,8 @@ namespace ULM.ViewModels
                     CopyItemProgress?.Invoke(fn, 100,
                         $"✅ Auf Stick · {(localDeleted ? "lokal gelöscht" : "lokal NICHT löschbar")} ({sz / 1_073_741_824.0:F2} GB)");
                     // FIX: ':' statt ',' im ternären Operator
-                    Log($"   ✅ {fn}: {sz / 1_073_741_824.0:F2} GB kopiert" +
-                        (localDeleted ? ", lokal gelöscht." : "."));
+                    Log(string.Format(LocalizationService.T(Str.Log_CopyDoneItem), fn, (sz / 1_073_741_824.0).ToString("F2")) +
+                        (localDeleted ? LocalizationService.T(Str.Log_LocallyDeletedSuffix) : "."));
                 });
             }
             return (copyOkCount, copyFailedCount);
@@ -1168,8 +1177,9 @@ namespace ULM.ViewModels
             var toCopy = queue.Where(e => e.IsLocallyAvailable(_paths.DownloadDir)).ToList();
             if (toCopy.Count == 0) { TriggerUsbScan(); return; }
             SetBusy(true);
-            Log($"📋 Kopiervorgang auf {drive}: {toCopy.Count} ISO(s)" + (deleteAfter ? " (danach lokal löschen)" : ""));
-            foreach (var e in toCopy) Log($"   → {e.Name}  ({e.Filename})");
+            Log(string.Format(LocalizationService.T(Str.Log_CopyStarted), drive, toCopy.Count) +
+                (deleteAfter ? LocalizationService.T(Str.Log_DeleteAfterSuffix) : ""));
+            foreach (var e in toCopy) Log(string.Format(LocalizationService.T(Str.Log_CopyQueueItem), e.Name, e.Filename));
             var worker = new CopyToUsbWorker(toCopy, drive, false, _paths.DownloadDir); _activeWorker = worker;
             worker.FileProgress += (name, pct, detail) => _ui.Invoke(() => CopyItemProgress?.Invoke(name, pct, detail));
             worker.Progress     += (pct, detail)       => _ui.Invoke(() => { ProgressPercent = pct; StatusText = detail; });
@@ -1181,13 +1191,13 @@ namespace ULM.ViewModels
                 // sichtbar gewesen, stattdessen fälschlich "0 ISO(s) kopiert" ohne Erklärung.
                 if (!ok && !string.IsNullOrWhiteSpace(message))
                 {
-                    Log($"❌ Kopiervorgang abgebrochen: {message}");
+                    Log(string.Format(LocalizationService.T(Str.Log_CopyCancelled), message));
                     StatusText = "❌ " + message; ProgressPercent = 0;
                     ShowMessageBox?.Invoke(message, true);
                     return;
                 }
-                Log($"📋 Kopiervorgang fertig: {count} ISO(s), {bytes / (1024.0 * 1024 * 1024):F2} GB auf {drive}.");
-                StatusText = count > 0 ? $"{count} ISO(s) auf {drive} kopiert." : "Nichts zu kopieren.";
+                Log(string.Format(LocalizationService.T(Str.Log_CopyDone), count, (bytes / (1024.0 * 1024 * 1024)).ToString("F2"), drive));
+                StatusText = count > 0 ? string.Format(LocalizationService.T(Str.Log_CopiedToStickStatus), count, drive) : LocalizationService.T(Str.Log_NothingToCopyStatus);
                 ProgressPercent = 100; CopyBatchCompleted?.Invoke(count);
                 if (deleteAfter && count > 0)
                 {
@@ -1195,9 +1205,9 @@ namespace ULM.ViewModels
                     foreach (var e in toCopy)
                     {
                         string? p = e.FindLocalPath(_paths.DownloadDir);
-                        if (p != null && IsoEntry.TryDelete(p, msg => Log(msg))) { del++; Log($"   🗑 Gelöscht: {e.Filename}"); }
+                        if (p != null && IsoEntry.TryDelete(p, msg => Log(msg))) { del++; Log(string.Format(LocalizationService.T(Str.Log_Deleted), e.Filename)); }
                     }
-                    if (del > 0) { Log($"   🗑 {del} ISO(s) lokal gelöscht."); RefreshAllEntries(); }
+                    if (del > 0) { Log(string.Format(LocalizationService.T(Str.Log_LocalFilesDeleted), del)); RefreshAllEntries(); }
                 }
                 if (count > 0) TriggerVentoyMenuUpdate(drive);
                 TriggerUsbScan();
