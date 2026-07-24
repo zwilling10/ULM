@@ -56,9 +56,8 @@ namespace ULM.Views
             _vm.LogMessage += AppendLog;
             _vm.ShowMessageBox += (msg, isErr) => MessageBox.Show(msg, Constants.AppTitle, MessageBoxButton.OK, isErr ? MessageBoxImage.Warning : MessageBoxImage.Information);
             _vm.ConfirmSlowDownload = (name, host) => MessageBox.Show(
-                $"{name}: Es wurde kein schnellerer Mirror gefunden — {host} überträgt weiterhin nur sehr langsam.\n\n" +
-                "Trotzdem mit dieser Quelle fortfahren? (Das kann sehr lange dauern.)",
-                "⚠ Langsamer Download", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+                string.Format(LocalizationService.T(Str.Msg_SlowDownload_Body), name, host),
+                LocalizationService.T(Str.Msg_SlowDownload_Title), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
             _vm.StaleDuplicatesOnStickDetected += OnStaleDuplicatesOnStick;
 
@@ -122,7 +121,9 @@ namespace ULM.Views
                 if (fresh.Count == 0) return;
                 AppendLog($"🗑 {fresh.Count} unvollständige ISO(s) auf {drive} erkannt (Online-Größenprüfung).");
                 var files = fresh.Select(i => (i.FullPath, i.Size)).ToList();
-                var dlg = new OrphanedDownloadsDialog(files, "Unvollständige ISOs auf dem Stick gefunden", "unvollständige ISO-Datei(en) auf dem Stick") { Owner = this };
+                var dlg = new OrphanedDownloadsDialog(files,
+                    LocalizationService.T(Str.Msg_OrphanedIncomplete_Title),
+                    LocalizationService.T(Str.Msg_OrphanedIncomplete_Description)) { Owner = this };
                 if (dlg.ShowDialog() == true)
                 {
                     int deleted = 0, failed = 0;
@@ -155,7 +156,7 @@ namespace ULM.Views
             {
                 _downloadProgressDialog?.Close(); _downloadProgressDialog = null;
                 AppendLog($"✅ {message.Split('\n')[0]}");
-                MessageBox.Show(message, "✅ Vorgang abgeschlossen", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(message, LocalizationService.T(Str.Msg_OperationComplete_Title), MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
             // Unauffällige Bestätigung für URL-/Update-/Integritätsprüfung (nicht modal, schließt
@@ -165,7 +166,7 @@ namespace ULM.Views
             // Härtefall-Hinweis für GENAU EINEN neu betroffenen Eintrag — bei mehreren gleichzeitig
             // übernimmt stattdessen das Härtefall-Banner (siehe MainViewModel.ReportHardCases).
             _vm.HardCaseNoticeRequested += name => new QuickConfirmationWindow(
-                $"🔧 Manuelle Quellen-Suche jetzt möglich für: {name}") { Owner = this }.Show();
+                string.Format(LocalizationService.T(Str.Banner_HardCaseSingle), name)) { Owner = this }.Show();
 
             _vm.HealthCheckCompleted += results => new DbHealthCheckDialog(results) { Owner = this }.ShowDialog();
 
@@ -213,7 +214,7 @@ namespace ULM.Views
             // während der Laufzeit (siehe OnNewDriveInserted), nur dass hier nie ein "neuer Stick"-
             // Ereignis feuert, das den Auswahldialog auslösen könnte.
             OfferDriveChoiceIfMultiple();
-            FooterLbl.Text = $"ISO-Ordner: {AppPaths.Instance.DownloadDir}";
+            FooterLbl.Text = string.Format(LocalizationService.T(Str.Main_Footer_IsoFolder), AppPaths.Instance.DownloadDir);
             _driveTimer.Start();
             _autoCheckTimer.Start();
             await Task.Delay(1000);
@@ -314,7 +315,7 @@ namespace ULM.Views
             catch (Exception ex) { AppendLog($"❌ Update-Download fehlgeschlagen: {ex.Message}"); ok = false; }
             if (!ok)
             {
-                MessageBox.Show("Der Download des Programm-Updates ist fehlgeschlagen.", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(LocalizationService.T(Str.Msg_UpdateDownloadFailed), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             AppendLog($"✅ Update gespeichert: {dest}");
