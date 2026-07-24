@@ -73,7 +73,8 @@ namespace ULM.ViewModels
                 bool   v = UsbService.IsVentoyInstalled(_selectedDrive.Letter);
                 double f = UsbService.DriveFreeMb(_selectedDrive.Letter);
                 double t = UsbService.DriveTotalMb(_selectedDrive.Letter);
-                return $"{(v ? "✅ Ventoy" : "⚠ Kein Ventoy")}   Frei: {f/1024:F1} GB / {t/1024:F1} GB";
+                string ventoy = v ? "✅ Ventoy" : LocalizationService.T(Str.Main_DriveInfo_NoVentoy);
+                return $"{ventoy}   {LocalizationService.T(Str.Main_DriveInfo_FreeLabel)}{f/1024:F1} GB / {t/1024:F1} GB";
             }
         }
 

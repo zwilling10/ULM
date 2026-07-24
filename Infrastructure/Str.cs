@@ -204,6 +204,11 @@ namespace ULM.Infrastructure
         Main_ScanHint_Online,
         Main_ScanHint_Usb,
 
+        // Laufwerk-Info-Text (MainViewModel.DriveInfoText) — ebenfalls beim urspruenglichen
+        // Inventar uebersehen, beim finalen Whole-Branch-Review nachtraeglich gefunden
+        Main_DriveInfo_NoVentoy,
+        Main_DriveInfo_FreeLabel,
+
         // Kategorie-Namen (Constants.cs)
         Category_Gaming,
         Category_Security,

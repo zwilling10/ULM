@@ -248,6 +248,9 @@ namespace ULM.Infrastructure
             [Str.Main_ScanHint_Online]           = "Online-Scan, bitte warten",
             [Str.Main_ScanHint_Usb]              = "Stick-Scan, bitte warten",
 
+            [Str.Main_DriveInfo_NoVentoy]        = "⚠ Kein Ventoy",
+            [Str.Main_DriveInfo_FreeLabel]       = "Frei: ",
+
             [Str.Category_Gaming]                = "🎮 Gaming",
             [Str.Category_Security]              = "🔒 Sicherheit & Privatsphäre",
             [Str.Category_Beginner]              = "💻 Einsteiger (Komfort & Design)",
@@ -459,6 +462,9 @@ namespace ULM.Infrastructure
 
             [Str.Main_ScanHint_Online]           = "Online scan, please wait",
             [Str.Main_ScanHint_Usb]              = "Stick scan, please wait",
+
+            [Str.Main_DriveInfo_NoVentoy]        = "⚠ No Ventoy",
+            [Str.Main_DriveInfo_FreeLabel]       = "Free: ",
 
             [Str.Category_Gaming]                = "🎮 Gaming",
             [Str.Category_Security]              = "🔒 Security & Privacy",
