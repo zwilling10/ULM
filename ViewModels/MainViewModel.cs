@@ -315,14 +315,14 @@ namespace ULM.ViewModels
 
         public void Initialize()
         {
-            Log("▶ Universal Linux Manager gestartet.");
-            Log($"   ISO-Ordner: {_paths.DownloadDir}");
-            Log($"   Datenbank:  {_paths.DatabaseIni}");
+            Log(LocalizationService.T(Str.Log_AppStarted));
+            Log(string.Format(LocalizationService.T(Str.Log_IsoFolderPath), _paths.DownloadDir));
+            Log(string.Format(LocalizationService.T(Str.Log_DatabasePath), _paths.DatabaseIni));
             _db.Load();
             RemoveKaliEntries();
             DeduplicateEntries();
             SyncStaleNames();
-            Log($"   {_db.Count} Distros in der Datenbank geladen.");
+            Log(string.Format(LocalizationService.T(Str.Log_DbEntriesLoaded), _db.Count));
             RebuildTree();
             RefreshDrives();
         }
@@ -335,7 +335,7 @@ namespace ULM.ViewModels
                 var e = _db.Entries[i];
                 if (e.Name.Contains("kali", StringComparison.OrdinalIgnoreCase) ||
                     (!string.IsNullOrWhiteSpace(e.Filename) && e.Filename.Contains("kali", StringComparison.OrdinalIgnoreCase)))
-                { Log($"   🗑 DB-Eintrag entfernt: {e.Name}  ({e.Filename})"); _db.Remove(i); changed = true; }
+                { Log(string.Format(LocalizationService.T(Str.Log_DbEntryRemoved), e.Name, e.Filename)); _db.Remove(i); changed = true; }
             }
             if (changed) _db.Save();
         }
@@ -347,7 +347,7 @@ namespace ULM.ViewModels
             // Zuerst EXAKTE Duplikate (identischer Dateiname) entfernen — die AreSameDistro-Logik
             // unten behandelt nur "gleiche Distro, ANDERE Version" und ließe identische Einträge stehen.
             foreach (int i in DistroMatcher.FindExactDuplicateIndicesByFilename(_db.Entries))
-            { Log($"   🗑 Exaktes Duplikat entfernt: {_db.Entries[i].Name}  ({_db.Entries[i].Filename})"); _db.Remove(i); changed = true; removed++; }
+            { Log(string.Format(LocalizationService.T(Str.Log_ExactDuplicateRemoved), _db.Entries[i].Name, _db.Entries[i].Filename)); _db.Remove(i); changed = true; removed++; }
 
             var processed = new HashSet<IsoEntry>();
             var snapshot  = _db.Entries.ToList();
@@ -379,7 +379,7 @@ namespace ULM.ViewModels
                     keeper.Filename = newerDup.Filename;
                     if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
                     { int pos = keeper.Name.IndexOf(oldVer, StringComparison.Ordinal); if (pos >= 0) keeper.Name = keeper.Name[..pos] + newVer + keeper.Name[(pos + oldVer.Length)..]; }
-                    Log($"   🔄 Zusammengeführt: {oldName} → {keeper.Name}  ({keeper.Filename})");
+                    Log(string.Format(LocalizationService.T(Str.Log_Merged), oldName, keeper.Name, keeper.Filename));
                 }
 
                 // FIX CS1929: IReadOnlyList<T> hat kein IndexOf → .ToList() verwenden.
@@ -390,7 +390,7 @@ namespace ULM.ViewModels
                 {
                     var dup = dupsToRemove[di];
                     int idx = _db.Entries.ToList().IndexOf(dup); // ToList() weil IReadOnlyList kein IndexOf hat
-                    if (idx >= 0) { Log($"   🗑 Duplikat entfernt: {dup.Name}"); _db.Remove(idx); changed = true; removed++; }
+                    if (idx >= 0) { Log(string.Format(LocalizationService.T(Str.Log_DuplicateRemoved), dup.Name)); _db.Remove(idx); changed = true; removed++; }
                     processed.Add(dup);
                 }
                 processed.Add(keeper);
@@ -440,16 +440,16 @@ namespace ULM.ViewModels
                 // den Katalog nicht rückwärts degradieren.
                 if (DistroMatcher.ShouldAdoptImportedFilename(existing.Filename, e.Filename))
                 {
-                    Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — Dateiname übernommen statt Duplikat angelegt.");
+                    Log(string.Format(LocalizationService.T(Str.Log_FilenameAdopted), e.Filename, existing.Name));
                     existing.Filename = e.Filename;
                     existing.ImportedFromStick = true;
                     _db.Save();
                 }
                 else
-                    Log($"   🔗 {e.Filename} bereits als \"{existing.Name}\" in der DB — ältere/gleiche Version, Dateiname NICHT übernommen.");
+                    Log(string.Format(LocalizationService.T(Str.Log_FilenameNotAdopted), e.Filename, existing.Name));
                 return;
             }
-            _db.Add(e); Log($"   + [{e.Category}] {e.Name}  ({e.Filename})");
+            _db.Add(e); Log(string.Format(LocalizationService.T(Str.Log_EntryAdded), e.Category, e.Name, e.Filename));
         }
 
         public void ReplaceEntryVersion(IsoEntry e, string newFn)
@@ -463,16 +463,16 @@ namespace ULM.ViewModels
             if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
             {
                 int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);
-                if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log($"   ✏ {on} → {e.Name}"); }
+                if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log(string.Format(LocalizationService.T(Str.Log_NameUpdated), on, e.Name)); }
             }
-            Log($"   ↔ {e.Name}: {oldFn} → {newFn}"); _db.Save();
+            Log(string.Format(LocalizationService.T(Str.Log_FilenameReplaced), e.Name, oldFn, newFn)); _db.Save();
         }
 
         public IsoEntry AddEntryFromStickVersion(IsoEntry src, UsbService.StickIso si)
         {
             var e = new IsoEntry { Name=src.Name, Category=src.Category, Filename=si.Filename,
                 GithubRepo=src.GithubRepo, GithubAsset=src.GithubAsset, Tip=src.Tip, ImportedFromStick=true };
-            _db.Add(e); Log($"   + {e.Name}  ({e.Filename})"); _db.Save(); return e;
+            _db.Add(e); Log(string.Format(LocalizationService.T(Str.Log_EntryAddedSimple), e.Name, e.Filename)); _db.Save(); return e;
         }
 
         public void RefreshDrives()

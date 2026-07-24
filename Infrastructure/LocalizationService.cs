@@ -623,6 +623,22 @@ namespace ULM.Infrastructure
             [Str.Help_Item_LogFile_Body] = "Alle Ereignisse werden dauerhaft im Arbeitsordner des Programms gespeichert (Datei 'ulm.log'). Nützlich für die Fehlersuche auf verschiedenen Systemen.",
             [Str.Help_Item_LogRotation_Label] = "Log-Rotation",
             [Str.Help_Item_LogRotation_Body] = "Überschreitet 'ulm_log.txt' 5 MB, wird sie automatisch einmal zu 'ulm_log.txt.old' verschoben und danach neu und leer begonnen — wächst also nicht mehr unbegrenzt bei Dauerbetrieb. Die vorherige Sicherung bleibt als '.old'-Datei erhalten.",
+
+            // ── Log-Meldungen: Startup + DB-Wartung ─────────────────────────
+            [Str.Log_AppStarted]           = "▶ Universal Linux Manager gestartet.",
+            [Str.Log_IsoFolderPath]        = "   ISO-Ordner: {0}",
+            [Str.Log_DatabasePath]         = "   Datenbank:  {0}",
+            [Str.Log_DbEntriesLoaded]      = "   {0} Distros in der Datenbank geladen.",
+            [Str.Log_DbEntryRemoved]       = "   🗑 DB-Eintrag entfernt: {0}  ({1})",
+            [Str.Log_ExactDuplicateRemoved] = "   🗑 Exaktes Duplikat entfernt: {0}  ({1})",
+            [Str.Log_Merged]               = "   🔄 Zusammengeführt: {0} → {1}  ({2})",
+            [Str.Log_DuplicateRemoved]     = "   🗑 Duplikat entfernt: {0}",
+            [Str.Log_FilenameAdopted]      = "   🔗 {0} bereits als \"{1}\" in der DB — Dateiname übernommen statt Duplikat angelegt.",
+            [Str.Log_FilenameNotAdopted]   = "   🔗 {0} bereits als \"{1}\" in der DB — ältere/gleiche Version, Dateiname NICHT übernommen.",
+            [Str.Log_EntryAdded]           = "   + [{0}] {1}  ({2})",
+            [Str.Log_NameUpdated]          = "   ✏ {0} → {1}",
+            [Str.Log_FilenameReplaced]     = "   ↔ {0}: {1} → {2}",
+            [Str.Log_EntryAddedSimple]     = "   + {0}  ({1})",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1202,6 +1218,22 @@ namespace ULM.Infrastructure
             [Str.Help_Item_LogFile_Body] = "All events are permanently stored in the program's working folder (file 'ulm.log'). Useful for troubleshooting on different systems.",
             [Str.Help_Item_LogRotation_Label] = "Log Rotation",
             [Str.Help_Item_LogRotation_Body] = "If 'ulm_log.txt' exceeds 5 MB, it is automatically moved once to 'ulm_log.txt.old' and then started fresh and empty — so it no longer grows unbounded during continuous operation. The previous backup is kept as a '.old' file.",
+
+            // ── Log messages: startup + DB maintenance ───────────────────────
+            [Str.Log_AppStarted]           = "▶ Universal Linux Manager started.",
+            [Str.Log_IsoFolderPath]        = "   ISO folder: {0}",
+            [Str.Log_DatabasePath]         = "   Database:  {0}",
+            [Str.Log_DbEntriesLoaded]      = "   {0} distros loaded from database.",
+            [Str.Log_DbEntryRemoved]       = "   🗑 DB entry removed: {0}  ({1})",
+            [Str.Log_ExactDuplicateRemoved] = "   🗑 Exact duplicate removed: {0}  ({1})",
+            [Str.Log_Merged]               = "   🔄 Merged: {0} → {1}  ({2})",
+            [Str.Log_DuplicateRemoved]     = "   🗑 Duplicate removed: {0}",
+            [Str.Log_FilenameAdopted]      = "   🔗 {0} already in DB as \"{1}\" — filename adopted instead of creating a duplicate.",
+            [Str.Log_FilenameNotAdopted]   = "   🔗 {0} already in DB as \"{1}\" — older/same version, filename NOT adopted.",
+            [Str.Log_EntryAdded]           = "   + [{0}] {1}  ({2})",
+            [Str.Log_NameUpdated]          = "   ✏ {0} → {1}",
+            [Str.Log_FilenameReplaced]     = "   ↔ {0}: {1} → {2}",
+            [Str.Log_EntryAddedSimple]     = "   + {0}  ({1})",
         };
     }
 }

@@ -341,5 +341,11 @@ namespace ULM.Infrastructure
         Help_Item_DownloadUrl_Label, Help_Item_DownloadUrl_Body,
         Help_Item_LogFile_Label, Help_Item_LogFile_Body,
         Help_Item_LogRotation_Label, Help_Item_LogRotation_Body,
+
+        // ── Log-Meldungen: Startup + DB-Wartung ─────────────────────────────
+        Log_AppStarted, Log_IsoFolderPath, Log_DatabasePath, Log_DbEntriesLoaded,
+        Log_DbEntryRemoved, Log_ExactDuplicateRemoved, Log_Merged, Log_DuplicateRemoved,
+        Log_FilenameAdopted, Log_FilenameNotAdopted, Log_EntryAdded, Log_NameUpdated,
+        Log_FilenameReplaced, Log_EntryAddedSimple,
     }
 }
