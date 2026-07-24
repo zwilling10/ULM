@@ -50,15 +50,15 @@ namespace ULM.ViewModels
 
                 // ── Sichtbare Symbol-Erklärungen ──────────────────────────
                 if (_entry.ImportedFromStick)
-                    sb.AppendLine("📥  Vom USB-Stick importiert");
+                    sb.AppendLine(LocalizationService.T(Str.Row_TipImported));
 
                 if (_entry.UrlChecked)
                     sb.AppendLine(_entry.UrlOk
-                        ? "🌐✓  URL erreichbar — Download-Server antwortet"
-                        : "🌐✗  URL nicht erreichbar — Download-Server antwortet nicht");
+                        ? LocalizationService.T(Str.Row_TipUrlOk)
+                        : LocalizationService.T(Str.Row_TipUrlFail));
 
                 if (_entry.HasResolvedUpdate)
-                    sb.AppendLine($"🆕  Neue Version verfügbar: v{_entry.RemoteVersion}  (jetzt herunterladen)");
+                    sb.AppendLine(string.Format(LocalizationService.T(Str.Row_TipNewVersion), _entry.RemoteVersion));
 
                 bool hasSymbols = sb.Length > 0;
 
@@ -81,18 +81,18 @@ namespace ULM.ViewModels
                 if (_entry.IsLocallyAvailable(_downloadDir))
                 {
                     long size = _entry.LocalFileSize(_downloadDir);
-                    return $"Lokal {size / 1_048_576} MB";
+                    return $"{LocalizationService.T(Str.Row_Local)} {size / 1_048_576} MB";
                 }
-                return "nicht lokal";
+                return LocalizationService.T(Str.Row_NotLocal);
             }
         }
 
         public string UsbStatus => _entry.UsbStatus switch
         {
-            Core.Models.UsbStatus.Ok       => $"Ja  {_entry.UsbSize}".Trim(),
-            Core.Models.UsbStatus.Outdated => $"Veraltet  {_entry.UsbSize}".Trim(),
-            Core.Models.UsbStatus.Missing  => "Nein",
-            _                              => "Ungeprüft",
+            Core.Models.UsbStatus.Ok       => $"{LocalizationService.T(Str.Row_Yes)}  {_entry.UsbSize}".Trim(),
+            Core.Models.UsbStatus.Outdated => $"{LocalizationService.T(Str.Row_Outdated)}  {_entry.UsbSize}".Trim(),
+            Core.Models.UsbStatus.Missing  => LocalizationService.T(Str.Row_No),
+            _                              => LocalizationService.T(Str.Row_Unverified),
         };
 
         public string VersionStatus
@@ -100,16 +100,23 @@ namespace ULM.ViewModels
             get
             {
                 if (_entry.HasResolvedUpdate)
-                    return $"Update v{_entry.RemoteVersion}";
+                    return $"{LocalizationService.T(Str.Row_UpdatePrefix)} v{_entry.RemoteVersion}";
                 if (_entry.HasOnlineVersionInfo)
-                    return $"Aktuell (v{_entry.RemoteVersion})";
+                    return $"{LocalizationService.T(Str.Row_CurrentPrefix)} (v{_entry.RemoteVersion})";
                 if (_entry.UsbStatus == Core.Models.UsbStatus.Ok)
-                    return "Ja";
+                    return LocalizationService.T(Str.Row_Yes);
                 if (_entry.IsLocallyAvailable(_downloadDir))
-                    return "Lokal vorhanden";
+                    return LocalizationService.T(Str.Row_LocallyAvailable);
                 return "?";
             }
         }
+
+        // Neu in Phase 3: ersetzt den frueher direkt in MainWindow.xaml hartcodierten
+        // ToolTip="Quelle manuell suchen/eintragen" auf dem 🔧-Button in EntryTemplate — die
+        // DataTemplate wird pro Zeile instanziiert, ApplyLocalizedText() (einmalig fuers ganze
+        // Fenster) kann sie nicht erreichen. Siehe
+        // docs/superpowers/specs/2026-07-24-mainwindow-localization-design.md Architektur-Korrektur.
+        public string ManualSearchTooltip => LocalizationService.T(Str.Row_ManualSearchTooltip);
 
         // Steuert die Sichtbarkeit des "Quelle manuell suchen/eintragen"-Buttons in der Hauptliste
         // (Views/MainWindow.xaml). Bewusst NUR bei einer zusammenhängenden Fehlschlagsserie der
@@ -156,10 +163,10 @@ namespace ULM.ViewModels
         public bool   HasHashStatus   => !string.IsNullOrEmpty(_entry.Sha256);
         public Brush  HashStatusBrush => _entry.HashMismatchDetected ? ThemeColors.Red : ThemeColors.Green;
         public string HashStatusTooltip => _entry.HashMismatchDetected
-            ? "⚠ Hash-Abweichung — Datei weicht von der zuletzt gespeicherten Prüfsumme ab (evtl. beschädigt oder ersetzt)."
+            ? LocalizationService.T(Str.Row_HashMismatch)
             : _entry.Sha256Source == "OfficialChecksum"
-                ? "✅ Prüfsumme gegen die offiziell vom Anbieter veröffentlichte Prüfsumme verifiziert."
-                : "✅ Referenz-Prüfsumme lokal beim Download/Import berechnet (keine offizielle Gegenprüfung).";
+                ? LocalizationService.T(Str.Row_HashVerifiedOfficial)
+                : LocalizationService.T(Str.Row_HashLocalOnly);
 
         private string BuildDisplayName()
         {
@@ -219,6 +226,11 @@ namespace ULM.ViewModels
         public string Category       { get; }
         public string CategoryLabel  { get; }
         public bool   IsExpanded     { get; set; } = true;
+
+        // Neu in Phase 3: ersetzt den frueher direkt in MainWindow.xaml hartcodierten
+        // ToolTip="Alle Distros dieser Kategorie an-/abwählen" auf der Sammel-Checkbox in
+        // CategoryTemplate — dieselbe Begruendung wie IsoEntryViewModel.ManualSearchTooltip oben.
+        public string SelectAllTooltip => LocalizationService.T(Str.Row_CategorySelectAllTooltip);
 
         public ObservableCollection<IsoEntryViewModel> Entries { get; } = new();
 

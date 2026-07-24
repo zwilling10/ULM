@@ -93,7 +93,7 @@
 
                     <Button Grid.Column="6" Content="🔧" FontSize="12"
                             Width="24" Height="24" Padding="0"
-                            ToolTip="Quelle manuell suchen/eintragen"
+                            ToolTip="{Binding ManualSearchTooltip}"
                             Click="BtnManualSearch_Click"
                             Style="{DynamicResource BtnGhost}"
                             Visibility="{Binding ShowManualSearchButton, Converter={StaticResource BoolToVis}}"
@@ -110,7 +110,7 @@
                         <CheckBox IsChecked="{Binding AllSelected, Mode=TwoWay}"
                                   IsThreeState="True"
                                   VerticalAlignment="Center" Margin="0,0,10,0"
-                                  ToolTip="Alle Distros dieser Kategorie an-/abwählen"/>
+                                  ToolTip="{Binding SelectAllTooltip}"/>
                         <TextBlock Text="{Binding CategoryLabel}"
                                    FontWeight="Bold" FontSize="13.5"
                                    Foreground="{DynamicResource BrushHeader}"
