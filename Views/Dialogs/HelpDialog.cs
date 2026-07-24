@@ -34,7 +34,7 @@ namespace ULM.Views.Dialogs
 
         public HelpDialog()
         {
-            Title  = "❓ Universal Linux Manager — Hilfe & Dokumentation";
+            Title  = LocalizationService.T(Str.Help_Title);
             Width  = 880; Height = 660;
             MinWidth = 680; MinHeight = 420;
             ResizeMode = ResizeMode.CanResize;
@@ -92,63 +92,29 @@ namespace ULM.Views.Dialogs
             }
 
             content.Children.Add(MakeTitle(Constants.AppFullTitle));
-            content.Children.Add(MakeSub("Bootfähige USB-Sticks mit Linux-ISOs einfach erstellen und verwalten."));
+            content.Children.Add(MakeSub(LocalizationService.T(Str.Help_Subtitle)));
             content.Children.Add(Spacer(16));
 
             tocPanel.Children.Add(new TextBlock
             {
-                Text = "SPRUNGMARKEN", FontSize = 9.5, FontWeight = FontWeights.Bold,
+                Text = LocalizationService.T(Str.Help_NavHeading), FontSize = 9.5, FontWeight = FontWeights.Bold,
                 Foreground = ClrSub, Margin = new Thickness(6, 0, 0, 8),
             });
 
             // ── Übersicht ──────────────────────────────────────────────────
-            AddSection("🗺 Übersicht — Was macht ULM?", "Übersicht");
-            content.Children.Add(MakeText(
-                "ULM ist ein Manager für Linux-Live-ISOs und Ventoy-USB-Sticks. Es erledigt vier Aufgaben:\n" +
-                "  1. ISO-Downloads — lädt aktuelle Linux-Versionen direkt von den offiziellen Servern herunter\n" +
-                "  2. USB-Verwaltung — installiert Ventoy auf dem Stick und kopiert ISOs dorthin\n" +
-                "  3. Versionsüberwachung — prüft automatisch ob neuere ISO-Versionen verfügbar sind\n" +
-                "  4. Datenmüll-Schutz — erkennt unvollständige/korrupte ISOs per Online-Größenprüfung, " +
-                "sowohl im Arbeitsordner als auch auf dem Stick"));
+            AddSection(LocalizationService.T(Str.Help_Sec_Overview_Title), LocalizationService.T(Str.Help_Sec_Overview_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_Overview_Body)));
             content.Children.Add(Spacer());
 
             // ── Programmstart ──────────────────────────────────────────────
-            AddSection("🚀 Was passiert beim Programmstart?", "Programmstart");
-            content.Children.Add(MakeText("Direkt nach dem Start laufen automatisch im Hintergrund, in dieser Reihenfolge:"));
-            content.Children.Add(MakeItem("1. Online-Versionscheck",
-                "Fragt zuerst für alle Distros in der Datenbank die aktuellste Version ab (ca. 5–30 Sek.) — " +
-                "auch für vom Stick importierte Einträge. Findet neue Versionen automatisch — ohne manuelle " +
-                "Eingabe von URLs. Aktualisiert die Datenbank-Einträge wenn eine neue Version verfügbar ist. " +
-                "Ein pulsierender Hinweis oben in der Kopfzeile ('Online-Scan, bitte warten') zeigt an, dass " +
-                "der Check noch läuft — am besten bis dahin noch nicht klicken, damit Datenbank und Stick-" +
-                "Stand vollständig sind."));
-            content.Children.Add(MakeItem("2. USB-Stick-Scan",
-                "Läuft erst NACH dem Versionscheck (nicht gleichzeitig), damit der Stick-Stand direkt mit den " +
-                "aktuellsten Versionsdaten verglichen wird. Erkennt angeschlossene Ventoy-Sticks, zeigt welche " +
-                "ISOs bereits drauf sind, welche veraltet sind und welche fehlen. Läuft erneut, wenn ein Stick " +
-                "eingesteckt wird (derselbe pulsierende Hinweis, dann 'Stick-Scan, bitte warten'). Prüft dabei " +
-                "jedes Mal zusätzlich die Online-Größe jeder gefundenen ISO (siehe 🧹 Datenmüll-Schutz)."));
-            content.Children.Add(MakeItem("Datei-Wartung",
-                "Läuft nach dem Versionscheck. Scannt den Arbeitsordner rekursiv und vergleicht jede ISO-Größe " +
-                "mit der tatsächlichen Original-Größe beim Anbieter (Online-HEAD-Request). Erkennt so " +
-                "unvollständige und abgebrochene Downloads zuverlässiger als eine feste Mindestgröße. " +
-                "Bietet an, gefundenen Datenmüll zu löschen."));
-            content.Children.Add(MakeItem("ULM-Update-Check",
-                "Prüft im Hintergrund, ob auf GitHub eine neuere ULM-Version verfügbar ist. Läuft rein " +
-                "informativ mit — kein Dialog, keine Unterbrechung. Ist eine neue Version verfügbar, " +
-                "erscheint nur eine Zeile im Protokoll:\n" +
-                "  🆕 Neue ULM-Version verfügbar: vX.Y.Z (aktuell installiert: vA.B.C)\n" +
-                "gefolgt vom Link zur Release-Seite."));
-            content.Children.Add(MakeItem("„Was ist neu?“-Dialog",
-                "Erscheint automatisch beim ersten Start NACH einem Update auf eine neue ULM-Version " +
-                "(nicht beim allerersten Programmstart) und listet alle Änderungen seit der zuletzt " +
-                "gesehenen Version auf. Einmal quittiert, erscheint er erst beim nächsten Versionswechsel wieder."));
-            content.Children.Add(MakeItem("🚀 Autostart (optional)",
-                "Checkbox 'Mit Windows starten' im Einrichtungsfenster — startet ULM dann automatisch " +
-                "(sichtbares Fenster) bei jeder Windows-Anmeldung. Kein Admin-Recht nötig, funktioniert über " +
-                "einen Registry-Eintrag nur für den aktuellen Benutzer. Lässt sich im Einrichtungsfenster " +
-                "jederzeit wieder abwählen; ist das Fenster einmal per 'Nicht mehr anzeigen' übersprungen, " +
-                "hilft ein Löschen des passenden Eintrags in 'ulm_settings.ini', um es erneut zu sehen."));
+            AddSection(LocalizationService.T(Str.Help_Sec_Startup_Title), LocalizationService.T(Str.Help_Sec_Startup_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_Startup_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_OnlineCheck_Label), LocalizationService.T(Str.Help_Item_OnlineCheck_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_UsbScan_Label), LocalizationService.T(Str.Help_Item_UsbScan_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_FileMaintenance_Label), LocalizationService.T(Str.Help_Item_FileMaintenance_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_UpdateCheck_Label), LocalizationService.T(Str.Help_Item_UpdateCheck_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_WhatsNew_Label), LocalizationService.T(Str.Help_Item_WhatsNew_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_Autostart_Label), LocalizationService.T(Str.Help_Item_Autostart_Body)));
             content.Children.Add(Spacer());
 
             // ── Hauptliste ─────────────────────────────────────────────────
