@@ -259,8 +259,8 @@ namespace ULM.Views.Dialogs
                 "durchgestylt (Listen, Dialoge, Eingabefelder) und für gute Lesbarkeit geprüft."));
             content.Children.Add(MakeItem("Einstellen",
                 "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf " +
-                "'🌓 Design: …' oben rechts im Hauptfenster (neben 'Modus: Anwender/Experte'). " +
-                "Ein Klick wechselt der Reihe nach zwischen System → Hell → Dunkel."));
+                "'⚙ Einstellungen' oben rechts im Hauptfenster — dort in der Karte 'Design' " +
+                "zwischen System/Hell/Dunkel wählen und mit '✔ Übernehmen' bestätigen."));
             content.Children.Add(MakeItem("System",
                 "Übernimmt automatisch die aktuelle Windows-Design-Einstellung (Hell oder Dunkel). " +
                 "Ändert sich das Windows-Design während ULM läuft, zieht ULM automatisch nach — " +
@@ -489,7 +489,9 @@ namespace ULM.Views.Dialogs
 
             // ── Expert-Modus ───────────────────────────────────────────────
             AddSection("🛠 Expert-Modus — Zusatzfunktionen", "Expert-Modus");
-            content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts 'Modus: Anwender' → klicken."));
+            content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts auf '⚙ Einstellungen' klicken, " +
+                "in der Karte 'Modus' die Checkbox 'Experten-Modus aktivieren' setzen und mit " +
+                "'✔ Übernehmen' bestätigen."));
             content.Children.Add(MakeItem("📊 Status-Reiter",
                 "Zeigt Transparenz über alles, was gerade oder demnächst automatisch im Hintergrund " +
                 "läuft, ohne dass ein Blick in den Task-Manager nötig ist: den aktuell laufenden " +
