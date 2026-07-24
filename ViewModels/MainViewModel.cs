@@ -117,7 +117,30 @@ namespace ULM.ViewModels
         public string ScanHintText => OnlineScanActive ? "Online-Scan, bitte warten"
                                     : UsbScanActive     ? "Stick-Scan, bitte warten"
                                     : string.Empty;
-        private void NotifyScanHint() { OnPropertyChanged(nameof(ScanInProgress)); OnPropertyChanged(nameof(ScanHintText)); }
+
+        // Ersetzt die frueheren MainWindow.xaml-DataTrigger/Setter-Bloecke fuer den Status-Tab —
+        // ein Setter Property="Text" Value="..." kann LocalizationService.T(...) nicht aufrufen,
+        // siehe docs/superpowers/specs/2026-07-24-mainwindow-localization-design.md Architektur-
+        // Korrektur. Gleiches Berechnungsmuster wie ScanHintText oben.
+        public string CurrentOperationStatusText =>
+            OnlineScanActive ? LocalizationService.T(Str.Main_Status_OnlineScanRunning)
+            : UsbScanActive   ? LocalizationService.T(Str.Main_Status_UsbScanRunning)
+            : LocalizationService.T(Str.Main_Status_NoOperation);
+        public string OnlineCheckStatusText => OnlineScanActive
+            ? LocalizationService.T(Str.Main_Status_Running)
+            : LocalizationService.T(Str.Main_Status_Inactive);
+        public string UsbCheckStatusText => UsbScanActive
+            ? LocalizationService.T(Str.Main_Status_Running)
+            : LocalizationService.T(Str.Main_Status_Inactive);
+
+        private void NotifyScanHint()
+        {
+            OnPropertyChanged(nameof(ScanInProgress));
+            OnPropertyChanged(nameof(ScanHintText));
+            OnPropertyChanged(nameof(CurrentOperationStatusText));
+            OnPropertyChanged(nameof(OnlineCheckStatusText));
+            OnPropertyChanged(nameof(UsbCheckStatusText));
+        }
         private bool   _healthCheckActive;  public bool HealthCheckActive  { get => _healthCheckActive;  private set => SetField(ref _healthCheckActive,  value); }
         private int    _healthCheckPercent; public int  HealthCheckPercent { get => _healthCheckPercent; private set => SetField(ref _healthCheckPercent, value); }
 
@@ -141,7 +164,7 @@ namespace ULM.ViewModels
         public string UpdateBannerText { get => _updateBannerText; private set => SetField(ref _updateBannerText, value); }
         private UpdateBannerState _updateBannerState = UpdateBannerState.Available;
         public UpdateBannerState UpdateBannerState { get => _updateBannerState; private set => SetField(ref _updateBannerState, value); }
-        private string _updateBannerButtonText = "⬇ Herunterladen …";
+        private string _updateBannerButtonText = string.Empty;
         public string UpdateBannerButtonText { get => _updateBannerButtonText; private set => SetField(ref _updateBannerButtonText, value); }
         private bool _updateBannerButtonEnabled = true;
         public bool UpdateBannerButtonEnabled { get => _updateBannerButtonEnabled; private set => SetField(ref _updateBannerButtonEnabled, value); }
@@ -155,8 +178,8 @@ namespace ULM.ViewModels
         {
             _availableUpdate = info;
             UpdateBannerState = UpdateBannerState.Available;
-            UpdateBannerText = $"🆕 Neue Version verfügbar: v{info.LatestVersion} (installiert: v{Constants.AppVersion})";
-            UpdateBannerButtonText = "⬇ Herunterladen …";
+            UpdateBannerText = string.Format(LocalizationService.T(Str.Banner_UpdateAvailable), info.LatestVersion, Constants.AppVersion);
+            UpdateBannerButtonText = LocalizationService.T(Str.Banner_UpdateBtn_Available);
             UpdateBannerButtonEnabled = true;
             UpdateBannerVisible = true;
         }
@@ -164,8 +187,8 @@ namespace ULM.ViewModels
         public void SetUpdateDownloading()
         {
             UpdateBannerState = UpdateBannerState.Downloading;
-            UpdateBannerText = "⬇ Update wird heruntergeladen …";
-            UpdateBannerButtonText = "⬇ Wird heruntergeladen …";
+            UpdateBannerText = LocalizationService.T(Str.Banner_UpdateDownloading);
+            UpdateBannerButtonText = LocalizationService.T(Str.Banner_UpdateBtn_Downloading);
             UpdateBannerButtonEnabled = false;
         }
         // Vom MainWindow aufgerufen, sobald der Download fertig und die Datei bereit zur Installation ist.
@@ -173,8 +196,8 @@ namespace ULM.ViewModels
         {
             _downloadedUpdatePath = downloadedFilePath;
             UpdateBannerState = UpdateBannerState.ReadyToInstall;
-            UpdateBannerText = $"✅ Update bereit — v{_availableUpdate?.LatestVersion}";
-            UpdateBannerButtonText = "✅ Jetzt installieren & neu starten";
+            UpdateBannerText = string.Format(LocalizationService.T(Str.Banner_UpdateReady), _availableUpdate?.LatestVersion);
+            UpdateBannerButtonText = LocalizationService.T(Str.Banner_UpdateBtn_ReadyToInstall);
             UpdateBannerButtonEnabled = true;
         }
         // Blendet das Banner nur für die laufende Sitzung aus (kein persistenter Zustand).
@@ -204,8 +227,8 @@ namespace ULM.ViewModels
             if (!HardCaseBannerVisible && names.Count == 1) { HardCaseNoticeRequested?.Invoke(names[0]); return; }
             foreach (string n in names) if (!_pendingHardCaseNames.Contains(n)) _pendingHardCaseNames.Add(n);
             HardCaseBannerText = _pendingHardCaseNames.Count == 1
-                ? $"🔧 Manuelle Quellen-Suche jetzt möglich für: {_pendingHardCaseNames[0]}"
-                : $"🔧 Manuelle Quellen-Suche jetzt möglich für {_pendingHardCaseNames.Count} Distros: {string.Join(", ", _pendingHardCaseNames)}";
+                ? string.Format(LocalizationService.T(Str.Banner_HardCaseSingle), _pendingHardCaseNames[0])
+                : string.Format(LocalizationService.T(Str.Banner_HardCasePlural), _pendingHardCaseNames.Count, string.Join(", ", _pendingHardCaseNames));
             HardCaseBannerVisible = true;
         }
 
