@@ -420,6 +420,19 @@ namespace ULM.Views
             TxtStatusDriveMonitoring.Text        = LocalizationService.T(Str.Main_Status_DriveMonitoring);
             TxtStatusSectionHistory.Text         = LocalizationService.T(Str.Main_Status_SectionHistory);
             BtnClearHistory.Content              = LocalizationService.T(Str.Main_Btn_ClearHistory);
+
+            BtnCheckUrls.Content       = LocalizationService.T(Str.Main_Btn_CheckUrls);
+            BtnSearch.Content          = LocalizationService.T(Str.Main_Btn_SearchIso);
+            BtnEditDb.Content          = LocalizationService.T(Str.Main_Btn_EditDb);
+            BtnHealthCheck.Content     = LocalizationService.T(Str.Main_Btn_HealthCheck);
+            BtnHealthCheck.ToolTip     = LocalizationService.T(Str.Main_Tooltip_HealthCheck);
+            BtnCopyUsb.Content         = LocalizationService.T(Str.Main_Btn_CopyUsb);
+            BtnCopyUsb.ToolTip         = LocalizationService.T(Str.Main_Tooltip_CopyUsb);
+            BtnVerifyIntegrity.Content = LocalizationService.T(Str.Main_Btn_VerifyIntegrity);
+            BtnVerifyIntegrity.ToolTip = LocalizationService.T(Str.Main_Tooltip_VerifyIntegrity);
+            BtnGitHubToken.Content     = LocalizationService.T(Str.Main_Btn_GitHubToken);
+            BtnGitHubToken.ToolTip     = LocalizationService.T(Str.Main_Tooltip_GitHubToken);
+            ChkShowInfo.Content        = LocalizationService.T(Str.Main_Chk_ShowInfo);
         }
 
         // ── Einstellungen (Design/Sprache/Modus) ─────────────────────────────

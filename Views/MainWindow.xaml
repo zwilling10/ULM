@@ -588,30 +588,26 @@
 
                 <StackPanel Grid.Row="1" x:Name="ExpertBar"
                             Orientation="Horizontal" Margin="0,0,0,6">
-                    <Button x:Name="BtnCheckUrls" Content="🌐  URLs prüfen"
+                    <Button x:Name="BtnCheckUrls"
                             Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnCheckUrls_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnSearch" Content="🔍  ISO suchen"
+                    <Button x:Name="BtnSearch"
                             Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnSearch_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnEditDb" Content="🗃  Datenbank"
+                    <Button x:Name="BtnEditDb"
                             Style="{DynamicResource BtnGhost}" Width="130"
                             Click="BtnEditDb_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnHealthCheck" Content="🩺  DB-Gesundheitscheck"
+                    <Button x:Name="BtnHealthCheck"
                             Style="{DynamicResource BtnGhost}" Width="170"
-                            ToolTip="Prüft für alle Distros in der Datenbank, ob sie aktuell online erreichbar und ladbar sind."
                             Click="BtnHealthCheck_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnCopyUsb" Content="🔁  Verpasste Kopien nachholen"
+                    <Button x:Name="BtnCopyUsb"
                             Style="{DynamicResource BtnGhost}" Width="210"
-                            ToolTip="Manuelles Sicherheitsnetz: kopiert bereits lokal vollständig heruntergeladene, ausgewählte ISOs (erneut) auf den Stick — z.B. wenn die automatische 'Jetzt kopieren?'-Nachfrage abgelehnt wurde oder eine vorherige Kopie fehlgeschlagen ist. Der automatische Scan bietet dieselbe ISO pro Stick nur einmal je Sitzung an."
                             Click="BtnCopyUsb_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnVerifyIntegrity" Content="🔒  Integrität prüfen"
+                    <Button x:Name="BtnVerifyIntegrity"
                             Style="{DynamicResource BtnGhost}" Width="160"
-                            ToolTip="Prüft die ISOs auf dem gewählten Stick gegen den beim Download/Import gespeicherten SHA-256-Referenzhash."
                             Click="BtnVerifyIntegrity_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="BtnGitHubToken" Content="🔑  GitHub-Token"
+                    <Button x:Name="BtnGitHubToken"
                             Style="{DynamicResource BtnGhost}" Width="130"
-                            ToolTip="Optional: hebt das API-Limit für GitHub-basierte Distros von 60 auf 5000 Anfragen/Std an."
                             Click="BtnGitHubToken_Click"/>
                 </StackPanel>
 
@@ -644,7 +640,6 @@
                            VerticalAlignment="Center"
                            FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                 <CheckBox Grid.Column="1" x:Name="ChkShowInfo"
-                          Content="Info-Fenster (Mouseover) anzeigen"
                           IsChecked="True" FontSize="10.5"
                           VerticalAlignment="Center"/>
             </Grid>
