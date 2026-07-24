@@ -377,6 +377,30 @@ check) und einmal mit `Language = en` starten. Diesmal zusätzlich gezielt:
    auf natürliche englische Wortstellung prüfen.
 5. Kategorie-Überschriften in der Liste — alle 8 auf Englisch.
 
+## Nachtrag (nach Implementierung)
+
+Zwei Strings wurden im ursprünglichen Inventar übersehen und erst nach den 12 Plan-Tasks
+gefunden — jeweils dasselbe technische Muster wie die bereits erfassten Banner-Texte
+(`MainViewModel`-Property, kein `x:Name`/`ApplyLocalizedText()` nötig):
+
+- **`ScanHintText`** ("Online-Scan, bitte warten"/"Stick-Scan, bitte warten", der rotierende
+  Hinweistext neben dem Start-Spinner) — vom Nutzer beim manuellen Testen gefunden. Ergänzt um
+  `Str.Main_ScanHint_Online`/`Main_ScanHint_Usb` (Commit `85ce38e`).
+- **`DriveInfoText`** ("⚠ Kein Ventoy"/"Frei: " im Laufwerk-Info-Text neben der Stick-Auswahl) —
+  beim finalen Whole-Branch-Review per Keyword-Sweep gefunden. Ergänzt um
+  `Str.Main_DriveInfo_NoVentoy`/`Main_DriveInfo_FreeLabel` (Commit `ef6a9d6`). "✅ Ventoy" bleibt
+  hartcodiert (Markenname, identisch in beiden Sprachen).
+
+Zusätzlich wurde ein echter Laufzeit-Bug bei der Umsetzung von Task 6 gefunden: `Run.Text`
+bindet in WPF standardmäßig `TwoWay` (anders als `TextBlock.Text`), was bei den zwei neuen
+`{Binding OnlineCheckStatusText}`/`{Binding UsbCheckStatusText}`-Bindings zu einem Absturz beim
+Programmstart führte, da die Properties schreibgeschützt sind. Behoben durch explizites
+`Mode=OneWay` (Commit `dce2a03`) — alle anderen `Run`-Bindings in der Datei hatten dieses Mode
+bereits, die Konvention wurde beim Schreiben des Plans übersehen.
+
+Die tatsächliche Gesamtzahl neuer `Str`-Werte für Phase 3 ist damit 132 (128 aus dem
+ursprünglichen Plan + 4 Nachträge), Gesamtstand nach Phase 3: 176.
+
 ## Offene Fragen für spätere Phasen (nicht jetzt entscheiden)
 
 - Phase 4 (Log-/Aktivitätsverlauf + `StatusText`) ist die technisch
