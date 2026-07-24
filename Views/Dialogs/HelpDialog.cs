@@ -185,68 +185,15 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── Download ───────────────────────────────────────────────────
-            AddSection("⬇ Download — Wie und Wohin?", "Download");
-            content.Children.Add(MakeItem("Speicherort",
-                "Alle ISOs werden im Arbeitsordner des Programms gespeichert (Unterordner 'ISOs'). " +
-                "Da ULM portabel ist, liegt der Arbeitsordner neben der Programmdatei — " +
-                "der genaue Pfad hängt davon ab, wohin ULM gespeichert wurde."));
-            content.Children.Add(MakeItem("Pipeline-Modus",
-                "Wenn ein Ventoy-Stick erkannt wird, kann jede ISO direkt nach dem Download " +
-                "auf den Stick kopiert werden. Die lokale Datei wird danach gelöscht. " +
-                "Downloads und Kopieren laufen parallel. Im Fortschritts-Dialog wechselt die Zeile " +
-                "einer ISO von 'Kopiere auf Stick' zu 'Fertig', sobald sie vollständig kopiert ist. " +
-                "Der Gesamt-Fortschrittsbalken (Amber → Blau → Grün je nach Prozent) sowie die " +
-                "Abschluss-Meldung spiegeln dabei den tatsächlichen Kopier-Erfolg wider — schlägt die " +
-                "Stick-Kopie fehl, wird das jetzt klar als Fehlschlag gemeldet, statt fälschlich " +
-                "'erfolgreich heruntergeladen und kopiert' anzuzeigen, nur weil der Download geklappt hat."));
-            content.Children.Add(MakeItem("Mirror-Race (bis zu 8 Quellen)",
-                "Bevor der eigentliche Download beginnt, testet ULM alle konfigurierten Mirror-URLs " +
-                "einer Distro parallel für ca. 3 Sekunden und startet dann mit der schnellsten Quelle " +
-                "— nicht einfach mit der ersten. Gemessen wird in kurzen Zeitfenstern statt eines " +
-                "einzigen Durchschnittswerts, damit CDNs, die erst nach ein bis zwei Sekunden auf volle " +
-                "Geschwindigkeit hochfahren, nicht fälschlich als langsam eingestuft werden. Bei " +
-                "SourceForge-Quellen fächert ULM zusätzlich automatisch mehrere geografisch verteilte " +
-                "Mirror auf, statt sich auf SourceForges eigene (oft nicht optimale) Serverwahl zu " +
-                "verlassen. Ergebnis erscheint im Protokoll:\n" +
-                "  🔎 Distro: Mirror-Test — cdn1.beispiel.org 42,3 Mbit/s, …"));
-            content.Children.Add(MakeItem("Geschwindigkeits-Wächter",
-                "Bleibt eine laufende Übertragung (nach ca. 20 Sekunden Anlaufzeit) für weitere 20 " +
-                "Sekunden ununterbrochen unter ca. 1 MB/s, bricht ULM automatisch ab und versucht die " +
-                "nächste Mirror-Quelle — statt stundenlang auf einer extrem langsamen Verbindung zu " +
-                "warten. Gibt es keine schnellere Quelle mehr und alle Versuche waren nur an der " +
-                "Geschwindigkeit gescheitert (nicht an einem echten Fehler), fragt ULM aktiv nach:\n" +
-                "  ⚠ Kein schnellerer Mirror gefunden — trotzdem mit dieser Quelle fortfahren?\n" +
-                "Bestätigt man das, läuft der Download ohne weitere Geschwindigkeitsprüfung zu Ende."));
-            content.Children.Add(MakeItem("„(schneller)“-Button",
-                "Erscheint im Download-Fortschrittsfenster neben einer laufenden Übertragung — aber " +
-                "erst nach ca. 20 Sekunden Anlaufzeit UND nur, solange die tatsächlich gemessene " +
-                "Geschwindigkeit spürbar mittelmäßig ist (unter ca. 3 MB/s), selbst wenn der Server " +
-                "damit noch über der Geschwindigkeits-Wächter-Schwelle liegt (also gar nicht automatisch " +
-                "abbrechen würde). Bei bereits guter Geschwindigkeit bleibt der Button versteckt — es " +
-                "gibt dann nichts, wozu ein Wechsel sinnvoll wäre. Voraussetzung ist außerdem immer " +
-                "mindestens ein weiterer, vom Mirror-Race bereits gemessener Kandidat. Klick bricht den " +
-                "aktuellen Versuch ab und wechselt sofort zum nächsten Kandidaten. Findet sich dabei " +
-                "kein schnellerer Server, kehrt ULM automatisch — ohne Nachfrage — zum ursprünglichen, " +
-                "nachweislich erreichbaren Server zurück ('Kein schnellerer Server gefunden — Download " +
-                "wird fortgesetzt')."));
-            content.Children.Add(MakeItem("Verbleibende Zeit (ETA)",
-                "Der Fortschritts-Dialog zeigt neben Geschwindigkeit und Größe auch die geschätzte " +
-                "Restzeit an, z.B.:\n  12.4 MB/s  ·  noch 2m 14s  ·  1.2 GB / 3.5 GB\n" +
-                "Die Schätzung passt sich laufend an die aktuelle Download-Geschwindigkeit an."));
-            content.Children.Add(MakeItem("🔒 Integrität prüfen",
-                "Nach jedem Download oder beim Import vom Stick speichert ULM einen SHA-256-Referenzhash " +
-                "der ISO-Datei. Bei Ubuntu, Debian und Fedora prüft ULM automatisch die offizielle Prüfsumme " +
-                "vom Anbieter. Mit dem Button '🔒 Integrität prüfen' lässt sich jederzeit die Datei auf dem Stick " +
-                "gegen den Referenzhash verifizieren — warnt wenn die Kopie beschädigt oder unvollständig wurde."));
-            content.Children.Add(MakeItem("Freispeicher-Check",
-                "Zweistufig: BEVOR der Download überhaupt startet, summiert ULM die online " +
-                "ermittelbare Größe ALLER markierten Distros und vergleicht sie mit dem freien " +
-                "Speicher im Arbeitsordner UND — falls direkt auf einen Stick kopiert werden soll — " +
-                "zusätzlich mit dem freien Speicher dort. Reicht der Platz nicht, warnt ULM VOR " +
-                "Beginn mit einer Ja/Nein-Rückfrage, statt erst mittendrin auf mehreren parallelen " +
-                "Downloads zugleich zu scheitern. Zusätzlich prüft ein zweiter, feingranularer Check " +
-                "unmittelbar vor jeder einzelnen Datei erneut den dann noch verfügbaren Platz:\n" +
-                "  ❌ Nicht genug Speicherplatz auf X:\\ (benötigt 3.5 GB, frei 1.1 GB)."));
+            AddSection(LocalizationService.T(Str.Help_Sec_Download_Title), LocalizationService.T(Str.Help_Sec_Download_Nav));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_StorageLocation_Label), LocalizationService.T(Str.Help_Item_StorageLocation_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_PipelineMode_Label), LocalizationService.T(Str.Help_Item_PipelineMode_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_MirrorRace_Label), LocalizationService.T(Str.Help_Item_MirrorRace_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SpeedGuard_Label), LocalizationService.T(Str.Help_Item_SpeedGuard_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_FasterButton_Label), LocalizationService.T(Str.Help_Item_FasterButton_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_EtaRemaining_Label), LocalizationService.T(Str.Help_Item_EtaRemaining_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_VerifyIntegrity_Label), LocalizationService.T(Str.Help_Item_VerifyIntegrity_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_FreeSpaceCheck_Label), LocalizationService.T(Str.Help_Item_FreeSpaceCheck_Body)));
             content.Children.Add(Spacer());
 
             // ── USB-Stick ──────────────────────────────────────────────────
