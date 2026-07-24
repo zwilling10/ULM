@@ -160,76 +160,28 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── Design (Hell/Dunkel) ───────────────────────────────────────
-            AddSection("🌓 Design — Hell / Dunkel / System", "Design");
-            content.Children.Add(MakeText(
-                "ULM hat ein helles und ein dunkles Erscheinungsbild. Beide sind vollständig " +
-                "durchgestylt (Listen, Dialoge, Eingabefelder) und für gute Lesbarkeit geprüft."));
-            content.Children.Add(MakeItem("Einstellen",
-                "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf " +
-                "'⚙ Einstellungen' oben rechts im Hauptfenster — dort in der Karte 'Design' " +
-                "zwischen System/Hell/Dunkel wählen und mit '✔ Übernehmen' bestätigen."));
-            content.Children.Add(MakeItem("System",
-                "Übernimmt automatisch die aktuelle Windows-Design-Einstellung (Hell oder Dunkel). " +
-                "Ändert sich das Windows-Design während ULM läuft, zieht ULM automatisch nach — " +
-                "ohne Neustart."));
-            content.Children.Add(MakeItem("Sofortige Umschaltung",
-                "Ein Wechsel wirkt sofort auf das gesamte offene Hauptfenster — inklusive der " +
-                "Zeilenfarben in der Distro-Liste. Kein Neustart nötig. Neu geöffnete Dialoge " +
-                "(Hilfe, Datenbank, Einrichtung, …) übernehmen die Wahl automatisch."));
-            content.Children.Add(MakeItem("Merkt sich die Wahl",
-                "Die getroffene Wahl wird gespeichert und beim nächsten Programmstart automatisch " +
-                "wieder angewendet."));
+            AddSection(LocalizationService.T(Str.Help_Sec_Theme_Title), LocalizationService.T(Str.Help_Sec_Theme_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_Theme_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ThemeSetting_Label), LocalizationService.T(Str.Help_Item_ThemeSetting_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ThemeSystem_Label), LocalizationService.T(Str.Help_Item_ThemeSystem_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ThemeInstant_Label), LocalizationService.T(Str.Help_Item_ThemeInstant_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ThemeRemembers_Label), LocalizationService.T(Str.Help_Item_ThemeRemembers_Body)));
             content.Children.Add(Spacer());
 
             // ── Protokoll-Symbole ─────────────────────────────────────────
-            AddSection("📜 Protokoll-Symbole — Bedeutung", "Protokoll-Symbole");
-            content.Children.Add(MakeText(
-                "  ▶   Programmstart / Abschnittsbeginn\n" +
-                "  💾  Datenbank-Aktion oder Stick-Scan\n" +
-                "  🔌  Laufwerk erkannt / Stick eingesteckt\n" +
-                "  🌐  Online-Versionscheck läuft\n" +
-                "  ⬇   Download gestartet oder in Bearbeitung\n" +
-                "  🔗  Download-URL (zeigt welcher Server verwendet wird)\n" +
-                "  ✅  Aktion erfolgreich abgeschlossen\n" +
-                "  ❌  Fehler aufgetreten\n" +
-                "  ⚠   Warnung (kein Fehler, aber Aufmerksamkeit nötig) — u.a. unvollständige Dateien\n" +
-                "  🆕  Neue Version online gefunden\n" +
-                "  ✓   Version ist aktuell (kein Update nötig)\n" +
-                "  ✏   Anzeigename automatisch aktualisiert\n" +
-                "  ↔   Dateiname in der Datenbank ersetzt\n" +
-                "  🗑  Eintrag oder Datei gelöscht (auch: Datenmüll auf dem Stick entfernt)\n" +
-                "  🔄  Duplikat zusammengeführt\n" +
-                "  📋  Kopiervorgang auf den USB-Stick\n" +
-                "  📂  Datei beim Import in den Kategorie-Ordner auf dem Stick verschoben\n" +
-                "  ❓  Unbekannte ISO(s) auf dem Stick gefunden — Import möglich\n" +
-                "  ⛔  Vorgang abgebrochen"));
+            AddSection(LocalizationService.T(Str.Help_Sec_LogSymbols_Title), LocalizationService.T(Str.Help_Sec_LogSymbols_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_LogSymbols_Body)));
             content.Children.Add(Spacer());
 
             // ── ISO suchen (Online-Entdeckung) ────────────────────────────
-            AddSection("🔍 ISO suchen — neue Distros entdecken", "ISO suchen");
-            content.Children.Add(MakeText(
-                "Der Knopf '🔍 ISO suchen' zeigt zwei Online-Listen von DistroWatch.com — eine " +
-                "Möglichkeit, gezielt neue Distros zu entdecken, statt nur die feste Standard-Datenbank " +
-                "durchzugehen. Für die bereits bekannte Datenbank gibt es weiterhin '🗃 Datenbank'."));
-            content.Children.Add(MakeItem("🆕 Aktuellste",
-                "Die zuletzt neu zu DistroWatch hinzugefügten Distributionen (Top 10)."));
-            content.Children.Add(MakeItem("🔥 Beliebteste",
-                "DistroWatchs Page-Hit-Ranking (Top 10) — die aktuell meistbesuchten Distro-Profile."));
-            content.Children.Add(MakeItem("Nur Live-Medium",
-                "Beide Listen zeigen AUSSCHLIESSLICH Distros mit dem DistroWatch-Kategorie-Tag " +
-                "'Live Medium' — reine Installations- oder Server-Images ohne Live-Boot-Modus werden " +
-                "automatisch aussortiert. Jeder Vorschlag ist also garantiert per USB-Stick bootfähig."));
-            content.Children.Add(MakeItem("Bereits vorhanden",
-                "Distros, die schon in der eigenen Datenbank stehen, werden blau hervorgehoben und " +
-                "können nicht erneut übernommen werden. Bei neuen Distros zeigt ein Mouseover-Tooltip " +
-                "Rang/Datum, vorgeschlagene Kategorie und den DistroWatch-Link."));
-            content.Children.Add(MakeItem("Übernehmen + Direkt herunterladen",
-                "Ausgewählte Distros per '✔ Übernehmen' in die Datenbank aufnehmen (Kategorie vorher " +
-                "per Dropdown anpassbar). Ist zusätzlich 'Direkt herunterladen' angehakt, startet nach " +
-                "dem Schließen des Fensters sofort der reguläre Download-Ablauf für diese Einträge."));
-            content.Children.Add(MakeItem("Aktualisieren / Cache",
-                "Beide Listen werden 24 Stunden lokal zwischengespeichert (kein Netzwerk-Roundtrip bei " +
-                "jedem Öffnen). Der Knopf '⟳ Aktualisieren' erzwingt eine frische Abfrage."));
+            AddSection(LocalizationService.T(Str.Help_Sec_IsoSearch_Title), LocalizationService.T(Str.Help_Sec_IsoSearch_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_IsoSearch_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_Newest_Label), LocalizationService.T(Str.Help_Item_Newest_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_Popular_Label), LocalizationService.T(Str.Help_Item_Popular_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_LiveOnly_Label), LocalizationService.T(Str.Help_Item_LiveOnly_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_AlreadyInDb_Label), LocalizationService.T(Str.Help_Item_AlreadyInDb_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_AdoptAndDownload_Label), LocalizationService.T(Str.Help_Item_AdoptAndDownload_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_RefreshCache_Label), LocalizationService.T(Str.Help_Item_RefreshCache_Body)));
             content.Children.Add(Spacer());
 
             // ── Download ───────────────────────────────────────────────────
