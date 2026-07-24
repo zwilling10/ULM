@@ -692,7 +692,10 @@ namespace ULM.Views
                 return;
             }
             if (UsbService.IsVentoyInstalled(nd.Letter)) { StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return; }
-            if (MessageBox.Show($"Neuer USB-Stick: {nd.Letter}\nLabel: {(string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label)}   Größe: {nd.SizeBytes / 1_073_741_824.0:F0} GB\n\nAutomatisch als Ventoy-Stick einrichten?\n\n⚠ ALLE DATEN AUF DIESEM STICK WERDEN GELÖSCHT!", "USB-Stick erkannt — Datenverlust!", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(
+                string.Format(LocalizationService.T(Str.Msg_NewDriveDetected_Body),
+                    nd.Letter, string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label, nd.SizeBytes / 1_073_741_824.0),
+                LocalizationService.T(Str.Msg_NewDriveDetected_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             _vm.SelectedDrive = nd; AppendLog($"⚡ Ventoy-Installation auf {nd.Letter} wird gestartet …"); _vm.StartVentoyInstall(updateMode: false);
         }
 
@@ -707,7 +710,7 @@ namespace ULM.Views
         {
             if (_vm.Drives.Count <= 1) return;
             var dlg = new DriveSelectDialog(_vm.Drives,
-                headerText: $"Es sind {_vm.Drives.Count} USB-Sticks angeschlossen. Mit welchem möchtest du arbeiten?",
+                headerText: string.Format(LocalizationService.T(Str.Msg_MultipleDrivesHeader), _vm.Drives.Count),
                 preselect: _vm.SelectedDrive)
             { Owner = this };
             if (dlg.ShowDialog() == true && dlg.SelectedDrive is not null) _vm.SelectedDrive = dlg.SelectedDrive;
@@ -717,19 +720,19 @@ namespace ULM.Views
         {
             if (_vm.IsBusy) return;
             UsbDrive? target = SelectTargetDrive(); if (target is null) return;
-            string letter = target.Letter; string label = string.IsNullOrWhiteSpace(target.Label) ? "Kein Name" : target.Label; double gb = target.SizeBytes / 1_073_741_824.0;
+            string letter = target.Letter; string label = string.IsNullOrWhiteSpace(target.Label) ? LocalizationService.T(Str.Msg_NoLabel) : target.Label; double gb = target.SizeBytes / 1_073_741_824.0;
             bool installed = UsbService.IsVentoyInstalled(letter);
             string warn = installed
-                ? $"Ventoy auf\n\n   {letter}  {label}  ({gb:F0} GB)\n\naktualisieren?\n\n✅ Bestehende ISO-Dateien bleiben erhalten."
-                : $"⚠ ACHTUNG — DATENVERLUST!\n\nAlle Daten auf\n\n   {letter}  {label}  ({gb:F0} GB)\n\nwerden unwiderruflich gelöscht!";
-            if (MessageBox.Show(warn, installed ? "Ventoy aktualisieren" : "⚠ Ventoy installieren — Datenverlust!", MessageBoxButton.OKCancel, installed ? MessageBoxImage.Question : MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+                ? string.Format(LocalizationService.T(Str.Msg_VentoyUpdate_Body), letter, label, gb.ToString("F0"))
+                : string.Format(LocalizationService.T(Str.Msg_VentoyInstall_Body), letter, label, gb.ToString("F0"));
+            if (MessageBox.Show(warn, installed ? LocalizationService.T(Str.Msg_VentoyUpdate_Title) : LocalizationService.T(Str.Msg_VentoyInstall_Title), MessageBoxButton.OKCancel, installed ? MessageBoxImage.Question : MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             _vm.SelectedDrive = target; AppendLog($"⚡ Ventoy-{(installed ? "Aktualisierung" : "Installation")} auf {letter} …");
             SetBusyUi(true); _vm.StartVentoyInstall(updateMode: installed); SetBusyUi(false);
         }
 
         private UsbDrive? SelectTargetDrive()
         {
-            if (_vm.Drives.Count == 0) { MessageBox.Show("Kein USB-Laufwerk erkannt.", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return null; }
+            if (_vm.Drives.Count == 0) { MessageBox.Show(LocalizationService.T(Str.Msg_NoUsbDetected), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return null; }
             if (_vm.Drives.Count == 1) return _vm.Drives[0];
             var dlg = new DriveSelectDialog(_vm.Drives) { Owner = this };
             return dlg.ShowDialog() == true ? dlg.SelectedDrive : null;
@@ -741,16 +744,16 @@ namespace ULM.Views
         {
             if (_vm.IsBusy) return;
             List<IsoEntry> queue = _vm.GetSelectedEntries();
-            if (queue.Count == 0) { MessageBox.Show("Bitte mindestens eine Distribution markieren!", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            if (queue.Count == 0) { MessageBox.Show(LocalizationService.T(Str.Msg_SelectAtLeastOne), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
             string drive = _vm.SelectedDriveLetter; bool copy = false, del = false;
             if (!string.IsNullOrEmpty(drive))
             {
-                var r = MessageBox.Show($"USB-Stick erkannt: {drive}\n\nHerunterladen UND direkt auf Stick kopieren?", "Download-Modus", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                var r = MessageBox.Show(string.Format(LocalizationService.T(Str.Msg_DownloadMode_Body), drive), LocalizationService.T(Str.Msg_DownloadMode_Title), MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
                 if (r == MessageBoxResult.Cancel) return; copy = r == MessageBoxResult.Yes;
-                if (copy && !UsbService.IsVentoyInstalled(drive)) if (MessageBox.Show($"Kein Ventoy auf {drive}. Trotzdem kopieren?", "Ventoy nicht gefunden", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-                if (copy) del = MessageBox.Show("Lokale Dateien nach dem Kopieren löschen?", "Dateien löschen?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+                if (copy && !UsbService.IsVentoyInstalled(drive)) if (MessageBox.Show(string.Format(LocalizationService.T(Str.Msg_NoVentoy_Body), drive), LocalizationService.T(Str.Msg_NoVentoy_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+                if (copy) del = MessageBox.Show(LocalizationService.T(Str.Msg_DeleteLocalAfterCopy_AfterCopy), LocalizationService.T(Str.Msg_DeleteFiles_Title), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
             }
-            else if (MessageBox.Show($"Kein USB-Stick.\n\nISOs gespeichert in:\n{AppPaths.Instance.DownloadDir}\n\nFortfahren?", "Kein Stick erkannt", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+            else if (MessageBox.Show(string.Format(LocalizationService.T(Str.Msg_NoStick_Body), AppPaths.Instance.DownloadDir), LocalizationService.T(Str.Msg_NoStick_Title), MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
 
             if (!await ConfirmEnoughFreeSpaceAsync(queue, copy ? drive : null)) return;
 
@@ -792,15 +795,15 @@ namespace ULM.Views
                 catch { return true; }
                 if (totalBytes <= freeMb * 1_048_576.0) return true;
 
-                string msg = $"Die {queue.Count} ausgewählten Distros benötigen zusammen ca. {Gb(totalBytes)}" +
-                             (unknownCount > 0 ? $" (bei {unknownCount} Distro(s) war die Größe online nicht ermittelbar — evtl. mehr)" : "") +
-                             $",\naber auf {label} sind nur {GbMb(freeMb)} frei.\n\nTrotzdem fortfahren?";
-                return MessageBox.Show(msg, "⚠ Nicht genug Speicherplatz", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+                string msg = string.Format(LocalizationService.T(Str.Msg_FreeSpace_Body1), queue.Count, Gb(totalBytes)) +
+                             (unknownCount > 0 ? string.Format(LocalizationService.T(Str.Msg_FreeSpace_Body2), unknownCount) : "") +
+                             string.Format(LocalizationService.T(Str.Msg_FreeSpace_Body3), label, GbMb(freeMb));
+                return MessageBox.Show(msg, LocalizationService.T(Str.Msg_FreeSpace_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
             }
 
-            if (!WarnIfTooSmall($"dem Arbeitsordner ({AppPaths.Instance.DownloadDir})", Path.GetPathRoot(AppPaths.Instance.DownloadDir) ?? AppPaths.Instance.DownloadDir))
+            if (!WarnIfTooSmall(string.Format(LocalizationService.T(Str.Msg_FreeSpace_LabelWorkDir), AppPaths.Instance.DownloadDir), Path.GetPathRoot(AppPaths.Instance.DownloadDir) ?? AppPaths.Instance.DownloadDir))
                 return false;
-            if (!string.IsNullOrEmpty(stickDrive) && !WarnIfTooSmall($"dem Stick {stickDrive}", UsbService.DriveRoot(stickDrive)))
+            if (!string.IsNullOrEmpty(stickDrive) && !WarnIfTooSmall(string.Format(LocalizationService.T(Str.Msg_FreeSpace_LabelStick), stickDrive), UsbService.DriveRoot(stickDrive)))
                 return false;
             return true;
         }
