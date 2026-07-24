@@ -384,6 +384,23 @@ namespace ULM.Views
             BtnCancel.Content   = LocalizationService.T(Str.Btn_Cancel);
             BtnHelp.Content     = LocalizationService.T(Str.Btn_Help);
             BtnSettings.Content = LocalizationService.T(Str.Btn_Settings);
+
+            TxtHeaderSubtitle.Text  = LocalizationService.T(Str.Main_HeaderSubtitle);
+            TxtChipOnlineScan.Text  = LocalizationService.T(Str.Main_Chip_OnlineScan);
+            TxtChipUsbScan.Text     = LocalizationService.T(Str.Main_Chip_UsbScan);
+            TxtChipHealthCheck.Text = LocalizationService.T(Str.Main_Chip_HealthCheck);
+            BtnUpdateDismiss.Content   = LocalizationService.T(Str.Main_Btn_Dismiss);
+            BtnHardCaseDismiss.Content = LocalizationService.T(Str.Main_Btn_Dismiss);
+            TxtTargetDrive.Text     = LocalizationService.T(Str.Main_Label_TargetDrive);
+            BtnRefreshDrives.ToolTip = LocalizationService.T(Str.Main_Tooltip_RefreshDrives);
+            BtnVentoy.Content       = LocalizationService.T(Str.Main_Btn_InstallVentoy);
+            ChkSecureBoot.Content   = LocalizationService.T(Str.Main_Chk_SecureBoot);
+            TxtHashStatusIcon.ToolTip = LocalizationService.T(Str.Main_Tooltip_HashStatusColumn);
+            TxtColHeaderDistribution.Text = LocalizationService.T(Str.Main_ColumnHeader_Distribution);
+            TxtColHeaderLocal.Text    = LocalizationService.T(Str.Main_ColumnHeader_Local);
+            TxtColHeaderOnStick.Text  = LocalizationService.T(Str.Main_ColumnHeader_OnStick);
+            TxtColHeaderCurrent.Text  = LocalizationService.T(Str.Main_ColumnHeader_Current);
+            BtnClearLog.Content     = LocalizationService.T(Str.Main_Btn_ClearLog);
         }
 
         // ── Einstellungen (Design/Sprache/Modus) ─────────────────────────────

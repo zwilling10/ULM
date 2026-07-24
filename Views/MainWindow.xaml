@@ -155,7 +155,7 @@
                         <TextBlock Text="Universal Linux Manager"
                                    Foreground="White" FontSize="16" FontWeight="Bold"
                                    FontFamily="{DynamicResource FontMain}"/>
-                        <TextBlock Text="USB-Stick einrichten · Linux ISOs verwalten · Downloads überwachen"
+                        <TextBlock x:Name="TxtHeaderSubtitle"
                                    Foreground="{DynamicResource BrushDim}" FontSize="10"
                                    FontFamily="{DynamicResource FontMain}"/>
                     </StackPanel>
@@ -211,7 +211,7 @@
                             Padding="10,6" Margin="0,0,10,0" MinWidth="140">
                         <StackPanel>
                             <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Text="🌐 Online-Scan"
+                                <TextBlock x:Name="TxtChipOnlineScan" DockPanel.Dock="Left"
                                            Foreground="{DynamicResource BrushDim}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock DockPanel.Dock="Right"
@@ -228,7 +228,7 @@
                             Background="#0D2035" CornerRadius="5"
                             Padding="10,6" Margin="0,0,10,0" MinWidth="130">
                         <StackPanel>
-                            <TextBlock Text="💾 Stick-Scan"
+                            <TextBlock x:Name="TxtChipUsbScan"
                                        Foreground="{DynamicResource BrushDim}"
                                        FontSize="9" FontWeight="SemiBold"/>
                             <ProgressBar IsIndeterminate="True" Height="5" Margin="0,4,0,0"
@@ -241,7 +241,7 @@
                             Padding="10,6" Margin="0,0,16,0" MinWidth="140">
                         <StackPanel>
                             <DockPanel LastChildFill="False">
-                                <TextBlock DockPanel.Dock="Left" Text="🩺 Gesundheitscheck"
+                                <TextBlock x:Name="TxtChipHealthCheck" DockPanel.Dock="Left"
                                            Foreground="{DynamicResource BrushDim}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock DockPanel.Dock="Right"
@@ -344,7 +344,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="ZIEL-USB-LAUFWERK"
+                <TextBlock x:Name="TxtTargetDrive" Grid.Column="0"
                            FontSize="9" FontWeight="Bold" Foreground="{DynamicResource BrushDim}"
                            VerticalAlignment="Center" Margin="0,0,10,0"/>
 
@@ -356,16 +356,14 @@
                 <Button Grid.Column="2" x:Name="BtnRefreshDrives"
                         Content="↻" Style="{DynamicResource BtnGhost}"
                         Width="32" Height="32" FontSize="16"
-                        ToolTip="Laufwerke neu einlesen"
                         Click="BtnRefreshDrives_Click"/>
 
                 <Button Grid.Column="3" x:Name="BtnVentoy"
-                        Content="⚡ Ventoy installieren"
                         Style="{DynamicResource BtnSuccess}"
                         Margin="10,0,0,0" Click="BtnVentoy_Click"/>
 
                 <CheckBox Grid.Column="4" x:Name="ChkSecureBoot"
-                          Content="🔒 Secure Boot" Margin="14,0,0,0"
+                          Margin="14,0,0,0"
                           VerticalAlignment="Center"
                           Checked="ChkSecureBoot_Changed"
                           Unchecked="ChkSecureBoot_Changed"/>
@@ -401,17 +399,16 @@
                                 <ColumnDefinition Width="150"/>
                                 <ColumnDefinition Width="30"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="1" Text="🔒" FontSize="10"
+                            <TextBlock x:Name="TxtHashStatusIcon" Grid.Column="1" Text="🔒" FontSize="10"
                                        HorizontalAlignment="Center"
-                                       ToolTip="Hash-Status: grün = Prüfsumme vorhanden, rot = Integritätsprüfung fehlgeschlagen"
                                        Foreground="{DynamicResource BrushMid}"/>
-                            <TextBlock Grid.Column="2" Text="Linux-Distribution  (Haken = Download)"
+                            <TextBlock x:Name="TxtColHeaderDistribution" Grid.Column="2"
                                        FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
-                            <TextBlock Grid.Column="3" Text="Lokal"
+                            <TextBlock x:Name="TxtColHeaderLocal" Grid.Column="3"
                                        FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
-                            <TextBlock Grid.Column="4" Text="Auf dem Stick"
+                            <TextBlock x:Name="TxtColHeaderOnStick" Grid.Column="4"
                                        FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
-                            <TextBlock Grid.Column="5" Text="Aktuell"
+                            <TextBlock x:Name="TxtColHeaderCurrent" Grid.Column="5"
                                        FontWeight="Bold" FontSize="11" Foreground="{DynamicResource BrushMid}"/>
                         </Grid>
                     </Border>
@@ -438,7 +435,7 @@
                              FontFamily="Consolas, Courier New"
                              FontSize="11" BorderThickness="0"
                              Background="{DynamicResource BrushWhite}"/>
-                    <Button Grid.Row="1" Content="Protokoll leeren"
+                    <Button x:Name="BtnClearLog" Grid.Row="1"
                             Style="{DynamicResource BtnGhost}"
                             HorizontalAlignment="Right" Margin="8"
                             Click="BtnClearLog_Click"/>
