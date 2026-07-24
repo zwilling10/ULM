@@ -1,5 +1,6 @@
 // Core/Models/Constants.cs
 using System.Reflection;
+using ULM.Infrastructure;
 
 namespace ULM.Core.Models
 {
@@ -40,14 +41,14 @@ namespace ULM.Core.Models
 
         public static string CategoryLabel(string category) => category switch
         {
-            "Gaming"           => "🎮 Gaming",
-            "Sicherheit"       => "🔒 Sicherheit & Privatsphäre",
-            "Einsteiger"       => "💻 Einsteiger (Komfort & Design)",
-            "Leichtgewicht"    => "🪶 Leichtgewicht (Geschwindigkeit & Effizienz)",
-            "Fortgeschrittene" => "⚙ Fortgeschrittene (Unabhängigkeit & Stabilität)",
-            "Rettung"          => "🛠 Rettung (Backup & Wiederherstellung)",
-            "Antivirus"        => "🛡 Antivirus (Schutz & Bereinigung)",
-            "WinPE"            => "🪟 WinPE (Windows-Tools)",
+            "Gaming"           => LocalizationService.T(Str.Category_Gaming),
+            "Sicherheit"       => LocalizationService.T(Str.Category_Security),
+            "Einsteiger"       => LocalizationService.T(Str.Category_Beginner),
+            "Leichtgewicht"    => LocalizationService.T(Str.Category_Lightweight),
+            "Fortgeschrittene" => LocalizationService.T(Str.Category_Advanced),
+            "Rettung"          => LocalizationService.T(Str.Category_Rescue),
+            "Antivirus"        => LocalizationService.T(Str.Category_Antivirus),
+            "WinPE"            => LocalizationService.T(Str.Category_WinPE),
             _                  => category
         };
 
