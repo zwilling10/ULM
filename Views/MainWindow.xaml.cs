@@ -826,7 +826,7 @@ namespace ULM.Views
             _downloadProgressDialog.ManualSearchRequested += OpenManualSearchFromDownloadFailure;
             _downloadProgressDialog.Closed += (_, _) => _downloadProgressDialog = null;
             // Reiner Kopiervorgang (kein Download davor): Zeilen sofort als "Kopiere auf Stick" labeln.
-            if (hasCopy && !hasDownload) foreach (string n in nameList) _downloadProgressDialog.SetPhaseLabel(n, "Kopiere auf Stick");
+            if (hasCopy && !hasDownload) foreach (string n in nameList) _downloadProgressDialog.SetPhaseLabel(n, LocalizationService.T(Str.Msg_PhaseCopyToStick));
             _downloadProgressDialog.Show();
         }
 
@@ -878,7 +878,7 @@ namespace ULM.Views
         private async void BtnVerifyIntegrity_Click(object sender, RoutedEventArgs e)
         {
             if (_vm.IsBusy) return;
-            if (string.IsNullOrEmpty(_vm.SelectedDriveLetter)) { MessageBox.Show("Bitte zuerst ein USB-Laufwerk auswählen!", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            if (string.IsNullOrEmpty(_vm.SelectedDriveLetter)) { MessageBox.Show(LocalizationService.T(Str.Msg_SelectDriveFirst), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
             SetBusyUi(true); await _vm.VerifyStickIntegrityAsync(); SetBusyUi(false);
         }
         private void BtnSearch_Click(object sender, RoutedEventArgs e)
@@ -901,7 +901,7 @@ namespace ULM.Views
         }
         private void BtnEditDb_Click(object sender, RoutedEventArgs e)
         {
-            if (_vm.IsBusy) { MessageBox.Show("Bitte warten …"); return; }
+            if (_vm.IsBusy) { MessageBox.Show(LocalizationService.T(Str.Msg_PleaseWait)); return; }
             var dlg = new IsoListDialog(IsoDatabaseService.Instance) { Owner = this };
             if (dlg.ShowDialog() != true) return;
             _vm.RebuildTree();
@@ -921,10 +921,10 @@ namespace ULM.Views
         private void BtnCopyUsb_Click(object sender, RoutedEventArgs e)
         {
             if (_vm.IsBusy) return;
-            if (string.IsNullOrEmpty(_vm.SelectedDriveLetter)) { MessageBox.Show("Bitte zuerst ein USB-Laufwerk auswählen!", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            if (string.IsNullOrEmpty(_vm.SelectedDriveLetter)) { MessageBox.Show(LocalizationService.T(Str.Msg_SelectDriveFirst), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
             List<IsoEntry> queue = _vm.GetLocallyAvailableEntries();
-            if (queue.Count == 0) { MessageBox.Show("Keine lokal heruntergeladenen ISOs vorhanden.", Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
-            bool del = MessageBox.Show("Lokale Dateien nach dem Kopieren löschen?", "Dateien löschen?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+            if (queue.Count == 0) { MessageBox.Show(LocalizationService.T(Str.Msg_NoLocalIsos), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            bool del = MessageBox.Show(LocalizationService.T(Str.Msg_DeleteLocalAfterCopy_AfterCopy), LocalizationService.T(Str.Msg_DeleteFiles_Title), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
             OpenProgressDialog(queue.Select(q => q.Name), hasDownload: false, hasCopy: true);
             SetBusyUi(true); _vm.StartCopyToStick(queue, _vm.SelectedDriveLetter, del); SetBusyUi(false);
         }
