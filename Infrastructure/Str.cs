@@ -218,5 +218,128 @@ namespace ULM.Infrastructure
         Category_Rescue,
         Category_Antivirus,
         Category_WinPE,
+
+        // ── HelpDialog: Chrome ───────────────────────────────────────────────
+        Help_Title,
+        Help_Subtitle,
+        Help_NavHeading,
+        Help_Btn_Close,
+
+        // ── HelpDialog: Abschnitt 1 — Übersicht ────────────────────────────
+        Help_Sec_Overview_Title, Help_Sec_Overview_Nav,
+        Help_Overview_Body,
+
+        // ── HelpDialog: Abschnitt 2 — Programmstart ────────────────────────
+        Help_Sec_Startup_Title, Help_Sec_Startup_Nav,
+        Help_Startup_Intro,
+        Help_Item_OnlineCheck_Label, Help_Item_OnlineCheck_Body,
+        Help_Item_UsbScan_Label, Help_Item_UsbScan_Body,
+        Help_Item_FileMaintenance_Label, Help_Item_FileMaintenance_Body,
+        Help_Item_UpdateCheck_Label, Help_Item_UpdateCheck_Body,
+        Help_Item_WhatsNew_Label, Help_Item_WhatsNew_Body,
+        Help_Item_Autostart_Label, Help_Item_Autostart_Body,
+
+        // ── HelpDialog: Abschnitt 3 — Bedienung ────────────────────────────
+        Help_Sec_Usage_Title, Help_Sec_Usage_Nav,
+        Help_Item_SelectDownload_Label, Help_Item_SelectDownload_Body,
+        Help_Item_CategoryCheckbox_Label, Help_Item_CategoryCheckbox_Body,
+        Help_Item_DoubleClick_Label, Help_Item_DoubleClick_Body,
+        Help_Item_MouseoverTooltip_Label, Help_Item_MouseoverTooltip_Body,
+
+        // ── HelpDialog: Abschnitt 4 — Farben & Symbole ─────────────────────
+        Help_Sec_Colors_Title, Help_Sec_Colors_Nav,
+        Help_Subhead_TextColors,
+        Help_Color_Green_Label, Help_Color_Green_Body,
+        Help_Color_Orange_Label, Help_Color_Orange_Body,
+        Help_Color_Red_Label, Help_Color_Red_Body,
+        Help_Color_Teal_Label, Help_Color_Teal_Body,
+        Help_Color_Blue_Label, Help_Color_Blue_Body,
+        Help_Color_Gray_Label, Help_Color_Gray_Body,
+        Help_Color_Dark_Label, Help_Color_Dark_Body,
+        Help_Subhead_Columns,
+        Help_Item_ColLocal_Label, Help_Item_ColLocal_Body,
+        Help_Item_ColOnStick_Label, Help_Item_ColOnStick_Body,
+        Help_Item_ColCurrent_Label, Help_Item_ColCurrent_Body,
+        Help_Subhead_HashSymbol,
+        Help_HashSymbol_Body,
+        Help_Subhead_NameSymbols,
+        Help_Item_SymbolImported_Label, Help_Item_SymbolImported_Body,
+        Help_Item_SymbolUrlOk_Label, Help_Item_SymbolUrlOk_Body,
+        Help_Item_SymbolUrlFail_Label, Help_Item_SymbolUrlFail_Body,
+        Help_Item_SymbolNewVersion_Label, Help_Item_SymbolNewVersion_Body,
+        Help_Subhead_CategorySymbols,
+        Help_CategorySymbols_Body,
+
+        // ── HelpDialog: Abschnitt 5 — Design ───────────────────────────────
+        Help_Sec_Theme_Title, Help_Sec_Theme_Nav,
+        Help_Theme_Intro,
+        Help_Item_ThemeSetting_Label, Help_Item_ThemeSetting_Body,
+        Help_Item_ThemeSystem_Label, Help_Item_ThemeSystem_Body,
+        Help_Item_ThemeInstant_Label, Help_Item_ThemeInstant_Body,
+        Help_Item_ThemeRemembers_Label, Help_Item_ThemeRemembers_Body,
+
+        // ── HelpDialog: Abschnitt 6 — Protokoll-Symbole ────────────────────
+        Help_Sec_LogSymbols_Title, Help_Sec_LogSymbols_Nav,
+        Help_LogSymbols_Body,
+
+        // ── HelpDialog: Abschnitt 7 — ISO suchen ───────────────────────────
+        Help_Sec_IsoSearch_Title, Help_Sec_IsoSearch_Nav,
+        Help_IsoSearch_Intro,
+        Help_Item_Newest_Label, Help_Item_Newest_Body,
+        Help_Item_Popular_Label, Help_Item_Popular_Body,
+        Help_Item_LiveOnly_Label, Help_Item_LiveOnly_Body,
+        Help_Item_AlreadyInDb_Label, Help_Item_AlreadyInDb_Body,
+        Help_Item_AdoptAndDownload_Label, Help_Item_AdoptAndDownload_Body,
+        Help_Item_RefreshCache_Label, Help_Item_RefreshCache_Body,
+
+        // ── HelpDialog: Abschnitt 8 — Download ─────────────────────────────
+        Help_Sec_Download_Title, Help_Sec_Download_Nav,
+        Help_Item_StorageLocation_Label, Help_Item_StorageLocation_Body,
+        Help_Item_PipelineMode_Label, Help_Item_PipelineMode_Body,
+        Help_Item_MirrorRace_Label, Help_Item_MirrorRace_Body,
+        Help_Item_SpeedGuard_Label, Help_Item_SpeedGuard_Body,
+        Help_Item_FasterButton_Label, Help_Item_FasterButton_Body,
+        Help_Item_EtaRemaining_Label, Help_Item_EtaRemaining_Body,
+        Help_Item_VerifyIntegrity_Label, Help_Item_VerifyIntegrity_Body,
+        Help_Item_FreeSpaceCheck_Label, Help_Item_FreeSpaceCheck_Body,
+
+        // ── HelpDialog: Abschnitt 9 — USB-Stick / Ventoy ───────────────────
+        Help_Sec_UsbStick_Title, Help_Sec_UsbStick_Nav,
+        Help_Item_WhatIsVentoy_Label, Help_Item_WhatIsVentoy_Body,
+        Help_Item_InstallUpdateVentoy_Label, Help_Item_InstallUpdateVentoy_Body,
+        Help_Item_MultipleSticks_Label, Help_Item_MultipleSticks_Body,
+        Help_Item_BootMenu_Label, Help_Item_BootMenu_Body,
+        Help_Item_CatchUpCopies_Label, Help_Item_CatchUpCopies_Body,
+
+        // ── HelpDialog: Abschnitt 10 — Datenmüll-Schutz ────────────────────
+        Help_Sec_JunkProtection_Title, Help_Sec_JunkProtection_Nav,
+        Help_JunkProtection_Intro,
+        Help_Item_WhenChecked_Label, Help_Item_WhenChecked_Body,
+        Help_Item_HowChecked_Label, Help_Item_HowChecked_Body,
+        Help_Item_JunkInFolder_Label, Help_Item_JunkInFolder_Body,
+        Help_Item_JunkOnStick_Label, Help_Item_JunkOnStick_Body,
+
+        // ── HelpDialog: Abschnitt 11 — ISO-Import ──────────────────────────
+        Help_Sec_IsoImport_Title, Help_Sec_IsoImport_Nav,
+        Help_IsoImport_Intro,
+        Help_Item_NameCategoryUrl_Label, Help_Item_NameCategoryUrl_Body,
+        Help_Item_FolderStructure_Label, Help_Item_FolderStructure_Body,
+        Help_Item_DuplicateProtection_Label, Help_Item_DuplicateProtection_Body,
+        Help_Item_StayUpToDate_Label, Help_Item_StayUpToDate_Body,
+
+        // ── HelpDialog: Abschnitt 12 — Expert-Modus ────────────────────────
+        Help_Sec_ExpertMode_Title, Help_Sec_ExpertMode_Nav,
+        Help_ExpertMode_Intro,
+        Help_Item_StatusTab_Label, Help_Item_StatusTab_Body,
+        Help_Item_UrlCheck_Label, Help_Item_UrlCheck_Body,
+        Help_Item_EditDatabase_Label, Help_Item_EditDatabase_Body,
+        Help_Item_DbHealthCheck_Label, Help_Item_DbHealthCheck_Body,
+        Help_Item_GitHubToken_Label, Help_Item_GitHubToken_Body,
+
+        // ── HelpDialog: Abschnitt 13 — Diagnose ────────────────────────────
+        Help_Sec_Diagnostics_Title, Help_Sec_Diagnostics_Nav,
+        Help_Item_DownloadUrl_Label, Help_Item_DownloadUrl_Body,
+        Help_Item_LogFile_Label, Help_Item_LogFile_Body,
+        Help_Item_LogRotation_Label, Help_Item_LogRotation_Body,
     }
 }
