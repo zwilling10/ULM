@@ -567,9 +567,9 @@ namespace ULM.Views
         private void OnStickUpdateAvailable(List<(IsoEntry Entry, string OldFilename)> outdated, string drive)
         {
             if (outdated.Count == 0) return;
-            var sb = new StringBuilder(); sb.AppendLine($"Auf {drive} wurden {outdated.Count} veraltete ISO(s) gefunden:"); sb.AppendLine();
-            foreach (var (entry, _) in outdated) sb.AppendLine($"  • {entry.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt aktualisieren?");
-            if (MessageBox.Show(sb.ToString(), "💾 Stick-Aktualisierung", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            var sb = new StringBuilder(); sb.AppendLine(string.Format(LocalizationService.T(Str.Msg_StickOutdatedFound), drive, outdated.Count)); sb.AppendLine();
+            foreach (var (entry, _) in outdated) sb.AppendLine($"  • {entry.Name}"); sb.AppendLine(); sb.AppendLine(LocalizationService.T(Str.Msg_UpdateNow));
+            if (MessageBox.Show(sb.ToString(), LocalizationService.T(Str.Msg_StickUpdate_Title), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
 
             var entries = outdated.Select(x => x.Entry).ToList();
             foreach (var e in entries) e.IsSelected = true; _vm.RefreshAllEntries();
@@ -600,8 +600,8 @@ namespace ULM.Views
             if (files.Count == 0) return;
 
             var dlg = new OrphanedDownloadsDialog(files,
-                "Veraltete Duplikate auf dem Stick gefunden",
-                "veraltete Duplikat-ISO(s) — aktuelle Version bereits vorhanden") { Owner = this };
+                LocalizationService.T(Str.Msg_OutdatedDuplicates_Title),
+                LocalizationService.T(Str.Msg_OutdatedDuplicates_Description)) { Owner = this };
             if (dlg.ShowDialog() == true)
             {
                 int deleted = 0, failed = 0;
@@ -627,10 +627,10 @@ namespace ULM.Views
         {
             var fresh = entries.Where(e => _vm.MarkCopyOffered(drive, e.Filename)).ToList();
             if (fresh.Count == 0) return;
-            var sb = new StringBuilder(); sb.AppendLine($"{fresh.Count} ISO(s) vollständig lokal, NICHT auf {drive}:"); sb.AppendLine();
-            foreach (var e in fresh) sb.AppendLine($"  • {e.Name}"); sb.AppendLine(); sb.AppendLine("Jetzt kopieren?");
-            if (MessageBox.Show(sb.ToString(), "💾 Vollständige ISOs nicht auf dem Stick", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-            bool del = MessageBox.Show("Lokale Dateien danach löschen?", "Dateien löschen?", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
+            var sb = new StringBuilder(); sb.AppendLine(string.Format(LocalizationService.T(Str.Msg_LocalNotOnStick), fresh.Count, drive)); sb.AppendLine();
+            foreach (var e in fresh) sb.AppendLine($"  • {e.Name}"); sb.AppendLine(); sb.AppendLine(LocalizationService.T(Str.Msg_CopyNow));
+            if (MessageBox.Show(sb.ToString(), LocalizationService.T(Str.Msg_LocalNotOnStick_Title), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            bool del = MessageBox.Show(LocalizationService.T(Str.Msg_DeleteLocalAfterCopy_Immediate), LocalizationService.T(Str.Msg_DeleteFiles_Title), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes;
             OpenProgressDialog(fresh.Select(q => q.Name), hasDownload: false, hasCopy: true);
             _vm.StartCopyToStick(fresh, drive, del);
         }
