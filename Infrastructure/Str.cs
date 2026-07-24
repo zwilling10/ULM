@@ -347,5 +347,11 @@ namespace ULM.Infrastructure
         Log_DbEntryRemoved, Log_ExactDuplicateRemoved, Log_Merged, Log_DuplicateRemoved,
         Log_FilenameAdopted, Log_FilenameNotAdopted, Log_EntryAdded, Log_NameUpdated,
         Log_FilenameReplaced, Log_EntryAddedSimple,
+
+        // ── Log-Meldungen: USB-Stick-Scan ───────────────────────────────────
+        Log_DrivesDetected, Log_ScanningStick, Log_StickScanStarted, Log_StickScanSummary,
+        Log_StickScanFound, Log_StickIsoListItem, Log_StickIncompleteFound, Log_StickJunkSuspected,
+        Log_StickHashMismatchFound, Log_StickHashMismatchItem, Log_StickOutdatedCount,
+        Log_StickOutdatedItem, Log_StickDuplicatesFound, Log_StickDuplicateItem, Log_StickAllCurrent,
     }
 }

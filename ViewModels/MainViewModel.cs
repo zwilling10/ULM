@@ -483,7 +483,7 @@ namespace ULM.ViewModels
             foreach (var d in list) Drives.Add(d);
             SelectedDrive = Drives.FirstOrDefault(d => d.Letter == pl) ?? (Drives.Count > 0 ? Drives[0] : null);
             OnPropertyChanged(nameof(DriveInfoText));
-            if (Drives.Count > 0) Log($"🔌 Laufwerke: {string.Join(", ", Drives.Select(d => $"{d.Letter} ({d.Label})"))}");
+            if (Drives.Count > 0) Log(string.Format(LocalizationService.T(Str.Log_DrivesDetected), string.Join(", ", Drives.Select(d => $"{d.Letter} ({d.Label})"))));
         }
 
         // BUGFIX: Ohne Re-Entrancy-Sperre konnte ein zweiter TriggerUsbScan-Aufruf (z.B. durch eine
@@ -497,16 +497,16 @@ namespace ULM.ViewModels
             // Online-Versionscheck (siehe _startupPhase / TriggerAutoVersionCheck.Completed).
             if (_startupPhase) return;
             if (string.IsNullOrEmpty(SelectedDriveLetter) || UsbScanActive) return;
-            Log($"💾 Stick-Scan: {SelectedDriveLetter}");
-            StatusText = $"Scanne {SelectedDriveLetter}..."; UsbScanActive = true; UsbScanPercent = 0;
+            Log(string.Format(LocalizationService.T(Str.Log_StickScanStarted), SelectedDriveLetter));
+            StatusText = string.Format(LocalizationService.T(Str.Log_ScanningStick), SelectedDriveLetter); UsbScanActive = true; UsbScanPercent = 0;
             string letter = SelectedDriveLetter;
             var worker = new UsbScanWorker(letter, _db.Entries);
             worker.Completed += (ltr, found, incomplete) => _ui.Invoke(() =>
             {
                 UsbScanActive = false; UsbScanPercent = 100;
-                StatusText = $"✓ Stick-Scan {ltr}: {found.Count} ISO(s).";
-                Log($"💾 Stick-Scan {ltr}: {found.Count} ISO(s) gefunden.");
-                if (found.Count > 0) foreach (var iso in found) Log($"   • {iso.Filename}  [{iso.Category}]  {iso.Size/1_073_741_824.0:F2} GB");
+                StatusText = string.Format(LocalizationService.T(Str.Log_StickScanSummary), ltr, found.Count);
+                Log(string.Format(LocalizationService.T(Str.Log_StickScanFound), ltr, found.Count));
+                if (found.Count > 0) foreach (var iso in found) Log(string.Format(LocalizationService.T(Str.Log_StickIsoListItem), iso.Filename, iso.Category, (iso.Size/1_073_741_824.0).ToString("F2")));
                 OnPropertyChanged(nameof(DriveInfoText));
                 // Manueller Scan hat keinen Versionscheck-Kontext → leeres oldFn (keine Veraltet-/Duplikat-Trennung).
                 ProcessStickScanResults(found, incomplete, new Dictionary<string, int>(), ltr);
@@ -542,8 +542,8 @@ namespace ULM.ViewModels
 
             if (incomplete.Count > 0)
             {
-                Log($"⚠ Stick-Prüfung {drive}: {incomplete.Count} unvollständige ISO(s) erkannt (Online-Größenprüfung).");
-                foreach (var s in incomplete) Log($"   ⚠ {s.Filename}  ({FormatGb(s.Size)}) — vermutlich Datenmüll.");
+                Log(string.Format(LocalizationService.T(Str.Log_StickIncompleteFound), drive, incomplete.Count));
+                foreach (var s in incomplete) Log(string.Format(LocalizationService.T(Str.Log_StickJunkSuspected), s.Filename, FormatGb(s.Size)));
                 IncompleteIsosOnStickDetected?.Invoke(incomplete, drive);
             }
 
@@ -555,8 +555,8 @@ namespace ULM.ViewModels
                 {
                     RefreshAllEntries();
                     if (mismatches.Count == 0) return;
-                    Log($"⚠ Stick-Prüfung {drive}: {mismatches.Count} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.");
-                    foreach (var m in mismatches) Log($"   ⚠ {m.Filename} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.");
+                    Log(string.Format(LocalizationService.T(Str.Log_StickHashMismatchFound), drive, mismatches.Count));
+                    foreach (var m in mismatches) Log(string.Format(LocalizationService.T(Str.Log_StickHashMismatchItem), m.Filename));
                     IncompleteIsosOnStickDetected?.Invoke(mismatches, drive);
                 });
             });
@@ -567,8 +567,8 @@ namespace ULM.ViewModels
             var (od, duplicates) = DistroMatcher.SplitOutdatedFromDuplicates(oldFn, _db.Entries, stickFn);
             if (od.Count > 0)
             {
-                Log($"💾 {od.Count} veraltete ISO(s) auf {drive}.");
-                foreach (var (e, _) in od) Log($"   🆕 {e.Name}: v{e.RemoteVersion}");
+                Log(string.Format(LocalizationService.T(Str.Log_StickOutdatedCount), od.Count, drive));
+                foreach (var (e, _) in od) Log(string.Format(LocalizationService.T(Str.Log_StickOutdatedItem), e.Name, e.RemoteVersion));
                 StickUpdateAvailable?.Invoke(od, drive);
             }
 
@@ -606,12 +606,12 @@ namespace ULM.ViewModels
             var allDuplicates = duplicates.Concat(staleKnownDuplicates).ToList();
             if (allDuplicates.Count > 0)
             {
-                Log($"🗑 {allDuplicates.Count} veraltete Duplikat-ISO(s) auf {drive} (aktuelle Version bereits vorhanden).");
-                foreach (var (e, oldFilename) in allDuplicates) Log($"   🗑 {e.Name}: {oldFilename}");
+                Log(string.Format(LocalizationService.T(Str.Log_StickDuplicatesFound), allDuplicates.Count, drive));
+                foreach (var (e, oldFilename) in allDuplicates) Log(string.Format(LocalizationService.T(Str.Log_StickDuplicateItem), e.Name, oldFilename));
                 StaleDuplicatesOnStickDetected?.Invoke(allDuplicates, drive);
             }
             if (od.Count == 0 && allDuplicates.Count == 0 && found.Count > 0)
-                Log($"✅ Alle ISOs auf {drive} aktuell.");
+                Log(string.Format(LocalizationService.T(Str.Log_StickAllCurrent), drive));
 
             var allNewer = newerOnStick.Concat(additionalNewer).ToList();
             if (allNewer.Count > 0) NewerVersionsOnStickDetected?.Invoke(allNewer, drive);

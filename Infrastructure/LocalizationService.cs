@@ -639,6 +639,23 @@ namespace ULM.Infrastructure
             [Str.Log_NameUpdated]          = "   ✏ {0} → {1}",
             [Str.Log_FilenameReplaced]     = "   ↔ {0}: {1} → {2}",
             [Str.Log_EntryAddedSimple]     = "   + {0}  ({1})",
+
+            // ── Log-Meldungen: USB-Stick-Scan ────────────────────────────────
+            [Str.Log_DrivesDetected]         = "🔌 Laufwerke: {0}",
+            [Str.Log_ScanningStick]          = "Scanne {0}...",
+            [Str.Log_StickScanStarted]       = "💾 Stick-Scan: {0}",
+            [Str.Log_StickScanSummary]       = "✓ Stick-Scan {0}: {1} ISO(s).",
+            [Str.Log_StickScanFound]         = "💾 Stick-Scan {0}: {1} ISO(s) gefunden.",
+            [Str.Log_StickIsoListItem]       = "   • {0}  [{1}]  {2} GB",
+            [Str.Log_StickIncompleteFound]   = "⚠ Stick-Prüfung {0}: {1} unvollständige ISO(s) erkannt (Online-Größenprüfung).",
+            [Str.Log_StickJunkSuspected]     = "   ⚠ {0}  ({1}) — vermutlich Datenmüll.",
+            [Str.Log_StickHashMismatchFound] = "⚠ Stick-Prüfung {0}: {1} ISO(s) mit versionslosem Namen weichen vom bekannten Referenz-Hash ab.",
+            [Str.Log_StickHashMismatchItem]  = "   ⚠ {0} — Hash-Abweichung, vermutlich beschädigt oder ersetzt.",
+            [Str.Log_StickOutdatedCount]     = "💾 {0} veraltete ISO(s) auf {1}.",
+            [Str.Log_StickOutdatedItem]      = "   🆕 {0}: v{1}",
+            [Str.Log_StickDuplicatesFound]   = "🗑 {0} veraltete Duplikat-ISO(s) auf {1} (aktuelle Version bereits vorhanden).",
+            [Str.Log_StickDuplicateItem]     = "   🗑 {0}: {1}",
+            [Str.Log_StickAllCurrent]        = "✅ Alle ISOs auf {0} aktuell.",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1234,6 +1251,23 @@ namespace ULM.Infrastructure
             [Str.Log_NameUpdated]          = "   ✏ {0} → {1}",
             [Str.Log_FilenameReplaced]     = "   ↔ {0}: {1} → {2}",
             [Str.Log_EntryAddedSimple]     = "   + {0}  ({1})",
+
+            // ── Log messages: USB stick scan ──────────────────────────────────
+            [Str.Log_DrivesDetected]         = "🔌 Drives: {0}",
+            [Str.Log_ScanningStick]          = "Scanning {0}...",
+            [Str.Log_StickScanStarted]       = "💾 Stick scan: {0}",
+            [Str.Log_StickScanSummary]       = "✓ Stick scan {0}: {1} ISO(s).",
+            [Str.Log_StickScanFound]         = "💾 Stick scan {0}: {1} ISO(s) found.",
+            [Str.Log_StickIsoListItem]       = "   • {0}  [{1}]  {2} GB",
+            [Str.Log_StickIncompleteFound]   = "⚠ Stick check {0}: {1} incomplete ISO(s) detected (online size check).",
+            [Str.Log_StickJunkSuspected]     = "   ⚠ {0}  ({1}) — likely junk file.",
+            [Str.Log_StickHashMismatchFound] = "⚠ Stick check {0}: {1} ISO(s) with a versionless name differ from the known reference hash.",
+            [Str.Log_StickHashMismatchItem]  = "   ⚠ {0} — hash mismatch, likely corrupted or replaced.",
+            [Str.Log_StickOutdatedCount]     = "💾 {0} outdated ISO(s) on {1}.",
+            [Str.Log_StickOutdatedItem]      = "   🆕 {0}: v{1}",
+            [Str.Log_StickDuplicatesFound]   = "🗑 {0} outdated duplicate ISO(s) on {1} (current version already present).",
+            [Str.Log_StickDuplicateItem]     = "   🗑 {0}: {1}",
+            [Str.Log_StickAllCurrent]        = "✅ All ISOs on {0} up to date.",
         };
     }
 }
