@@ -12,7 +12,7 @@
 
 - Keine `string.Format`-Fälle — alle 171 Texte sind vollständig statisch (auch scheinbare Platzhalter wie „vX.Y.Z" sind wörtlicher Dokumentations-Text, keine echten Interpolationen).
 - Terminologie-Glossar für konsistente Übersetzung (bereits in der Spec festgelegt und in allen Übersetzungen unten angewendet): Arbeitsordner→working folder, Stick→stick, Datenmüll(-Schutz)→junk file (protection), Prüfsumme→checksum, Referenzhash→reference hash, Sprungmarken→Quick Links, Übersicht→Overview, Bedienung→Usage, Gesundheitscheck→Health Check, Datenbank→database, Versionscheck→version check, Hintergrund-Scan→background scan, Protokoll→log.
-- Der bekannte Content-Bug (HelpDialog beschreibt die alten „Modus: Anwender/Experte"- und „Design: …"-Buttons, die es nach der Einstellungen-Konsolidierung nicht mehr gibt) wird UNVERÄNDERT mitübersetzt — die inhaltliche Korrektur ist eine separate, bereits ausgelagerte Aufgabe, nicht Teil dieses Plans.
+- **Nachtrag (2026-07-24, während Task 5):** Der ursprünglich hier vermerkte Content-Bug (alte „Modus: Anwender/Experte"- und „Design: …"-Buttons) wurde durch die separat ausgelagerte Aufgabe (Commit `8c95d9a`) bereits VOR Task 5 direkt in `HelpDialog.cs` behoben — der deutsche Quelltext beschreibt jetzt den neuen `⚙ Einstellungen`-Button. Da Task 2 (Commit `7b9dbc9`) bereits vor diesem externen Fix übersetzt hatte, enthielten `Help_Item_ThemeSetting_Body` und `Help_ExpertMode_Intro` (De+En) zunächst noch die überholte Beschreibung — per Korrektur-Commit `c1db795` behoben. Alle „before"-Blöcke unten (Task 2, Task 5, Task 8) wurden entsprechend aktualisiert, damit sie den tatsächlichen Stand widerspiegeln.
 - Kein Unit-Test-Harness für WPF-Dialoge in diesem Projekt — Verifikation über Build-Erfolg + volle Testsuite + manuelle Verifikation in der letzten Task.
 
 ---
@@ -360,7 +360,7 @@ ersetzen durch:
             [Str.Help_Sec_Theme_Nav]   = "Design",
             [Str.Help_Theme_Intro]     = "ULM hat ein helles und ein dunkles Erscheinungsbild. Beide sind vollständig durchgestylt (Listen, Dialoge, Eingabefelder) und für gute Lesbarkeit geprüft.",
             [Str.Help_Item_ThemeSetting_Label] = "Einstellen",
-            [Str.Help_Item_ThemeSetting_Body] = "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf '🌓 Design: …' oben rechts im Hauptfenster (neben 'Modus: Anwender/Experte'). Ein Klick wechselt der Reihe nach zwischen System → Hell → Dunkel.",
+            [Str.Help_Item_ThemeSetting_Body] = "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf '⚙ Einstellungen' oben rechts im Hauptfenster — dort in der Karte 'Design' zwischen System/Hell/Dunkel wählen und mit '✔ Übernehmen' bestätigen.",
             [Str.Help_Item_ThemeSystem_Label] = "System",
             [Str.Help_Item_ThemeSystem_Body] = "Übernimmt automatisch die aktuelle Windows-Design-Einstellung (Hell oder Dunkel). Ändert sich das Windows-Design während ULM läuft, zieht ULM automatisch nach — ohne Neustart.",
             [Str.Help_Item_ThemeInstant_Label] = "Sofortige Umschaltung",
@@ -539,7 +539,7 @@ ersetzen durch:
 
             [Str.Help_Sec_ExpertMode_Title] = "🛠 Expert-Modus — Zusatzfunktionen",
             [Str.Help_Sec_ExpertMode_Nav]   = "Expert-Modus",
-            [Str.Help_ExpertMode_Intro]     = "Expert-Modus aktivieren: oben rechts 'Modus: Anwender' → klicken.",
+            [Str.Help_ExpertMode_Intro]     = "Expert-Modus aktivieren: oben rechts auf '⚙ Einstellungen' klicken, in der Karte 'Modus' die Checkbox 'Experten-Modus aktivieren' setzen und mit '✔ Übernehmen' bestätigen.",
             [Str.Help_Item_StatusTab_Label] = "📊 Status-Reiter",
             [Str.Help_Item_StatusTab_Body] =
                 "Zeigt Transparenz über alles, was gerade oder demnächst automatisch im Hintergrund " +
@@ -745,7 +745,7 @@ ersetzen durch:
             [Str.Help_Sec_Theme_Nav]   = "Theme",
             [Str.Help_Theme_Intro]     = "ULM has a light and a dark appearance. Both are fully styled (lists, dialogs, input fields) and checked for good readability.",
             [Str.Help_Item_ThemeSetting_Label] = "Setting It",
-            [Str.Help_Item_ThemeSetting_Body] = "Selectable during initial setup in the setup dialog, or at any time via the '🌓 Theme: …' button in the top right of the main window (next to 'Mode: User/Expert'). A click cycles through System → Light → Dark.",
+            [Str.Help_Item_ThemeSetting_Body] = "Selectable during initial setup in the setup dialog, or at any time via the '⚙ Settings' button in the top right of the main window — choose between System/Light/Dark in the 'Theme' card there and confirm with '✔ Apply'.",
             [Str.Help_Item_ThemeSystem_Label] = "System",
             [Str.Help_Item_ThemeSystem_Body] = "Automatically follows the current Windows theme setting (light or dark). If the Windows theme changes while ULM is running, ULM follows automatically — no restart needed.",
             [Str.Help_Item_ThemeInstant_Label] = "Instant Switching",
@@ -924,7 +924,7 @@ ersetzen durch:
 
             [Str.Help_Sec_ExpertMode_Title] = "🛠 Expert Mode — Additional Features",
             [Str.Help_Sec_ExpertMode_Nav]   = "Expert Mode",
-            [Str.Help_ExpertMode_Intro]     = "Enable expert mode: click 'Mode: User' in the top right.",
+            [Str.Help_ExpertMode_Intro]     = "Enable expert mode: click '⚙ Settings' in the top right, check the 'Enable expert mode' box in the 'Mode' card, and confirm with '✔ Apply'.",
             [Str.Help_Item_StatusTab_Label] = "📊 Status Tab",
             [Str.Help_Item_StatusTab_Body] =
                 "Provides transparency about everything currently or soon running automatically in the " +
@@ -1332,8 +1332,8 @@ git commit -m "feat: HelpDialog Bedienung sowie Farben und Symbole lokalisiert"
                 "durchgestylt (Listen, Dialoge, Eingabefelder) und für gute Lesbarkeit geprüft."));
             content.Children.Add(MakeItem("Einstellen",
                 "Beim Ersteinrichten im Setup-Dialog wählbar, oder jederzeit über den Knopf " +
-                "'🌓 Design: …' oben rechts im Hauptfenster (neben 'Modus: Anwender/Experte'). " +
-                "Ein Klick wechselt der Reihe nach zwischen System → Hell → Dunkel."));
+                "'⚙ Einstellungen' oben rechts im Hauptfenster — dort in der Karte 'Design' " +
+                "zwischen System/Hell/Dunkel wählen und mit '✔ Übernehmen' bestätigen."));
             content.Children.Add(MakeItem("System",
                 "Übernimmt automatisch die aktuelle Windows-Design-Einstellung (Hell oder Dunkel). " +
                 "Ändert sich das Windows-Design während ULM läuft, zieht ULM automatisch nach — " +
@@ -1734,7 +1734,9 @@ ersetzen durch:
 
 ```csharp
             AddSection("🛠 Expert-Modus — Zusatzfunktionen", "Expert-Modus");
-            content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts 'Modus: Anwender' → klicken."));
+            content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts auf '⚙ Einstellungen' klicken, " +
+                "in der Karte 'Modus' die Checkbox 'Experten-Modus aktivieren' setzen und mit " +
+                "'✔ Übernehmen' bestätigen."));
             content.Children.Add(MakeItem("📊 Status-Reiter",
                 "Zeigt Transparenz über alles, was gerade oder demnächst automatisch im Hintergrund " +
                 "läuft, ohne dass ein Blick in den Task-Manager nötig ist: den aktuell laufenden " +
