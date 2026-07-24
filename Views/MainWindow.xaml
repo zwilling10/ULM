@@ -486,7 +486,7 @@
                         <StackPanel Margin="0,0,0,12">
                             <TextBlock FontSize="12">
                                 <Run x:Name="RunLabelOnlineCheck"/>
-                                <Run Text="{Binding OnlineCheckStatusText}" Foreground="{DynamicResource BrushBlue}"/>
+                                <Run Text="{Binding OnlineCheckStatusText, Mode=OneWay}" Foreground="{DynamicResource BrushBlue}"/>
                                 <Run Text=" ("/><Run Text="{Binding OnlineScanPercent, Mode=OneWay}"/><Run Text="%)"/>
                             </TextBlock>
                             <TextBlock FontSize="12" Margin="16,0,0,6">
@@ -495,7 +495,7 @@
                             </TextBlock>
                             <TextBlock FontSize="12">
                                 <Run x:Name="RunLabelUsbCheck"/>
-                                <Run Text="{Binding UsbCheckStatusText}" Foreground="{DynamicResource BrushBlue}"/>
+                                <Run Text="{Binding UsbCheckStatusText, Mode=OneWay}" Foreground="{DynamicResource BrushBlue}"/>
                                 <Run Text=" ("/><Run Text="{Binding UsbScanPercent, Mode=OneWay}"/><Run Text="%)"/>
                             </TextBlock>
                             <TextBlock FontSize="12" Margin="16,0,0,0">
