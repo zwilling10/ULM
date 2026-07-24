@@ -446,7 +446,7 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Background="{DynamicResource BrushWhite}">
                     <StackPanel Margin="12">
 
-                        <TextBlock Text="Aktueller Vorgang" FontWeight="Bold" FontSize="13"
+                        <TextBlock x:Name="TxtStatusCurrentOperation" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
                         <TextBlock Margin="0,0,0,12" FontSize="12" Text="Kein Vorgang aktiv.">
                             <TextBlock.Style>
@@ -479,19 +479,19 @@
                             <!-- Bis zu 6 Zeilen — welche davon Inhalt haben, hängt vom Vorgangstyp ab
                                  (z.B. liefert eine Ventoy-Installation keine Datei-/Zähler-Info, siehe
                                  CurrentOperationItem/-Detail/-Counter-Reset in SetBusy). -->
-                            <TextBlock FontSize="12"><Run Text="Vorgang: "/><Run Text="{Binding StatusText, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
-                            <TextBlock FontSize="12"><Run Text="Datei: "/><Run Text="{Binding CurrentOperationItem, Mode=OneWay}"/></TextBlock>
-                            <TextBlock FontSize="12"><Run Text="Fortschritt: "/><Run Text="{Binding ProgressPercent, Mode=OneWay}"/><Run Text="%"/></TextBlock>
-                            <TextBlock FontSize="12"><Run Text="Detail: "/><Run Text="{Binding CurrentOperationDetail, Mode=OneWay}"/></TextBlock>
-                            <TextBlock FontSize="12"><Run Text="Zähler: "/><Run Text="{Binding CurrentOperationCounter, Mode=OneWay}"/></TextBlock>
-                            <TextBlock FontSize="12"><Run Text="Ziel-Laufwerk: "/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelOperation"/><Run Text="{Binding StatusText, Mode=OneWay}" FontWeight="SemiBold"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelFile"/><Run Text="{Binding CurrentOperationItem, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelProgress"/><Run Text="{Binding ProgressPercent, Mode=OneWay}"/><Run Text="%"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelDetail"/><Run Text="{Binding CurrentOperationDetail, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelCounter"/><Run Text="{Binding CurrentOperationCounter, Mode=OneWay}"/></TextBlock>
+                            <TextBlock FontSize="12"><Run x:Name="RunLabelTargetDrive"/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/></TextBlock>
                         </StackPanel>
 
-                        <TextBlock Text="Automatische Hintergrund-Scans" FontWeight="Bold" FontSize="13"
+                        <TextBlock x:Name="TxtStatusSectionBackgroundScans" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
                         <StackPanel Margin="0,0,0,12">
                             <TextBlock FontSize="12">
-                                <Run Text="🌐 Online-Versionscheck: "/>
+                                <Run x:Name="RunLabelOnlineCheck"/>
                                 <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
                                     <Run.Style>
                                         <Style TargetType="Run">
@@ -506,11 +506,11 @@
                                 <Run Text=" ("/><Run Text="{Binding OnlineScanPercent, Mode=OneWay}"/><Run Text="%)"/>
                             </TextBlock>
                             <TextBlock FontSize="12" Margin="16,0,0,6">
-                                <Run Text="↳ zuletzt geprüft: "/><Run Text="{Binding OnlineScanCurrentItem, Mode=OneWay}"/>
-                                <Run Text="  (abgeschlossen: "/><Run Text="{Binding LastAutoCheckText, Mode=OneWay}"/><Run Text=")"/>
+                                <Run x:Name="RunLabelLastChecked"/><Run Text="{Binding OnlineScanCurrentItem, Mode=OneWay}"/>
+                                <Run x:Name="RunLabelCompletedPrefix"/><Run Text="{Binding LastAutoCheckText, Mode=OneWay}"/><Run Text=")"/>
                             </TextBlock>
                             <TextBlock FontSize="12">
-                                <Run Text="💾 Stick-Prüfung: "/>
+                                <Run x:Name="RunLabelUsbCheck"/>
                                 <Run Text="läuft …" Foreground="{DynamicResource BrushBlue}">
                                     <Run.Style>
                                         <Style TargetType="Run">
@@ -525,27 +525,26 @@
                                 <Run Text=" ("/><Run Text="{Binding UsbScanPercent, Mode=OneWay}"/><Run Text="%)"/>
                             </TextBlock>
                             <TextBlock FontSize="12" Margin="16,0,0,0">
-                                <Run Text="↳ Laufwerk: "/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/>
+                                <Run x:Name="RunLabelDrive"/><Run Text="{Binding SelectedDriveLetter, Mode=OneWay}"/>
                             </TextBlock>
                         </StackPanel>
 
-                        <TextBlock Text="Geplante automatische Aktionen" FontWeight="Bold" FontSize="13"
+                        <TextBlock x:Name="TxtStatusSectionScheduled" FontWeight="Bold" FontSize="13"
                                    Foreground="{DynamicResource BrushMid}" Margin="0,0,0,4"/>
                         <TextBlock Margin="0,0,0,2" FontSize="12">
-                            <Run Text="🌐 Nächster automatischer Online-Versionscheck: "/>
+                            <Run x:Name="RunLabelNextCheck"/>
                             <Run Text="{Binding NextAutoCheckText, Mode=OneWay}"/>
                         </TextBlock>
-                        <TextBlock Margin="0,0,0,12" FontSize="12" Foreground="{DynamicResource BrushMid}"
-                                   Text="🔌 Laufwerks-Überwachung: läuft laufend im Hintergrund (Prüfung alle 8 Sekunden)."/>
+                        <TextBlock x:Name="TxtStatusDriveMonitoring" Margin="0,0,0,12" FontSize="12" Foreground="{DynamicResource BrushMid}"/>
 
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="Verlauf" FontWeight="Bold" FontSize="13"
+                            <TextBlock x:Name="TxtStatusSectionHistory" Grid.Column="0" FontWeight="Bold" FontSize="13"
                                        Foreground="{DynamicResource BrushMid}" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Content="Verlauf leeren" Style="{DynamicResource BtnGhost}"
+                            <Button x:Name="BtnClearHistory" Grid.Column="1" Style="{DynamicResource BtnGhost}"
                                     Click="BtnClearHistory_Click"/>
                         </Grid>
                         <ItemsControl ItemsSource="{Binding ActivityHistory}">

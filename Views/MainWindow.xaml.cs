@@ -401,6 +401,25 @@ namespace ULM.Views
             TxtColHeaderOnStick.Text  = LocalizationService.T(Str.Main_ColumnHeader_OnStick);
             TxtColHeaderCurrent.Text  = LocalizationService.T(Str.Main_ColumnHeader_Current);
             BtnClearLog.Content     = LocalizationService.T(Str.Main_Btn_ClearLog);
+
+            TxtStatusCurrentOperation.Text       = LocalizationService.T(Str.Main_Status_CurrentOperation);
+            RunLabelOperation.Text               = LocalizationService.T(Str.Main_Status_LabelOperation);
+            RunLabelFile.Text                    = LocalizationService.T(Str.Main_Status_LabelFile);
+            RunLabelProgress.Text                = LocalizationService.T(Str.Main_Status_LabelProgress);
+            RunLabelDetail.Text                  = LocalizationService.T(Str.Main_Status_LabelDetail);
+            RunLabelCounter.Text                 = LocalizationService.T(Str.Main_Status_LabelCounter);
+            RunLabelTargetDrive.Text             = LocalizationService.T(Str.Main_Status_LabelTargetDrive);
+            TxtStatusSectionBackgroundScans.Text = LocalizationService.T(Str.Main_Status_SectionBackgroundScans);
+            RunLabelOnlineCheck.Text             = LocalizationService.T(Str.Main_Status_LabelOnlineCheck);
+            RunLabelLastChecked.Text             = LocalizationService.T(Str.Main_Status_LabelLastChecked);
+            RunLabelCompletedPrefix.Text         = LocalizationService.T(Str.Main_Status_LabelCompletedPrefix);
+            RunLabelUsbCheck.Text                = LocalizationService.T(Str.Main_Status_LabelUsbCheck);
+            RunLabelDrive.Text                   = LocalizationService.T(Str.Main_Status_LabelDrive);
+            TxtStatusSectionScheduled.Text       = LocalizationService.T(Str.Main_Status_SectionScheduled);
+            RunLabelNextCheck.Text               = LocalizationService.T(Str.Main_Status_LabelNextCheck);
+            TxtStatusDriveMonitoring.Text        = LocalizationService.T(Str.Main_Status_DriveMonitoring);
+            TxtStatusSectionHistory.Text         = LocalizationService.T(Str.Main_Status_SectionHistory);
+            BtnClearHistory.Content              = LocalizationService.T(Str.Main_Btn_ClearHistory);
         }
 
         // ── Einstellungen (Design/Sprache/Modus) ─────────────────────────────
