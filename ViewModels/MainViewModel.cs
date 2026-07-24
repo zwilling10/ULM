@@ -685,8 +685,8 @@ namespace ULM.ViewModels
         public async Task VerifyStickIntegrityAsync()
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
-            SetBusy(true); StatusText = "🔒 Prüfe Integrität …";
-            RecordHistory($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …"); Log($"🔒 Integritätsprüfung {SelectedDriveLetter} gestartet …");
+            SetBusy(true); StatusText = LocalizationService.T(Str.Log_CheckingIntegrity);
+            { string msg = string.Format(LocalizationService.T(Str.Log_IntegrityCheckStarted), SelectedDriveLetter); RecordHistory(msg); Log(msg); }
             // BUGFIX: bislang kein CancellationToken verdrahtet — "Abbrechen" loggte "⛔ Abbruch.",
             // hatte aber keine Wirkung auf diese Schleife, da _activeWorker hier nie gesetzt wurde
             // und OnCancel() nur DownloadWorker/CopyToUsbWorker/UrlCheckWorker/UpdateScanWorker kennt.
@@ -719,7 +719,7 @@ namespace ULM.ViewModels
                     _ui.Invoke(() =>
                     {
                         CurrentOperationItem = e.Name;
-                        CurrentOperationCounter = $"{checkedCount} von {totalToCheck} geprüft";
+                        CurrentOperationCounter = string.Format(LocalizationService.T(Str.Log_CheckedOfTotal), checkedCount, totalToCheck);
                         ProgressPercent = totalToCheck > 0 ? (checkedCount * 100) / totalToCheck : 0;
                     });
                     string actual = await IsoEntry.ComputeSha256Async(stick.FullPath, ct).ConfigureAwait(false);
@@ -732,14 +732,18 @@ namespace ULM.ViewModels
                 {
                     if (ct.IsCancellationRequested)
                     {
-                        StatusText = "Abbruch …";
-                        RecordHistory($"⛔ Integritätsprüfung {SelectedDriveLetter} abgebrochen ({checkedCount} geprüft).");
-                        Log($"⛔ Integritätsprüfung {SelectedDriveLetter} abgebrochen ({checkedCount} geprüft).");
+                        StatusText = LocalizationService.T(Str.Log_CancellingStatus);
+                        string cancelMsg = string.Format(LocalizationService.T(Str.Log_IntegrityCheckCancelled), SelectedDriveLetter, checkedCount);
+                        RecordHistory(cancelMsg);
+                        Log(cancelMsg);
                         return;
                     }
-                    StatusText = mismatches.Count > 0 ? $"⚠ {mismatches.Count} Hash-Abweichung(en)." : $"✅ {checkedCount} ISO(s) verifiziert.";
-                    RecordHistory($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
-                    Log($"🔒 Integritätsprüfung {SelectedDriveLetter}: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
+                    StatusText = mismatches.Count > 0
+                        ? string.Format(LocalizationService.T(Str.Log_HashMismatchesStatus), mismatches.Count)
+                        : string.Format(LocalizationService.T(Str.Log_IsosVerifiedStatus), checkedCount);
+                    string doneMsg = string.Format(LocalizationService.T(Str.Log_IntegrityCheckDone), SelectedDriveLetter, checkedCount, mismatches.Count);
+                    RecordHistory(doneMsg);
+                    Log(doneMsg);
                     RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
                     QuickCheckSucceeded?.Invoke($"Integritätsprüfung {SelectedDriveLetter} abgeschlossen: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
                     if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
@@ -747,7 +751,7 @@ namespace ULM.ViewModels
             }
             catch (Exception ex)
             {
-                _ui.Invoke(() => { Log($"❌ Integritätsprüfung fehlgeschlagen: {ex.Message}"); StatusText = "Fehler."; });
+                _ui.Invoke(() => { Log(string.Format(LocalizationService.T(Str.Log_IntegrityCheckFailed), ex.Message)); StatusText = LocalizationService.T(Str.Log_ErrorStatus); });
             }
             finally
             {
@@ -759,24 +763,24 @@ namespace ULM.ViewModels
 
         public void TriggerVentoyMenuUpdate(string drive)
         {
-            Log($"📋 Ventoy-Bootmenü auf {drive} wird aktualisiert …");
+            Log(string.Format(LocalizationService.T(Str.Log_VentoyMenuUpdating), drive));
             string cap = drive; var entries = _db.Entries.ToList();
-            _ = Task.Run(() => { UsbService.UpdateVentoyMenu(cap, entries); _ui.Invoke(() => Log($"✅ Ventoy-Bootmenü aktualisiert ({entries.Count} Einträge).")); });
+            _ = Task.Run(() => { UsbService.UpdateVentoyMenu(cap, entries); _ui.Invoke(() => Log(string.Format(LocalizationService.T(Str.Log_VentoyMenuUpdated), entries.Count))); });
         }
 
         public void TriggerAutoVersionCheck()
         {
-            RecordHistory($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …"); Log($"🌐 Online-Versionscheck gestartet — {_db.Count} Distros …");
-            StatusText = "🌐 Online-Versionscheck läuft …"; OnlineScanActive = true; OnlineScanPercent = 0; OnlineScanCurrentItem = "—";
+            { string msg = string.Format(LocalizationService.T(Str.Log_VersionCheckStarted), _db.Count); RecordHistory(msg); Log(msg); }
+            StatusText = LocalizationService.T(Str.Log_VersionCheckRunningStatus); OnlineScanActive = true; OnlineScanPercent = 0; OnlineScanCurrentItem = "—";
             var worker = new AutoVersionCheckWorker(_db.Entries);
             worker.Progress += (c, t) => _ui.Invoke(() => OnlineScanPercent = t > 0 ? (c * 100) / t : 0);
             worker.EntryChecked += result => _ui.Invoke(() =>
             {
                 OnlineScanCurrentItem = result.Name;
-                if (!result.Resolved) { Log($"   ⚠ {result.Name}: nicht erreichbar."); return; }
+                if (!result.Resolved) { Log(string.Format(LocalizationService.T(Str.Log_EntryUnreachable), result.Name)); return; }
                 Log(result.HasUpdate
-                    ? $"   🆕 {result.Name}: v{result.LocalVersion} → v{result.RemoteVersion}"
-                    : $"   ✓ {result.Name}: v{result.RemoteVersion} (aktuell)");
+                    ? string.Format(LocalizationService.T(Str.Log_UpdateFound), result.Name, result.LocalVersion, result.RemoteVersion)
+                    : string.Format(LocalizationService.T(Str.Log_VersionCurrent), result.Name, result.RemoteVersion));
                 int idx = _db.Entries.ToList().FindIndex(e => e.Name == result.Name);
                 if (idx >= 0) RefreshEntry(idx);
             });
@@ -794,9 +798,10 @@ namespace ULM.ViewModels
                 // von _startupPhase — liefert so immer den tatsächlich aktuellen Stick, egal ob er
                 // schon vor dem Check da war oder während des Checks erst eingesteckt wurde).
                 _startupPhase = false;
-                StatusText = updates.Count > 0 ? $"🆕 {updates.Count} aktualisiert."
-                           : resolved > 0      ? $"✅ Alle {resolved} aktuell." : "⚠ Nicht erreichbar.";
-                RecordHistory($"🌐 Versionscheck: {StatusText}"); Log($"🌐 Versionscheck: {StatusText}"); AutoVersionCheckCompleted?.Invoke();
+                StatusText = updates.Count > 0 ? string.Format(LocalizationService.T(Str.Log_UpdatesAppliedStatus), updates.Count)
+                           : resolved > 0      ? string.Format(LocalizationService.T(Str.Log_AllCurrentStatus), resolved) : LocalizationService.T(Str.Log_UnreachableStatus);
+                { string msg = string.Format(LocalizationService.T(Str.Log_VersionCheckSummary), StatusText); RecordHistory(msg); Log(msg); }
+                AutoVersionCheckCompleted?.Invoke();
             });
             _ = worker.RunAsync();
         }
@@ -843,15 +848,15 @@ namespace ULM.ViewModels
                 if (!string.IsNullOrEmpty(oldVer) && !string.IsNullOrEmpty(newVer) && oldVer != newVer)
                 {
                     int pos = e.Name.IndexOf(oldVer, StringComparison.Ordinal);
-                    if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log($"   ✏ {on} → {e.Name}"); }
+                    if (pos >= 0) { string on = e.Name; e.Name = e.Name[..pos] + newVer + e.Name[(pos + oldVer.Length)..]; Log(string.Format(LocalizationService.T(Str.Log_NameUpdated), on, e.Name)); }
                 }
             }
             // BUGFIX: auch speichern, wenn KEIN Versions-Update vorliegt, aber für einen
             // zuvor URL-losen Eintrag (Import/manuell hinzugefügt) gerade erstmals eine
             // Quelle gefunden wurde — sonst geht die im Speicher gefundene URL beim nächsten
             // Start wieder verloren und die aufwändige Auflösung muss komplett neu laufen.
-            if (updates.Count > 0) { _db.Save(); Log($"💾 Datenbank: {updates.Count} neue Version(en) gespeichert."); }
-            else if (anyUrlDiscovered) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
+            if (updates.Count > 0) { _db.Save(); Log(string.Format(LocalizationService.T(Str.Log_DbNewVersionsSaved), updates.Count)); }
+            else if (anyUrlDiscovered) { _db.Save(); Log(LocalizationService.T(Str.Log_DbNewSourcesSaved)); }
             // Nach dem In-place-Update können mehrere Einträge (z.B. zwei importierte
             // KDE-neon-Varianten) auf dieselbe aktuelle ISO kollabiert und damit zu identischen
             // Duplikaten geworden sein — sofort bereinigen, ohne Neustart abzuwarten.
@@ -862,12 +867,12 @@ namespace ULM.ViewModels
             if (string.IsNullOrEmpty(driveToScan)) return;
             _ = Task.Run(async () =>
             {
-                _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log($"💾 Prüfe Stick {driveToScan} …"); });
+                _ui.Invoke(() => { UsbScanActive = true; UsbScanPercent = 0; Log(string.Format(LocalizationService.T(Str.Log_CheckingStick), driveToScan)); });
                 var (si, incomplete) = await _usb.ScanStickVerifiedAsync(driveToScan, _db.Entries).ConfigureAwait(false);
                 _ui.Invoke(() =>
                 {
                     UsbScanActive = false; UsbScanPercent = 100;
-                    RecordHistory($"💾 Stick-Prüfung {driveToScan} abgeschlossen ({si.Count} ISO(s) erkannt).");
+                    RecordHistory(string.Format(LocalizationService.T(Str.Log_StickCheckDone), driveToScan, si.Count));
                     // Versionscheck-Kontext vorhanden → oldFn aus den Update-Ergebnissen (oben berechnet).
                     ProcessStickScanResults(si, incomplete, oldFn, driveToScan);
                 });

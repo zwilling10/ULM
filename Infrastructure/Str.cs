@@ -353,5 +353,14 @@ namespace ULM.Infrastructure
         Log_StickScanFound, Log_StickIsoListItem, Log_StickIncompleteFound, Log_StickJunkSuspected,
         Log_StickHashMismatchFound, Log_StickHashMismatchItem, Log_StickOutdatedCount,
         Log_StickOutdatedItem, Log_StickDuplicatesFound, Log_StickDuplicateItem, Log_StickAllCurrent,
+
+        // ── Log-Meldungen: Integritaetspruefung + Ventoy-Bootmenue + Versionscheck ──
+        Log_CheckingIntegrity, Log_IntegrityCheckStarted, Log_CheckedOfTotal, Log_CancellingStatus,
+        Log_IntegrityCheckCancelled, Log_HashMismatchesStatus, Log_IsosVerifiedStatus,
+        Log_IntegrityCheckDone, Log_IntegrityCheckFailed, Log_ErrorStatus, Log_VentoyMenuUpdating,
+        Log_VentoyMenuUpdated, Log_VersionCheckStarted, Log_VersionCheckRunningStatus,
+        Log_EntryUnreachable, Log_UpdateFound, Log_VersionCurrent, Log_UpdatesAppliedStatus,
+        Log_AllCurrentStatus, Log_UnreachableStatus, Log_VersionCheckSummary,
+        Log_DbNewVersionsSaved, Log_DbNewSourcesSaved, Log_CheckingStick, Log_StickCheckDone,
     }
 }
