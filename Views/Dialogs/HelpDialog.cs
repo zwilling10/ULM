@@ -118,104 +118,45 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── Hauptliste ─────────────────────────────────────────────────
-            AddSection("📋 Die Verteilungs-Liste — Bedienung", "Bedienung");
-            content.Children.Add(MakeItem("ISO zum Download auswählen",
-                "Checkbox links aktivieren → ISO wird zum Download vorgemerkt (blauer Hintergrund). " +
-                "Mehrere ISOs gleichzeitig auswählen ist möglich."));
-            content.Children.Add(MakeItem("Kategorie-Checkbox",
-                "Aktiviert oder deaktiviert alle Distros einer Kategorie auf einmal " +
-                "(z.B. alle 'Sicherheits'-Distros markieren)."));
-            content.Children.Add(MakeItem("Doppelklick auf Eintrag",
-                "Zeigt die Beschreibung der Distribution — Einsatzzweck, Besonderheiten, Zielgruppe."));
-            content.Children.Add(MakeItem("Mouseover (Tooltip)",
-                "Hält man die Maus über den Distro-Namen, erscheint ein Tooltip. " +
-                "Er erklärt alle sichtbaren Symbole (📥, 🌐✓/✗, 🆕) UND zeigt die Distro-Beschreibung."));
+            AddSection(LocalizationService.T(Str.Help_Sec_Usage_Title), LocalizationService.T(Str.Help_Sec_Usage_Nav));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SelectDownload_Label), LocalizationService.T(Str.Help_Item_SelectDownload_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_CategoryCheckbox_Label), LocalizationService.T(Str.Help_Item_CategoryCheckbox_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_DoubleClick_Label), LocalizationService.T(Str.Help_Item_DoubleClick_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_MouseoverTooltip_Label), LocalizationService.T(Str.Help_Item_MouseoverTooltip_Body)));
             content.Children.Add(Spacer());
 
             // ── Farben & Symbole ───────────────────────────────────────────
-            AddSection("🎨 Farben & Symbole im Hauptfenster", "Farben & Symbole");
+            AddSection(LocalizationService.T(Str.Help_Sec_Colors_Title), LocalizationService.T(Str.Help_Sec_Colors_Nav));
 
-            content.Children.Add(MakeSubhead("Textfarben der Listeneinträge"));
-            content.Children.Add(MakeColorItem(SwGreen,  "Grün",
-                "ISO ist auf dem USB-Stick vorhanden (aktuellste Version, online größengeprüft) — " +
-                "oder lokal vollständig heruntergeladen und bereit zum Kopieren."));
-            content.Children.Add(MakeColorItem(SwOrange, "Orange",
-                "Update verfügbar — online wurde eine neuere Version gefunden. " +
-                "Oder: veraltete Version auf dem Stick (neuere Version existiert)."));
-            content.Children.Add(MakeColorItem(SwRed, "Rot",
-                "URL nicht erreichbar — der Download-Server antwortet nicht. " +
-                "Erscheint nach einem URL-Check (Expert-Modus)."));
-            content.Children.Add(MakeColorItem(SwTeal, "Türkis",
-                "Vom USB-Stick importiert — dieser Eintrag wurde beim Stick-Scan " +
-                "entdeckt und als neuer Eintrag hinzugefügt."));
-            content.Children.Add(MakeColorItem(SwBlue, "Gedämpftes Blau",
-                "Online-Check bestätigt: diese Version ist aktuell. " +
-                "Kein Update nötig, ISO ist auf dem neuesten Stand."));
-            content.Children.Add(MakeColorItem(SwGray, "Hellgrau",
-                "Keine URL konfiguriert — für diesen Eintrag sind keine " +
-                "Download-URLs hinterlegt."));
-            content.Children.Add(MakeColorItem(SwDark, "Dunkel (Standard)",
-                "Normaler Zustand — noch kein Online-Versionscheck durchgeführt, " +
-                "ISO nicht lokal und nicht auf dem Stick."));
+            content.Children.Add(MakeSubhead(LocalizationService.T(Str.Help_Subhead_TextColors)));
+            content.Children.Add(MakeColorItem(SwGreen,  LocalizationService.T(Str.Help_Color_Green_Label),  LocalizationService.T(Str.Help_Color_Green_Body)));
+            content.Children.Add(MakeColorItem(SwOrange, LocalizationService.T(Str.Help_Color_Orange_Label), LocalizationService.T(Str.Help_Color_Orange_Body)));
+            content.Children.Add(MakeColorItem(SwRed,    LocalizationService.T(Str.Help_Color_Red_Label),    LocalizationService.T(Str.Help_Color_Red_Body)));
+            content.Children.Add(MakeColorItem(SwTeal,   LocalizationService.T(Str.Help_Color_Teal_Label),   LocalizationService.T(Str.Help_Color_Teal_Body)));
+            content.Children.Add(MakeColorItem(SwBlue,   LocalizationService.T(Str.Help_Color_Blue_Label),   LocalizationService.T(Str.Help_Color_Blue_Body)));
+            content.Children.Add(MakeColorItem(SwGray,   LocalizationService.T(Str.Help_Color_Gray_Label),   LocalizationService.T(Str.Help_Color_Gray_Body)));
+            content.Children.Add(MakeColorItem(SwDark,   LocalizationService.T(Str.Help_Color_Dark_Label),   LocalizationService.T(Str.Help_Color_Dark_Body)));
             content.Children.Add(Spacer(6));
 
-            content.Children.Add(MakeSubhead("Spalten in der Liste"));
-            content.Children.Add(MakeItem("Lokal",
-                "Zeigt ob die ISO im lokalen Arbeitsordner vorhanden ist:\n" +
-                "  'Lokal 3 565 MB' = heruntergeladen (mit Dateigröße)\n" +
-                "  'nicht lokal'    = noch nicht heruntergeladen"));
-            content.Children.Add(MakeItem("Auf dem Stick",
-                "Zeigt den Status auf dem erkannten Ventoy-Stick:\n" +
-                "  'Ja 3,56 GB'  = vorhanden, aktuelle Version, Online-Größe bestätigt\n" +
-                "  'Veraltet …'  = auf dem Stick, aber veraltete Version\n" +
-                "  'Nein'        = ISO fehlt auf dem Stick ODER wurde als unvollständig erkannt und entfernt\n" +
-                "  'Ungeprüft'   = Stick wurde noch nicht gescannt"));
-            content.Children.Add(MakeItem("Aktuell",
-                "Zeigt das Ergebnis des Online-Versionschecks:\n" +
-                "  'Update vX.Y.Z'     = neuere Version online verfügbar\n" +
-                "  'Aktuell (vX.Y.Z)'  = Online-Check: bereits aktuellste Version\n" +
-                "  'Lokal vorhanden'   = lokal vorhanden, kein Online-Check\n" +
-                "  '?'                 = noch nicht geprüft"));
+            content.Children.Add(MakeSubhead(LocalizationService.T(Str.Help_Subhead_Columns)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ColLocal_Label), LocalizationService.T(Str.Help_Item_ColLocal_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ColOnStick_Label), LocalizationService.T(Str.Help_Item_ColOnStick_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_ColCurrent_Label), LocalizationService.T(Str.Help_Item_ColCurrent_Body)));
             content.Children.Add(Spacer(6));
 
-            content.Children.Add(MakeSubhead("Hash-Status-Symbol (schmale Spalte links vom Namen)"));
-            content.Children.Add(MakeText(
-                "Ein kleiner, selbst gezeichneter Smiley zeigt den Integritäts-Status der lokal " +
-                "gespeicherten SHA-256-Prüfsumme (siehe 🔒 Integrität prüfen weiter unten):\n" +
-                "  Grün  = Referenz-Hash vorhanden (lokal berechnet oder offiziell verifiziert)\n" +
-                "  Rot   = bei der letzten Integritätsprüfung eine Abweichung gefunden — Datei " +
-                "vermutlich beschädigt oder ersetzt\n" +
-                "  Kein Symbol = noch kein Hash vorhanden (ISO noch nie heruntergeladen/importiert) — " +
-                "absichtlich neutral, nicht rot, damit unberührte ISOs nicht wie ein Problem aussehen\n" +
-                "Mouseover auf dem Symbol zeigt den genauen Grund an."));
+            content.Children.Add(MakeSubhead(LocalizationService.T(Str.Help_Subhead_HashSymbol)));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_HashSymbol_Body)));
             content.Children.Add(Spacer(6));
 
-            content.Children.Add(MakeSubhead("Symbole im Distro-Namen (Mouseover zeigt Erklärung)"));
-            content.Children.Add(MakeItem("📥 (Präfix)",
-                "Vom USB-Stick importiert — diese ISO wurde beim Stick-Scan entdeckt " +
-                "und als neuer Eintrag hinzugefügt (nicht aus der Standard-Datenbank)."));
-            content.Children.Add(MakeItem("🌐✓ (Suffix)",
-                "URL-Check bestanden — die Download-URL ist erreichbar. " +
-                "Mouseover zeigt: 'URL erreichbar — Download-Server antwortet'."));
-            content.Children.Add(MakeItem("🌐✗ (Suffix)",
-                "URL-Check fehlgeschlagen — die Download-URL ist nicht erreichbar. " +
-                "Mouseover zeigt: 'URL nicht erreichbar — Download-Server antwortet nicht'."));
-            content.Children.Add(MakeItem("🆕 vX.Y.Z (Suffix)",
-                "Online wurde eine neuere Version (hier beispielhaft: vX.Y.Z) gefunden. " +
-                "Mouseover zeigt: 'Neue Version verfügbar: vX.Y.Z (jetzt herunterladen)'. " +
-                "Eintrag auswählen und Download starten."));
+            content.Children.Add(MakeSubhead(LocalizationService.T(Str.Help_Subhead_NameSymbols)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SymbolImported_Label), LocalizationService.T(Str.Help_Item_SymbolImported_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SymbolUrlOk_Label), LocalizationService.T(Str.Help_Item_SymbolUrlOk_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SymbolUrlFail_Label), LocalizationService.T(Str.Help_Item_SymbolUrlFail_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_SymbolNewVersion_Label), LocalizationService.T(Str.Help_Item_SymbolNewVersion_Body)));
             content.Children.Add(Spacer(6));
 
-            content.Children.Add(MakeSubhead("Kategorie-Symbole (linke Spalte)"));
-            content.Children.Add(MakeText(
-                "  🖥 Einsteiger        — Benutzerfreundliche Distributionen für den Desktop-Einstieg\n" +
-                "  ⚙ Fortgeschrittene  — Mehr Konfigurationsfreiheit, Arch-basierte Systeme\n" +
-                "  🪶 Leichtgewicht     — Ressourcensparend, für ältere und schwächere Hardware\n" +
-                "  🎮 Gaming            — Für Spiele optimiert (ProtonGE, Steam, MangoHud)\n" +
-                "  🔒 Sicherheit        — Datenschutz, Anonymität, Pen-Testing (Tails, Parrot, Kodachi)\n" +
-                "  🛠 Rettung           — Rettungs- und Reparatur-Live-Systeme (GParted, Clonezilla)\n" +
-                "  🛡 Antivirus         — Live-Systeme zur Virenprüfung und -entfernung\n" +
-                "  🪟 WinPE             — Windows-basierte Rettungsumgebungen (Hiren's BootCD)"));
+            content.Children.Add(MakeSubhead(LocalizationService.T(Str.Help_Subhead_CategorySymbols)));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_CategorySymbols_Body)));
             content.Children.Add(Spacer());
 
             // ── Design (Hell/Dunkel) ───────────────────────────────────────
