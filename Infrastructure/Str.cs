@@ -199,6 +199,11 @@ namespace ULM.Infrastructure
         Row_TipUrlFail,
         Row_TipNewVersion,
 
+        // Startphasen-Hinweis (MainViewModel.ScanHintText) — beim urspruenglichen Inventar
+        // fuer Phase 3 uebersehen, beim manuellen Testen nachtraeglich gefunden
+        Main_ScanHint_Online,
+        Main_ScanHint_Usb,
+
         // Kategorie-Namen (Constants.cs)
         Category_Gaming,
         Category_Security,

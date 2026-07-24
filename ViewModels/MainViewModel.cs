@@ -114,8 +114,8 @@ namespace ULM.ViewModels
         // der Online-Versionscheck ODER der darauf folgende Stick-Scan läuft — damit Anwender/Experte
         // beim Programmstart nicht vorschnell klicken, bevor Datenbank/Stick-Stand vollständig sind.
         public bool ScanInProgress => OnlineScanActive || UsbScanActive;
-        public string ScanHintText => OnlineScanActive ? "Online-Scan, bitte warten"
-                                    : UsbScanActive     ? "Stick-Scan, bitte warten"
+        public string ScanHintText => OnlineScanActive ? LocalizationService.T(Str.Main_ScanHint_Online)
+                                    : UsbScanActive     ? LocalizationService.T(Str.Main_ScanHint_Usb)
                                     : string.Empty;
 
         // Ersetzt die frueheren MainWindow.xaml-DataTrigger/Setter-Bloecke fuer den Status-Tab —
