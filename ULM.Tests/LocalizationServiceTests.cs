@@ -39,6 +39,44 @@ public class LocalizationServiceTTests
     {
         Assert.Equal(expected, LocalizationService.T(Str.Setup_Error_FolderCreateFailed, language));
     }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Auf {0} wurden {1} veraltete ISO(s) gefunden:")]
+    [InlineData(AppLanguage.English, "{1} outdated ISO(s) found on {0}:")]
+    public void T_Msg_StickOutdatedFound_ReturnsCorrectFormatStringForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Msg_StickOutdatedFound, language));
+    }
+
+    [Fact]
+    public void Msg_StickOutdatedFound_FormatsCorrectlyInGerman()
+    {
+        string result = string.Format(LocalizationService.T(Str.Msg_StickOutdatedFound, AppLanguage.German), "E:", 3);
+        Assert.Equal("Auf E: wurden 3 veraltete ISO(s) gefunden:", result);
+    }
+
+    [Fact]
+    public void Msg_StickOutdatedFound_FormatsCorrectlyInEnglish()
+    {
+        string result = string.Format(LocalizationService.T(Str.Msg_StickOutdatedFound, AppLanguage.English), "E:", 3);
+        Assert.Equal("3 outdated ISO(s) found on E::", result);
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Update")]
+    [InlineData(AppLanguage.English, "Update")]
+    public void T_Row_UpdatePrefix_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Row_UpdatePrefix, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "🎮 Gaming")]
+    [InlineData(AppLanguage.English, "🎮 Gaming")]
+    public void T_Category_Gaming_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Category_Gaming, language));
+    }
 }
 
 public class LocalizationServiceDetectFromCultureTests
