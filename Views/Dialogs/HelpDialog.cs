@@ -234,18 +234,10 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── Protokoll ──────────────────────────────────────────────────
-            AddSection("🗒 Protokoll — Diagnose und Fehlersuche", "Diagnose");
-            content.Children.Add(MakeItem("Download-URL",
-                "Beim Download wird die tatsächlich verwendete URL angezeigt:\n" +
-                "  🔗 Distro-Name: https://…\n" +
-                "Bei Fehlern kann so sofort die URL überprüft werden."));
-            content.Children.Add(MakeItem("Protokoll-Datei",
-                "Alle Ereignisse werden dauerhaft im Arbeitsordner des Programms gespeichert " +
-                "(Datei 'ulm.log'). Nützlich für die Fehlersuche auf verschiedenen Systemen."));
-            content.Children.Add(MakeItem("Log-Rotation",
-                "Überschreitet 'ulm_log.txt' 5 MB, wird sie automatisch einmal zu 'ulm_log.txt.old' " +
-                "verschoben und danach neu und leer begonnen — wächst also nicht mehr unbegrenzt bei " +
-                "Dauerbetrieb. Die vorherige Sicherung bleibt als '.old'-Datei erhalten."));
+            AddSection(LocalizationService.T(Str.Help_Sec_Diagnostics_Title), LocalizationService.T(Str.Help_Sec_Diagnostics_Nav));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_DownloadUrl_Label), LocalizationService.T(Str.Help_Item_DownloadUrl_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_LogFile_Label), LocalizationService.T(Str.Help_Item_LogFile_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_LogRotation_Label), LocalizationService.T(Str.Help_Item_LogRotation_Body)));
 
             scroll.Content = content;
 
@@ -257,7 +249,7 @@ namespace ULM.Views.Dialogs
             };
             var btnOk = new Button
             {
-                Content = "✔ Schließen",
+                Content = LocalizationService.T(Str.Help_Btn_Close),
                 Width   = 130,
                 Style   = (Style)Application.Current.Resources["BtnPrimary"],
             };
