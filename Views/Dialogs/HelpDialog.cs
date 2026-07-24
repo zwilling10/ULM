@@ -215,84 +215,22 @@ namespace ULM.Views.Dialogs
             content.Children.Add(Spacer());
 
             // ── ISO-Import ────────────────────────────────────────────────
-            AddSection("📥 Unbekannte ISOs vom Stick importieren", "ISO-Import");
-            content.Children.Add(MakeText(
-                "Findet ULM beim Stick-Scan ISO-Dateien, die noch nicht in der Datenbank stehen " +
-                "(z.B. manuell auf den Stick kopiert), erscheint ein Import-Dialog."));
-            content.Children.Add(MakeItem("Name, Kategorie, Quelle-URL",
-                "Für jede unbekannte ISO Name und Kategorie vergeben. Optional: eine Quelle-URL " +
-                "hinterlegen. Sie ermöglicht später den Online-Update-Check auch für exotische Distros, " +
-                "deren Name keinem der bekannten Muster (Ubuntu, Debian, Mint, …) entspricht."));
-            content.Children.Add(MakeItem("Ordnerstruktur bleibt sauber",
-                "Nach dem Import wird die Datei automatisch auf dem Stick in den passenden " +
-                "Kategorie-Ordner verschoben (z.B. '\\Sicherheit\\'), das Ventoy-Bootmenü wird aktualisiert " +
-                "und der Stick sofort neu gescannt."));
-            content.Children.Add(MakeItem("Duplikat-Schutz",
-                "Erkennt ULM, dass eine 'unbekannte' ISO eigentlich einem bereits vorhandenen " +
-                "Datenbank-Eintrag entspricht (z.B. anderer Dateiname, andere Schreibweise derselben " +
-                "Distro), wird KEIN doppelter Eintrag angelegt. Stattdessen übernimmt der bestehende " +
-                "Eintrag einfach den neuen Dateinamen."));
-            content.Children.Add(MakeItem("Zukünftig aktuell halten",
-                "Importierte Distros werden ab sofort wie reguläre Datenbank-Einträge behandelt: der " +
-                "automatische Versionscheck beim Start prüft sie mit, und auch der manuelle " +
-                "'Nach Updates suchen'-Button berücksichtigt sie jetzt — sobald sie lokal ODER auf dem " +
-                "Stick vorhanden sind. Auch ohne hinterlegte URL versucht ULM automatisch, die richtige " +
-                "Quelle zu finden — eine mehrstufige Kette, die für JEDE Distro gilt, nicht nur bekannte:\n" +
-                "  1. Einer von >20 dedizierten Distro-Erkennern (unabhängig von Schreibweise/Sonderzeichen)\n" +
-                "  2. Automatische Suche über DistroWatch.com — findet die offizielle Homepage der Distro " +
-                "und darüber die Download-Seite, ganz ohne distro-spezifischen Code\n" +
-                "  3. SourceForge-Projektsuche, falls die Distro dort gehostet wird\n" +
-                "  4. Allgemeine Websuche als letzter Rückfall\n" +
-                "Eine so gefundene Quelle wird dauerhaft in der Datenbank gespeichert — künftige " +
-                "Prüfungen starten direkt darüber, statt jedes Mal neu zu suchen. Kurz aufeinanderfolgende " +
-                "Erreichbarkeits-Checks werden zusätzlich einige Minuten zwischengespeichert, damit " +
-                "wiederholte Anfragen an denselben Server nicht fälschlich als Bot-Verhalten eingestuft " +
-                "und blockiert werden.\n" +
-                "Hinweis: eine externe Bot-/Anti-Scraping-Erkennung (z.B. bei Suchanfragen oder auf " +
-                "manchen Download-Servern) lässt sich nicht zu 100% ausschließen — in seltenen Fällen " +
-                "kann ein Check trotz eigentlich erreichbarer Quelle vorübergehend fehlschlagen. Ein " +
-                "erneuter Gesundheitscheck später behebt das in aller Regel."));
+            AddSection(LocalizationService.T(Str.Help_Sec_IsoImport_Title), LocalizationService.T(Str.Help_Sec_IsoImport_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_IsoImport_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_NameCategoryUrl_Label), LocalizationService.T(Str.Help_Item_NameCategoryUrl_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_FolderStructure_Label), LocalizationService.T(Str.Help_Item_FolderStructure_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_DuplicateProtection_Label), LocalizationService.T(Str.Help_Item_DuplicateProtection_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_StayUpToDate_Label), LocalizationService.T(Str.Help_Item_StayUpToDate_Body)));
             content.Children.Add(Spacer());
 
             // ── Expert-Modus ───────────────────────────────────────────────
-            AddSection("🛠 Expert-Modus — Zusatzfunktionen", "Expert-Modus");
-            content.Children.Add(MakeText("Expert-Modus aktivieren: oben rechts auf '⚙ Einstellungen' klicken, " +
-                "in der Karte 'Modus' die Checkbox 'Experten-Modus aktivieren' setzen und mit " +
-                "'✔ Übernehmen' bestätigen."));
-            content.Children.Add(MakeItem("📊 Status-Reiter",
-                "Zeigt Transparenz über alles, was gerade oder demnächst automatisch im Hintergrund " +
-                "läuft, ohne dass ein Blick in den Task-Manager nötig ist: den aktuell laufenden " +
-                "manuellen Vorgang (Download, Kopieren, Integritätsprüfung, Ventoy, …) mit Datei, " +
-                "Fortschritt und Zähler, die automatischen Hintergrund-Scans (Online-Versionscheck, " +
-                "Stick-Prüfung), wann der nächste automatische Online-Versionscheck fällig ist, sowie " +
-                "einen Verlauf der letzten Hintergrund-Ereignisse (mit 'Verlauf leeren'-Button)."));
-            content.Children.Add(MakeItem("URL-Check",
-                "Prüft ob alle konfigurierten URLs erreichbar sind (Primär-URL + Mirror1-5). " +
-                "Ergebnisse erscheinen als 🌐✓ / 🌐✗ im Distro-Namen."));
-            content.Children.Add(MakeItem("Datenbank bearbeiten",
-                "Öffnet den DB-Editor zum Hinzufügen, Bearbeiten und Löschen von ISO-Einträgen. " +
-                "Felder: Name, Kategorie, URL, Mirror1-5, Filename, GitHub-Repo, Beschreibung."));
-            content.Children.Add(MakeItem("🩺 DB-Gesundheitscheck",
-                "Löst für ALLE Datenbank-Einträge auf einmal die aktuelle Download-Quelle auf (auch " +
-                "vom Stick importierte Distros, unabhängig davon ob lokal vorhanden) und zeigt einen " +
-                "klaren Bericht: welche Distros gerade online erreichbar und ladbar sind — und welche " +
-                "nicht. Kein Ersatz für den Versionscheck, sondern ein gezielter Diagnose-Werkzeug, um " +
-                "defekte Einträge (abgelaufene URL, umgezogene Distro-Website) sofort zu erkennen, statt " +
-                "sie erst beim nächsten Download-Versuch zu bemerken. Bei Ausfällen: im DB-Editor " +
-                "zusätzliche Mirror-URLs oder ein GitHub-Repo hinterlegen.\n\n" +
-                "Läuft automatisch — gezielt genau dann, wenn neue, noch unverifizierte Einträge in " +
-                "die Datenbank kommen: nach Stick-Import, nach 'Hinzufügen' bei einer neueren Version " +
-                "auf dem Stick, und nach manuellem 'Neu' im DB-Editor. NICHT bei jedem Stick-Scan, " +
-                "Ventoy-Installation oder Kopiervorgang — das regelmäßige Prüfen bereits bekannter " +
-                "Einträge übernimmt der Online-Versionscheck (Start + alle paar Tage). Eigene " +
-                "Fortschrittsanzeige oben rechts, genauso wie beim Online-Scan (🩺 Gesundheitscheck). " +
-                "Vor jedem Lauf werden doppelte Datenbank-Einträge automatisch erkannt und bereinigt."));
-            content.Children.Add(MakeItem("🔑 GitHub-Token",
-                "Optional. GitHub-basierte Resolver (z.B. CachyOS, EndeavourOS) und der Ventoy-" +
-                "Update-Check nutzen ohne Token ein gemeinsames Limit von 60 Anfragen/Stunde für " +
-                "das ganze Netzwerk (nicht nur ULM) — bei intensiver Nutzung kann das knapp werden. " +
-                "Ein kostenloses GitHub Personal Access Token OHNE jeden Berechtigungs-Scope hebt " +
-                "das Limit auf 5000/Stunde an. Wird lokal in ulm_settings.ini gespeichert."));
+            AddSection(LocalizationService.T(Str.Help_Sec_ExpertMode_Title), LocalizationService.T(Str.Help_Sec_ExpertMode_Nav));
+            content.Children.Add(MakeText(LocalizationService.T(Str.Help_ExpertMode_Intro)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_StatusTab_Label), LocalizationService.T(Str.Help_Item_StatusTab_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_UrlCheck_Label), LocalizationService.T(Str.Help_Item_UrlCheck_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_EditDatabase_Label), LocalizationService.T(Str.Help_Item_EditDatabase_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_DbHealthCheck_Label), LocalizationService.T(Str.Help_Item_DbHealthCheck_Body)));
+            content.Children.Add(MakeItem(LocalizationService.T(Str.Help_Item_GitHubToken_Label), LocalizationService.T(Str.Help_Item_GitHubToken_Body)));
             content.Children.Add(Spacer());
 
             // ── Protokoll ──────────────────────────────────────────────────
