@@ -20,6 +20,17 @@
     <FileVersion>2.39.1.0</FileVersion>
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
 
+    <!--
+      SICHERHEIT/PRIVATSPHÄRE: Ohne DebugType=none betten .NET-Release-Builds den vollen
+      Build-Zeit-Dateipfad (inkl. Windows-Benutzername) als Debug-Metadaten in die EXE/DLL ein
+      (PDB-Pfad + Quelldatei-Pfade der .cs-Dateien) — sichtbar u.a. über Analyse-Tools wie
+      VirusTotal, auch wenn die .pdb-Datei selbst nie mit veröffentlicht wird (siehe
+      build-release.sh, kopiert nur die .exe). Für Release-Builds komplett deaktiviert, da diese
+      EXE öffentlich als GitHub-Release-Asset verteilt wird. Debug-Builds (lokale Entwicklung)
+      behalten volle Symbole für den IDE-Debugger.
+    -->
+    <DebugType Condition="'$(Configuration)'=='Release'">none</DebugType>
+
     <!-- ── Portable Single-File EXE ─────────────────────────────────── -->
     <!--
       Ziel: Eine einzige .exe die auf jedem Windows 10/11 x64 läuft —

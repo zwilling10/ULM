@@ -30,6 +30,10 @@ scratch_test/
 # Claude Code lokale Einstellungen (enthalten lokale Rechner-Pfade, nicht für GitHub)
 .claude/
 
+# Lokale Tool-Caches (tokensave/impeccable — enthalten lokale Rechner-Pfade, nicht für GitHub)
+.tokensave/
+.impeccable/
+
 # IDE
 .vs/
 *.user
