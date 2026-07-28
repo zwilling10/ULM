@@ -408,5 +408,13 @@ namespace ULM.Infrastructure
         Log_SourceManuallyAddedDeferred, Log_SourceManuallyAddedRetrying, Log_IsosAddedFromOnlineSearch,
         Log_GitHubTokenRemoved, Log_GitHubTokenSaved, Log_CancellingOperation, Log_DeleteFailed,
         Log_OperationSucceededLogPrefix,
+
+        // ── Log-Meldungen: Download-Worker (Core/Workers/Workers.cs) ──
+        Log_NoDownloadUrlFound, Log_Unreachable, Log_MirrorTest, Log_TryingUrl,
+        Log_AndTryNextSource, Log_PermanentlySlow, Log_UserRequestsFasterMirror, Log_MirrorFailed,
+        Log_TryNextMirrorSuffix, Log_NoFasterMirrorFound, Log_UltimatelyFailed,
+        Log_ProceedingDespiteSlowness, Log_UserDeclinedSlowDownload, Log_ChecksumVerified,
+        Log_ChecksumMismatchWarning, Log_DownloadCompletedItem, Log_DownloadFailedItem,
+        Log_GeneralDownloadError,
     }
 }

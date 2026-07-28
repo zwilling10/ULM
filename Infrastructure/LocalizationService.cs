@@ -816,6 +816,26 @@ namespace ULM.Infrastructure
             [Str.Log_CancellingOperation]           = "⛔ Vorgang wird abgebrochen …",
             [Str.Log_DeleteFailed]                  = "⚠ Löschen fehlgeschlagen ({0}): {1}",
             [Str.Log_OperationSucceededLogPrefix]   = "✅ {0}",
+
+            // ── Log-Meldungen: Download-Worker ──
+            [Str.Log_NoDownloadUrlFound]        = "   ❌ {0}: Keine Download-URL ermittelt.",
+            [Str.Log_Unreachable]               = "nicht erreichbar",
+            [Str.Log_MirrorTest]                = "   🔎 {0}: Mirror-Test — {1}",
+            [Str.Log_TryingUrl]                 = "   🔗 {0}: {1}",
+            [Str.Log_AndTryNextSource]          = " und versuche nächste Quelle …",
+            [Str.Log_PermanentlySlow]           = "   🐢 {0}: {1} dauerhaft langsam (< {2}/s) — breche ab",
+            [Str.Log_UserRequestsFasterMirror]  = "   ⚡ {0}: Nutzer fordert schnelleren Mirror an — wechsle von {1} …",
+            [Str.Log_MirrorFailed]              = "   ⚠ {0}: {1} fehlgeschlagen",
+            [Str.Log_TryNextMirrorSuffix]       = " — versuche nächsten Mirror …",
+            [Str.Log_NoFasterMirrorFound]       = "   ↩ {0}: Kein schnellerer Mirror gefunden — setze mit {1} fort.",
+            [Str.Log_UltimatelyFailed]          = "   ❌ {0}: {1} letztlich doch fehlgeschlagen.",
+            [Str.Log_ProceedingDespiteSlowness] = "   ▶ {0}: Fährt trotz Langsamkeit mit {1} fort …",
+            [Str.Log_UserDeclinedSlowDownload]  = "   ⏭ {0}: Übersprungen — Anwender hat den langsamen Download abgelehnt.",
+            [Str.Log_ChecksumVerified]          = "   🔒 {0}: Prüfsumme gegen offizielle Quelle verifiziert.",
+            [Str.Log_ChecksumMismatchWarning]   = "   ⚠ {0}: WARNUNG — heruntergeladene Datei weicht von der offiziellen Prüfsumme ab!",
+            [Str.Log_DownloadCompletedItem]     = "   ✅ {0}: Download abgeschlossen ({1}) via {2}",
+            [Str.Log_DownloadFailedItem]        = "   ❌ {0}: Download fehlgeschlagen. {1} Mirror(s) versucht.",
+            [Str.Log_GeneralDownloadError]      = "   ❌ {0}: {1}: {2}",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1588,6 +1608,26 @@ namespace ULM.Infrastructure
             [Str.Log_CancellingOperation]           = "⛔ Cancelling operation …",
             [Str.Log_DeleteFailed]                  = "⚠ Delete failed ({0}): {1}",
             [Str.Log_OperationSucceededLogPrefix]   = "✅ {0}",
+
+            // ── Log messages: download worker ──
+            [Str.Log_NoDownloadUrlFound]        = "   ❌ {0}: No download URL found.",
+            [Str.Log_Unreachable]               = "unreachable",
+            [Str.Log_MirrorTest]                = "   🔎 {0}: Mirror test — {1}",
+            [Str.Log_TryingUrl]                 = "   🔗 {0}: {1}",
+            [Str.Log_AndTryNextSource]          = " and trying next source …",
+            [Str.Log_PermanentlySlow]           = "   🐢 {0}: {1} permanently slow (< {2}/s) — aborting",
+            [Str.Log_UserRequestsFasterMirror]  = "   ⚡ {0}: User requests faster mirror — switching from {1} …",
+            [Str.Log_MirrorFailed]              = "   ⚠ {0}: {1} failed",
+            [Str.Log_TryNextMirrorSuffix]       = " — trying next mirror …",
+            [Str.Log_NoFasterMirrorFound]       = "   ↩ {0}: No faster mirror found — continuing with {1}.",
+            [Str.Log_UltimatelyFailed]          = "   ❌ {0}: {1} ultimately failed after all.",
+            [Str.Log_ProceedingDespiteSlowness] = "   ▶ {0}: Proceeding despite slowness with {1} …",
+            [Str.Log_UserDeclinedSlowDownload]  = "   ⏭ {0}: Skipped — user declined the slow download.",
+            [Str.Log_ChecksumVerified]          = "   🔒 {0}: Checksum verified against official source.",
+            [Str.Log_ChecksumMismatchWarning]   = "   ⚠ {0}: WARNING — downloaded file deviates from the official checksum!",
+            [Str.Log_DownloadCompletedItem]     = "   ✅ {0}: Download completed ({1}) via {2}",
+            [Str.Log_DownloadFailedItem]        = "   ❌ {0}: Download failed. {1} mirror(s) attempted.",
+            [Str.Log_GeneralDownloadError]      = "   ❌ {0}: {1}: {2}",
         };
     }
 }

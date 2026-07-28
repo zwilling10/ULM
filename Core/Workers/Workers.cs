@@ -362,7 +362,7 @@ namespace ULM.Core.Workers
                         if (string.IsNullOrWhiteSpace(resolvedUrl))
                         {
                             sa.Status = "❌ Keine URL gefunden"; sa.NoUrlFound = true; SlotUpdated?.Invoke(sa);
-                            LogMessage?.Invoke($"   ❌ {entry.Name}: Keine Download-URL ermittelt.");
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_NoDownloadUrlFound), entry.Name));
                             return;
                         }
 
@@ -404,8 +404,9 @@ namespace ULM.Core.Workers
                             sa.Status = $"🔎 Teste {urlsToTry.Count} Mirror(s) …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
                             var raced = await HttpService.Instance.RaceMirrorsAsync(urlsToTry, TimeSpan.FromSeconds(3), _cts.Token).ConfigureAwait(false);
                             urlsToTry = raced.Select(r => r.Url).ToList();
-                            LogMessage?.Invoke($"   🔎 {entry.Name}: Mirror-Test — " +
-                                string.Join(", ", raced.Select(r => $"{TryGetSourceLabel(r.Url)} {(r.Bps > 0 ? $"{r.Bps * 8 / 1_000_000:F1} Mbit/s" : "nicht erreichbar")}")));
+                            string mirrorList = string.Join(", ", raced.Select(r =>
+                                $"{TryGetSourceLabel(r.Url)} {(r.Bps > 0 ? $"{r.Bps * 8 / 1_000_000:F1} Mbit/s" : LocalizationService.T(Str.Log_Unreachable))}"));
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_MirrorTest), entry.Name, mirrorList));
                         }
 
                         string usedUrl = resolvedUrl;
@@ -427,7 +428,7 @@ namespace ULM.Core.Workers
                             // unten, sobald Anlaufzeit UND gemessene Geschwindigkeit das rechtfertigen
                             // (siehe ShouldShowFasterMirrorButton).
                             sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = false; SlotUpdated?.Invoke(sa);
-                            LogMessage?.Invoke($"   🔗 {entry.Name}: {tryUrl}");
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_TryingUrl), entry.Name, tryUrl));
 
                             // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
                             // manche CDNs drosseln die ersten Sekunden, siehe Mirror-Race oben) längere
@@ -461,8 +462,11 @@ namespace ULM.Core.Workers
                                         else if (!abortedForSlowness && attemptSw.Elapsed > WarmupGrace && attemptSw.Elapsed - lastFastEnough > SlowSustainedWindow)
                                         {
                                             abortedForSlowness = true;
-                                            LogMessage?.Invoke($"   🐢 {entry.Name}: {host} dauerhaft langsam (< {TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)}/s) — breche ab" +
-                                                (hasMoreMirrors ? " und versuche nächste Quelle …" : "."));
+                                            string slowSuffix = hasMoreMirrors
+                                                ? LocalizationService.T(Str.Log_AndTryNextSource)
+                                                : ".";
+                                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_PermanentlySlow), entry.Name, host,
+                                                TransferFormat.FormatBytes(SlowSpeedThresholdBytesPerSec)) + slowSuffix);
                                             mirrorCts.Cancel();
                                         }
                                     },
@@ -480,7 +484,7 @@ namespace ULM.Core.Workers
                             // nichts, worüber am Ende noch "trotzdem fortfahren?" gefragt werden müsste.
                             if (active.ManualSkipRequested)
                             {
-                                LogMessage?.Invoke($"   ⚡ {entry.Name}: Nutzer fordert schnelleren Mirror an — wechsle von {host} …");
+                                LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_UserRequestsFasterMirror), entry.Name, host));
                                 // Nur den ERSTEN merken — das war der von Mirror-Race/Wächter am besten
                                 // bewertete erreichbare Server, also der sinnvollste Rückfall.
                                 manualSkipFallbackUrl ??= tryUrl; manualSkipFallbackHost ??= host;
@@ -495,7 +499,10 @@ namespace ULM.Core.Workers
                             // Download fehlgeschlagen — nächsten Mirror versuchen (Slowness-Abbruch
                             // hat seine eigene Meldung oben schon geloggt, keine doppelte Meldung)
                             else
-                                LogMessage?.Invoke($"   ⚠ {entry.Name}: {host} fehlgeschlagen{(mirrorIdx < urlsToTry.Count ? " — versuche nächsten Mirror …" : ".")}");
+                            {
+                                string mirrorFailedSuffix = mirrorIdx < urlsToTry.Count ? LocalizationService.T(Str.Log_TryNextMirrorSuffix) : ".";
+                                LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_MirrorFailed), entry.Name, host) + mirrorFailedSuffix);
+                            }
                             if (_cts.IsCancellationRequested) break;
                         }
                         // Button "(schneller)" ist nur WÄHREND eines laufenden Mirror-Versuchs
@@ -511,7 +518,7 @@ namespace ULM.Core.Workers
                         {
                             sa.Status = "⚡ Kein schnellerer Server gefunden — Download wird fortgesetzt …";
                             sa.Percent = 0; SlotUpdated?.Invoke(sa);
-                            LogMessage?.Invoke($"   ↩ {entry.Name}: Kein schnellerer Mirror gefunden — setze mit {manualSkipFallbackHost} fort.");
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_NoFasterMirrorFound), entry.Name, manualSkipFallbackHost));
                             try { await Task.Delay(3000, _cts.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
                             if (!_cts.IsCancellationRequested)
                             {
@@ -523,7 +530,7 @@ namespace ULM.Core.Workers
                                     onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = manualSkipFallbackUrl;
-                                else LogMessage?.Invoke($"   ❌ {entry.Name}: {manualSkipFallbackHost} letztlich doch fehlgeschlagen.");
+                                else LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_UltimatelyFailed), entry.Name, manualSkipFallbackHost));
                             }
                         }
 
@@ -537,7 +544,7 @@ namespace ULM.Core.Workers
                             bool proceed = ConfirmSlowDownloadAnyway?.Invoke(entry.Name, slowAbortedHost!) ?? false;
                             if (proceed)
                             {
-                                LogMessage?.Invoke($"   ▶ {entry.Name}: Fährt trotz Langsamkeit mit {slowAbortedHost} fort …");
+                                LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_ProceedingDespiteSlowness), entry.Name, slowAbortedHost));
                                 string slowLabel = $"⬇ {slowAbortedHost} (langsam)";
                                 sa.Status = $"{slowLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
                                 ok = await HttpService.Instance.DownloadFileAsync(
@@ -546,10 +553,10 @@ namespace ULM.Core.Workers
                                     onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = slowAbortedUrl;
-                                else LogMessage?.Invoke($"   ❌ {entry.Name}: {slowAbortedHost} letztlich doch fehlgeschlagen.");
+                                else LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_UltimatelyFailed), entry.Name, slowAbortedHost));
                             }
                             else
-                                LogMessage?.Invoke($"   ⏭ {entry.Name}: Übersprungen — Anwender hat den langsamen Download abgelehnt.");
+                                LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_UserDeclinedSlowDownload), entry.Name));
                         }
 
                         if (ok)
@@ -570,19 +577,19 @@ namespace ULM.Core.Workers
                                 if (official != null)
                                 {
                                     if (string.Equals(official, entry.Sha256, StringComparison.OrdinalIgnoreCase))
-                                    { entry.Sha256Source = "OfficialChecksum"; LogMessage?.Invoke($"   🔒 {entry.Name}: Prüfsumme gegen offizielle Quelle verifiziert."); }
+                                    { entry.Sha256Source = "OfficialChecksum"; LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_ChecksumVerified), entry.Name)); }
                                     else
-                                        LogMessage?.Invoke($"   ⚠ {entry.Name}: WARNUNG — heruntergeladene Datei weicht von der offiziellen Prüfsumme ab!");
+                                        LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_ChecksumMismatchWarning), entry.Name));
                                 }
                             }
                             sa.Percent = 100; sa.Status = "✅ Fertig";
                             Interlocked.Increment(ref successCount);
-                            LogMessage?.Invoke($"   ✅ {entry.Name}: Download abgeschlossen ({fname}) via {TryGetHost(usedUrl)}");
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_DownloadCompletedItem), entry.Name, fname, TryGetHost(usedUrl)));
                         }
                         else
                         {
                             sa.Status = "❌ Fehlgeschlagen — alle Mirror versucht";
-                            LogMessage?.Invoke($"   ❌ {entry.Name}: Download fehlgeschlagen. {urlsToTry.Count} Mirror(s) versucht.");
+                            LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_DownloadFailedItem), entry.Name, urlsToTry.Count));
                         }
                         SlotUpdated?.Invoke(sa);
                     }
@@ -597,7 +604,7 @@ namespace ULM.Core.Workers
                         // aber optisch falsch).
                         sa.CanRequestFasterMirror = false;
                         sa.Status = $"Fehler: {ex.Message}"; SlotUpdated?.Invoke(sa);
-                        LogMessage?.Invoke($"   ❌ {entry.Name}: {ex.GetType().Name}: {ex.Message}");
+                        LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_GeneralDownloadError), entry.Name, ex.GetType().Name, ex.Message));
                     }
                     finally
                     {
