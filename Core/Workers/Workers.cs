@@ -72,13 +72,13 @@ namespace ULM.Core.Workers
                 string exePath = FindVentoy2DiskExe(paths.VentoyTempDir);
                 if (string.IsNullOrEmpty(exePath))
                 {
-                    ProgressLog?.Invoke("Lade neueste Ventoy-Version von GitHub …"); Progress?.Invoke(5, "Lade Ventoy …");
+                    ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_FetchingLatest)); Progress?.Invoke(5, "Lade Ventoy …");
                     string archiveUrl = await FetchLatestVentoyUrlAsync().ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(archiveUrl)) { ProgressLog?.Invoke("Fehler: Konnte Ventoy-URL nicht abrufen."); Completed?.Invoke(false); return; }
-                    ProgressLog?.Invoke($"Lade herunter: {archiveUrl}");
-                    bool dlOk = await HttpService.Instance.DownloadFileAsync(archiveUrl, paths.VentoyZipPath, _cts.Token, (p, d) => { ProgressLog?.Invoke($"Download: {p}%  {d}"); Progress?.Invoke(5 + p / 3, d); }).ConfigureAwait(false);
-                    if (!dlOk || _cts.IsCancellationRequested) { ProgressLog?.Invoke("Fehler: Download fehlgeschlagen."); Completed?.Invoke(false); return; }
-                    ProgressLog?.Invoke("Entpacke Ventoy …"); Progress?.Invoke(42, "Entpacke …");
+                    if (string.IsNullOrWhiteSpace(archiveUrl)) { ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_UrlFetchFailed)); Completed?.Invoke(false); return; }
+                    ProgressLog?.Invoke(string.Format(LocalizationService.T(Str.VentoyWin_Log_Downloading), archiveUrl));
+                    bool dlOk = await HttpService.Instance.DownloadFileAsync(archiveUrl, paths.VentoyZipPath, _cts.Token, (p, d) => { ProgressLog?.Invoke(string.Format(LocalizationService.T(Str.VentoyWin_Log_DownloadProgress), p, d)); Progress?.Invoke(5 + p / 3, d); }).ConfigureAwait(false);
+                    if (!dlOk || _cts.IsCancellationRequested) { ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_DownloadFailed)); Completed?.Invoke(false); return; }
+                    ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_Extracting)); Progress?.Invoke(42, "Entpacke …");
                     string extractDir = Path.Combine(paths.VentoyTempDir, "extracted");
                     if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
                     // SICHERHEIT: ZipFile.ExtractToDirectory prüft seit .NET Core 2.1 selbst, dass
@@ -94,7 +94,7 @@ namespace ULM.Core.Workers
                     { string rel = Path.GetRelativePath(extractDir, f); int sep = rel.IndexOf(Path.DirectorySeparatorChar); string flat = sep >= 0 ? rel[(sep + 1)..] : rel; string dst = Path.Combine(paths.VentoyTempDir, flat); Directory.CreateDirectory(Path.GetDirectoryName(dst)!); File.Copy(f, dst, true); }
                     exePath = FindVentoy2DiskExe(paths.VentoyTempDir);
                 }
-                if (string.IsNullOrEmpty(exePath)) { ProgressLog?.Invoke("Fehler: Ventoy2Disk.exe nicht gefunden."); Completed?.Invoke(false); return; }
+                if (string.IsNullOrEmpty(exePath)) { ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_ExeNotFound)); Completed?.Invoke(false); return; }
 
                 // BUGFIX: "-i -y {letter}:" / "-u {letter}:" / "-s" sind KEINE gültigen
                 // Ventoy2Disk.exe-Argumente — die echte CLI-Automatisierung heißt "VTOYCLI" und
@@ -121,10 +121,10 @@ namespace ULM.Core.Workers
                 string logFile     = Path.Combine(workDir, "cli_log.txt");
                 foreach (string f in new[] { doneFile, percentFile, logFile }) { try { File.Delete(f); } catch { } }
 
-                ProgressLog?.Invoke($"Starte Ventoy2Disk.exe auf {_letter} (VTOYCLI, still) …"); Progress?.Invoke(55, "Installiere Ventoy …");
+                ProgressLog?.Invoke(string.Format(LocalizationService.T(Str.VentoyWin_Log_StartingExe), _letter)); Progress?.Invoke(55, "Installiere Ventoy …");
                 var psi = new ProcessStartInfo(exePath, args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, WorkingDirectory = workDir };
                 using Process? proc = Process.Start(psi);
-                if (proc is null) { ProgressLog?.Invoke("Fehler: Ventoy2Disk.exe konnte nicht gestartet werden."); Completed?.Invoke(false); return; }
+                if (proc is null) { ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_ExeStartFailed)); Completed?.Invoke(false); return; }
 
                 // Stdout/Stderr fortlaufend abziehen statt erst nach WaitForExit — verhindert einen
                 // Deadlock, falls der Kindprozess mehr schreibt, als der OS-Pipe-Puffer fasst, während
@@ -155,17 +155,20 @@ namespace ULM.Core.Workers
                 if (File.Exists(logFile) && TryReadText(logFile, out string cliLog) && !string.IsNullOrWhiteSpace(cliLog))
                     ProgressLog?.Invoke($"[Ventoy CLI-Log]\n{cliLog.Trim()}");
 
-                if (!proc.HasExited) { ProgressLog?.Invoke("Fehler: Timeout."); try { proc.Kill(); } catch { } Completed?.Invoke(false); return; }
+                if (!proc.HasExited) { ProgressLog?.Invoke(LocalizationService.T(Str.VentoyWin_Log_Timeout)); try { proc.Kill(); } catch { } Completed?.Invoke(false); return; }
 
                 // cli_done.txt ist die primäre Erfolgsquelle (offiziell dokumentiert); der
                 // Prozess-Exitcode dient nur als Rückfallebene, falls die Datei aus irgendeinem
                 // Grund nie erschienen ist (z.B. unerwartet abweichendes Ventoy-Verhalten).
                 bool ok = doneOk ?? proc.ExitCode == 0;
-                ProgressLog?.Invoke(ok ? $"✅ Ventoy {(_updateMode ? "aktualisiert" : "installiert")}." : $"❌ Fehlgeschlagen (ExitCode {proc.ExitCode}{(doneOk is not null ? $", cli_done={(doneOk.Value ? 0 : 1)}" : "")}).");
+                ProgressLog?.Invoke(ok
+                    ? LocalizationService.T(_updateMode ? Str.Log_VentoyUpdatedStatus : Str.Log_VentoyInstalledStatus)
+                    : string.Format(LocalizationService.T(Str.VentoyWin_Log_ResultFailed), proc.ExitCode,
+                        doneOk is not null ? string.Format(LocalizationService.T(Str.VentoyWin_Log_CliDoneSuffix), doneOk.Value ? 0 : 1) : ""));
                 if (ok && !_updateMode) { Progress?.Invoke(88, "Richte Theme ein …"); UsbService.EnsureVentoyTheme(_letter); }
                 Progress?.Invoke(100, ok ? "Fertig." : "Fehlgeschlagen."); Completed?.Invoke(ok);
             }
-            catch (Exception ex) { ProgressLog?.Invoke($"Fehler: {ex.GetType().Name}: {ex.Message}"); Completed?.Invoke(false); }
+            catch (Exception ex) { ProgressLog?.Invoke(string.Format(LocalizationService.T(Str.VentoyWin_Log_GeneralError), ex.GetType().Name, ex.Message)); Completed?.Invoke(false); }
         });
         private static string FindVentoy2DiskExe(string dir)
         { if (!Directory.Exists(dir)) return string.Empty; string d = Path.Combine(dir, "Ventoy2Disk.exe"); if (File.Exists(d)) return d; foreach (string f in Directory.GetFiles(dir, "Ventoy2Disk.exe", SearchOption.AllDirectories)) return f; return string.Empty; }

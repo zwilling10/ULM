@@ -16,6 +16,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ULM.Core.Workers;
+using ULM.Infrastructure;
 
 namespace ULM.Views
 {
@@ -67,7 +68,7 @@ namespace ULM.Views
             // ── Titelzeile ─────────────────────────────────────────────────
             _titleText = new TextBlock
             {
-                Text         = $"⚡ Ventoy wird {(updateMode ? "aktualisiert" : "installiert")} auf {letter} …",
+                Text         = string.Format(LocalizationService.T(updateMode ? Str.VentoyWin_TitleUpdating : Str.VentoyWin_TitleInstalling), letter),
                 Foreground   = Brushes.White,
                 FontSize     = 14,
                 FontWeight   = FontWeights.SemiBold,
@@ -143,7 +144,7 @@ namespace ULM.Views
             // eindeutig ist, dass die Installation fertig ist, bevor er den Stick entfernt.
             _btnClose = new Button
             {
-                Content             = "✕ Schließen",
+                Content             = LocalizationService.T(Str.VentoyWin_Btn_CloseError),
                 Width               = 130,
                 Height              = 34,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -165,9 +166,11 @@ namespace ULM.Views
 
         private async Task RunInstallationAsync()
         {
-            AppendLog($"Laufwerk : {_letter}");
-            AppendLog($"Modus    : {(_updateMode ? "Aktualisieren (ISOs bleiben erhalten)" : "Neuinstallation (Datenverlust!)")}");
-            AppendLog($"Secure Boot: {(_secureBoot ? "Ja" : "Nein")}");
+            AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_Drive), _letter));
+            AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_Mode),
+                LocalizationService.T(_updateMode ? Str.VentoyWin_ModeUpdate : Str.VentoyWin_ModeFresh)));
+            AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_SecureBoot),
+                LocalizationService.T(_secureBoot ? Str.Row_Yes : Str.Row_No)));
             AppendLog(new string('─', 52));
 
             var worker = new VentoyInstallWorker(_letter, _updateMode, _secureBoot);
@@ -194,11 +197,11 @@ namespace ULM.Views
                     // gleichzeitig auftretenden Laufwerks-Neuerkennung der normalen ULM-Instanz
                     // überschneiden; ein expliziter Klick macht den Abschluss eindeutig.
                     _exitCode              = 0;
-                    _titleText.Text        = $"✅ Ventoy wurde erfolgreich {(_updateMode ? "aktualisiert" : "installiert")}.";
+                    _titleText.Text        = LocalizationService.T(_updateMode ? Str.VentoyWin_SuccessUpdated : Str.VentoyWin_SuccessInstalled);
                     _titleText.Foreground  = BrushSuccess;
-                    AppendLog("✅ Vorgang abgeschlossen.");
-                    AppendLog("   Bitte 'Schließen' klicken, um fortzufahren.");
-                    _btnClose.Content       = "✔ Schließen";
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_Done));
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_PleaseCloseToContinue));
+                    _btnClose.Content       = LocalizationService.T(Str.VentoyWin_Btn_CloseSuccess);
                     _btnClose.BorderBrush   = BrushSuccess;
                     _btnClose.Visibility    = Visibility.Visible;
                 }
@@ -206,11 +209,11 @@ namespace ULM.Views
                 {
                     // ── Fehler: Schließen-Button einblenden ───────────────────────────
                     _exitCode              = 1;
-                    _titleText.Text        = "❌ Ventoy-Installation fehlgeschlagen.";
+                    _titleText.Text        = LocalizationService.T(Str.VentoyWin_Failed);
                     _titleText.Foreground  = BrushError;
-                    AppendLog("❌ Bitte das Protokoll prüfen.");
-                    AppendLog("   Schließen-Button: ExitCode 1 → normale ULM-Instanz zeigt Fehlermeldung.");
-                    _btnClose.Content       = "✕ Schließen";
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_CheckProtocol));
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_CloseButtonExitCodeInfo));
+                    _btnClose.Content       = LocalizationService.T(Str.VentoyWin_Btn_CloseError);
                     _btnClose.BorderBrush   = BrushError;
                     _btnClose.Visibility    = Visibility.Visible;
                 }

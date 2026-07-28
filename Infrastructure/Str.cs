@@ -445,5 +445,17 @@ namespace ULM.Infrastructure
         Db_GitHubTokenDialog_Title, Db_GitHubTokenDialog_Description,
 
         QuickConfirm_Title,
+
+        // ── Views/VentoyInstallWindow.cs + VentoyInstallWorker (Core/Workers/Workers.cs) ──
+        VentoyWin_TitleUpdating, VentoyWin_TitleInstalling, VentoyWin_Btn_CloseError,
+        VentoyWin_Btn_CloseSuccess, VentoyWin_Log_Drive, VentoyWin_Log_Mode, VentoyWin_ModeUpdate,
+        VentoyWin_ModeFresh, VentoyWin_Log_SecureBoot, VentoyWin_SuccessUpdated,
+        VentoyWin_SuccessInstalled, VentoyWin_Log_Done, VentoyWin_Log_PleaseCloseToContinue,
+        VentoyWin_Failed, VentoyWin_Log_CheckProtocol, VentoyWin_Log_CloseButtonExitCodeInfo,
+        VentoyWin_Log_FetchingLatest, VentoyWin_Log_UrlFetchFailed, VentoyWin_Log_Downloading,
+        VentoyWin_Log_DownloadProgress, VentoyWin_Log_DownloadFailed, VentoyWin_Log_Extracting,
+        VentoyWin_Log_ExeNotFound, VentoyWin_Log_StartingExe, VentoyWin_Log_ExeStartFailed,
+        VentoyWin_Log_Timeout, VentoyWin_Log_ResultFailed, VentoyWin_Log_CliDoneSuffix,
+        VentoyWin_Log_GeneralError,
     }
 }
