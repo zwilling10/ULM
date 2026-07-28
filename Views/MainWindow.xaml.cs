@@ -227,7 +227,7 @@ namespace ULM.Views
             _driveTimer.Start();
             _autoCheckTimer.Start();
             await Task.Delay(1000);
-            AppendLog("🌐 Automatischer Online-Versionscheck wird gestartet …");
+            AppendLog(LocalizationService.T(Str.Log_AutoVersionCheckStarting));
             _vm.TriggerAutoVersionCheck();
             _ = CheckUlmUpdateAsync();
         }
@@ -243,8 +243,8 @@ namespace ULM.Views
         {
             var info = await HttpService.Instance.CheckForUlmUpdateAsync(Constants.AppVersion).ConfigureAwait(true);
             if (!info.HasUpdate) return;
-            AppendLog($"🆕 Neue ULM-Version verfügbar: v{info.LatestVersion} (aktuell installiert: v{Constants.AppVersion})");
-            if (!string.IsNullOrWhiteSpace(info.ReleaseUrl)) AppendLog($"   {info.ReleaseUrl}");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_NewUlmVersionAvailable), info.LatestVersion, Constants.AppVersion));
+            if (!string.IsNullOrWhiteSpace(info.ReleaseUrl)) AppendLog(string.Format(LocalizationService.T(Str.Log_ReleaseUrlLine), info.ReleaseUrl));
             _vm.SetAvailableUpdate(info);
 
             _updateCurrentExePath = GetCurrentExePath();
@@ -259,15 +259,15 @@ namespace ULM.Views
                     .DownloadUpdateAsync(info, _updateInstallKind, tempDir, null, System.Threading.CancellationToken.None)
                     .ConfigureAwait(true);
             }
-            catch (Exception ex) { AppendLog($"⚠ Automatischer Update-Download fehlgeschlagen: {ex.Message}"); }
+            catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_AutoUpdateDownloadFailed), ex.Message)); }
 
             if (string.IsNullOrEmpty(downloaded))
             {
-                AppendLog("⚠ Automatischer Update-Download fehlgeschlagen — manueller Download bleibt über den Banner-Button möglich.");
+                AppendLog(LocalizationService.T(Str.Log_AutoUpdateDownloadFailedFallback));
                 _vm.SetAvailableUpdate(info);
                 return;
             }
-            AppendLog($"✅ Update heruntergeladen: {downloaded}");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_UpdateDownloaded), downloaded));
             _vm.SetUpdateReadyToInstall(downloaded);
         }
 
@@ -311,25 +311,25 @@ namespace ULM.Views
             if (dlg.OpenReleasePageInstead)
             {
                 try { Process.Start(new ProcessStartInfo(info.ReleaseUrl) { UseShellExecute = true }); }
-                catch (Exception ex) { AppendLog($"⚠ Release-Seite konnte nicht geöffnet werden: {ex.Message}"); }
+                catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_ReleasePageOpenFailed), ex.Message)); }
                 return;
             }
 
             string url  = dlg.ChosenUrl;
             string name = Path.GetFileName(new Uri(url).AbsolutePath);
             string dest = Path.Combine(AppPaths.Instance.DownloadDir, name);
-            AppendLog($"⬇ Lade Programm-Update: {name} …");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_DownloadingProgramUpdate), name));
             bool ok;
             try { ok = await HttpService.Instance.DownloadAsync(url, dest, null, System.Threading.CancellationToken.None).ConfigureAwait(true); }
-            catch (Exception ex) { AppendLog($"❌ Update-Download fehlgeschlagen: {ex.Message}"); ok = false; }
+            catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_UpdateDownloadFailed), ex.Message)); ok = false; }
             if (!ok)
             {
                 MessageBox.Show(LocalizationService.T(Str.Msg_UpdateDownloadFailed), Constants.AppTitle, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            AppendLog($"✅ Update gespeichert: {dest}");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_UpdateSaved), dest));
             try { Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{dest}\"") { UseShellExecute = true }); }
-            catch (Exception ex) { AppendLog($"⚠ Ordner konnte nicht geöffnet werden: {ex.Message}"); }
+            catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_FolderOpenFailed), ex.Message)); }
         }
 
         // Wird alle 30 Minuten geprüft: löst TriggerAutoVersionCheck() erneut aus, sobald seit
@@ -343,7 +343,7 @@ namespace ULM.Views
             string raw = IniService.Read(AppPaths.Instance.SettingsIni, "App", "LastAutoCheckUtc", string.Empty);
             if (!DateTime.TryParse(raw, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime last)) return;
             if ((DateTime.UtcNow - last).TotalDays < Constants.AutoCheckIntervalDays) return;
-            AppendLog($"🌐 Hintergrund-Check fällig (alle {Constants.AutoCheckIntervalDays} Tage) — suche erreichbare Server für die aktuellsten Versionen …");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_BackgroundCheckDue), Constants.AutoCheckIntervalDays));
             _vm.TriggerAutoVersionCheck();
         }
 
@@ -499,7 +499,7 @@ namespace ULM.Views
             try
             {
                 string dir = AppPaths.Instance.DownloadDir;
-                if (!Directory.Exists(dir)) { AppendLog($"⚠ Arbeitsordner nicht gefunden: {dir}"); return; }
+                if (!Directory.Exists(dir)) { AppendLog(string.Format(LocalizationService.T(Str.Log_WorkFolderNotFound), dir)); return; }
 
                 var dbEntries  = IsoDatabaseService.Instance.Entries;
                 var byFilename = new Dictionary<string, IsoEntry>(StringComparer.OrdinalIgnoreCase);
@@ -508,12 +508,12 @@ namespace ULM.Views
                         byFilename[e.Filename] = e;
 
                 var candidates = new List<(string Path, long Size)>();
-                AppendLog($"🔍 Scanne ISO-Ordner rekursiv: {dir}");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_ScanningIsoFolder), dir));
 
                 string[] isoFiles;
                 try   { isoFiles = Directory.GetFiles(dir, "*.iso", SearchOption.AllDirectories); }
-                catch (Exception ex) { AppendLog($"⚠ Scan-Fehler: {ex.Message}"); isoFiles = Array.Empty<string>(); }
-                AppendLog($"   {isoFiles.Length} ISO-Datei(en) gefunden.");
+                catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_ScanError), ex.Message)); isoFiles = Array.Empty<string>(); }
+                AppendLog(string.Format(LocalizationService.T(Str.Log_IsoFilesFoundCount), isoFiles.Length));
 
                 foreach (string f in isoFiles)
                 {
@@ -521,47 +521,48 @@ namespace ULM.Views
                     long size = IsoEntry.GetRobustLength(f);
 
                     if (size == 0)
-                    { AppendLog($"   ⚠ Leer (0 Bytes): {RelativePath(dir, f)}"); candidates.Add((f, 0)); continue; }
+                    { AppendLog(string.Format(LocalizationService.T(Str.Log_FileEmpty), RelativePath(dir, f))); candidates.Add((f, 0)); continue; }
 
                     if (!byFilename.TryGetValue(name, out var entry))
-                    { AppendLog($"   ⚠ Verwaist: {RelativePath(dir, f)}  ({FmtSize(size)})"); candidates.Add((f, size)); continue; }
+                    { AppendLog(string.Format(LocalizationService.T(Str.Log_FileOrphaned), RelativePath(dir, f), FmtSize(size))); candidates.Add((f, size)); continue; }
 
                     // Online-Größenprüfung: RemoteUrl → Url → Mirror1-5 (erste bekannte
                     // Content-Length gewinnt). Zuverlässiger als der feste 300-MB-Schwellwert,
                     // da auch unvollständige Downloads oberhalb dieser Schwelle erkannt werden.
                     long expected = await HttpService.Instance.GetExpectedSizeAsync(entry).ConfigureAwait(true);
                     if (expected > 0 && size < expected * 0.98)
-                    { AppendLog($"   ⚠ Unvollständig: {RelativePath(dir, f)}  ({FmtSize(size)} / {FmtSize(expected)} erwartet)"); candidates.Add((f, size)); }
+                    { AppendLog(string.Format(LocalizationService.T(Str.Log_FileIncomplete), RelativePath(dir, f), FmtSize(size), FmtSize(expected))); candidates.Add((f, size)); }
                     else if (expected > 0)
-                    { entry.VerifiedComplete = true; AppendLog($"   ✓ Vollständig: {RelativePath(dir, f)}  ({FmtSize(size)})"); }
+                    { entry.VerifiedComplete = true; AppendLog(string.Format(LocalizationService.T(Str.Log_FileComplete), RelativePath(dir, f), FmtSize(size))); }
                     else if (size < Constants.MinIsoSizeBytes)
-                    { AppendLog($"   ⚠ Zu klein (Online-Größe nicht ermittelbar): {RelativePath(dir, f)}  ({FmtSize(size)})"); candidates.Add((f, size)); }
+                    { AppendLog(string.Format(LocalizationService.T(Str.Log_FileTooSmallUnverified), RelativePath(dir, f), FmtSize(size))); candidates.Add((f, size)); }
                     else
-                    { entry.VerifiedComplete = true; AppendLog($"   ✓ OK (ungeprüft): {RelativePath(dir, f)}  ({FmtSize(size)})"); }
+                    { entry.VerifiedComplete = true; AppendLog(string.Format(LocalizationService.T(Str.Log_FileOkUnverified), RelativePath(dir, f), FmtSize(size))); }
                 }
 
                 try
                 {
                     foreach (string f in Directory.GetFiles(dir, "*.part", SearchOption.AllDirectories))
-                    { long size = IsoEntry.GetRobustLength(f); AppendLog($"   ⚠ Abgebrochen: {RelativePath(dir, f)}  ({FmtSize(size)})"); candidates.Add((f, size)); }
+                    { long size = IsoEntry.GetRobustLength(f); AppendLog(string.Format(LocalizationService.T(Str.Log_FileCancelledPartial), RelativePath(dir, f), FmtSize(size))); candidates.Add((f, size)); }
                 }
-                catch (Exception ex) { AppendLog($"   ⚠ .part-Suche: {ex.Message}"); }
+                catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_PartSearchError), ex.Message)); }
 
                 if (candidates.Count == 0)
-                    AppendLog("✅ Kein Datenmüll im ISO-Ordner — alles sauber.");
+                    AppendLog(LocalizationService.T(Str.Log_NoJunkFound));
                 else
                 {
-                    AppendLog($"🗑 {candidates.Count} Datei(en) als Datenmüll eingestuft.");
+                    AppendLog(string.Format(LocalizationService.T(Str.Log_JunkFilesClassified), candidates.Count));
                     var dlg = new OrphanedDownloadsDialog(candidates) { Owner = this };
                     if (dlg.ShowDialog() == true)
                     {
                         int deleted = 0, failed = 0;
                         foreach (string path in dlg.ToDelete)
-                        { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {RelativePath(dir, path)}"); } else failed++; }
-                        AppendLog($"🗑 {deleted} Datei(en) gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
+                        { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog(string.Format(LocalizationService.T(Str.Log_Deleted), RelativePath(dir, path))); } else failed++; }
+                        AppendLog(string.Format(LocalizationService.T(Str.Log_FilesDeletedSimpleStatus), deleted)
+                            + (failed > 0 ? string.Format(LocalizationService.T(Str.Log_FailedSuffix), failed) : "") + ".");
                         if (deleted > 0) _vm.RefreshAllEntries();
                     }
-                    else AppendLog($"ℹ Wartung übersprungen ({candidates.Count} Datei(en) behalten).");
+                    else AppendLog(string.Format(LocalizationService.T(Str.Log_MaintenanceSkipped), candidates.Count));
                 }
 
                 if (!string.IsNullOrEmpty(_vm.SelectedDriveLetter))
@@ -570,7 +571,7 @@ namespace ULM.Views
                     if (missing.Count > 0) OnMissingOnStickDetected(missing, _vm.SelectedDriveLetter);
                 }
             }
-            catch (Exception ex) { AppendLog($"⚠ Datei-Wartung: {ex.Message}"); }
+            catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_FileMaintenanceError), ex.Message)); }
         }
 
         private void OnStickUpdateAvailable(List<(IsoEntry Entry, string OldFilename)> outdated, string drive)

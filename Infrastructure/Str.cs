@@ -390,5 +390,16 @@ namespace ULM.Infrastructure
         Log_AddedCount, Log_DbUpdateSummary, Log_UnknownIsosFound, Log_ImportSkipped,
         Log_FileMovedToCategory, Log_IsosAddedToDb, Log_MoveFailedSuffix, Log_IncompleteIsosFound,
         Log_FilesDeletedStatus, Log_StickMaintenanceSkipped,
+
+        // ── Log-Meldungen: Programmstart/Update-Check/Datei-Wartung ──
+        Log_AutoVersionCheckStarting, Log_NewUlmVersionAvailable, Log_ReleaseUrlLine,
+        Log_AutoUpdateDownloadFailed, Log_AutoUpdateDownloadFailedFallback, Log_UpdateDownloaded,
+        Log_ReleasePageOpenFailed, Log_DownloadingProgramUpdate, Log_UpdateDownloadFailed,
+        Log_UpdateSaved, Log_FolderOpenFailed, Log_BackgroundCheckDue, Log_WorkFolderNotFound,
+        Log_ScanningIsoFolder, Log_ScanError, Log_IsoFilesFoundCount, Log_FileEmpty,
+        Log_FileOrphaned, Log_FileIncomplete, Log_FileComplete, Log_FileTooSmallUnverified,
+        Log_FileOkUnverified, Log_FileCancelledPartial, Log_PartSearchError, Log_NoJunkFound,
+        Log_JunkFilesClassified, Log_FilesDeletedSimpleStatus, Log_MaintenanceSkipped,
+        Log_FileMaintenanceError,
     }
 }
