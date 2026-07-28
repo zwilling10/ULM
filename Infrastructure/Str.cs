@@ -486,5 +486,12 @@ namespace ULM.Infrastructure
 
         // ── Core/Services/HttpService.cs: Download-Fortschritt-ETA-Suffix ──
         Xfer_EtaSuffix,
+
+        // ── Core/Workers/Workers.cs: DownloadWorker.OverallProgress (Hauptfenster Statuszeile) ──
+        Dl_OverallProgressDetail,
+
+        // ── Core/Workers/Workers.cs: CopyToUsbWorker (Hauptfenster Statuszeile + Fortschrittsdialog) ──
+        CpStatus_NoFiles, CpStatus_NotEnoughSpace, CpStatus_Starting, CpStatus_OverallProgress,
+        CpStatus_Cancelled, CpStatus_Done,
     }
 }

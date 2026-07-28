@@ -615,7 +615,7 @@ namespace ULM.Core.Workers
                     {
                         ItemCompleted?.Invoke(entry, ok);
                         int done = Interlocked.Increment(ref finished);
-                        OverallProgress?.Invoke((done * 100) / total, $"Lade herunter... ({done}/{total})");
+                        OverallProgress?.Invoke((done * 100) / total, string.Format(LocalizationService.T(Str.Dl_OverallProgressDetail), done, total));
                         semaphore.Release();
                     }
                 }));
@@ -659,7 +659,7 @@ namespace ULM.Core.Workers
                 string root = UsbService.DriveRoot(_letter);
                 var valid = _entries.Where(e => e.IsLocallyAvailable(_downloadDir)).ToList();
                 int total = valid.Count;
-                if (total == 0) { Completed?.Invoke(true, 0, 0L, "Keine Dateien."); return; }
+                if (total == 0) { Completed?.Invoke(true, 0, 0L, LocalizationService.T(Str.CpStatus_NoFiles)); return; }
                 long totalBytes = valid.Sum(e => e.LocalFileSize(_downloadDir));
 
                 // Freispeicher-Check vor dem Kopieren: lieber jetzt klar abbrechen als nach der
@@ -669,7 +669,7 @@ namespace ULM.Core.Workers
                     var drive = new DriveInfo(root);
                     if (drive.IsReady && drive.AvailableFreeSpace < totalBytes)
                     {
-                        Completed?.Invoke(false, 0, 0L, $"Nicht genug Speicherplatz auf {_letter} (benötigt {TransferFormat.FormatBytes(totalBytes)}, frei {TransferFormat.FormatBytes(drive.AvailableFreeSpace)}).");
+                        Completed?.Invoke(false, 0, 0L, string.Format(LocalizationService.T(Str.CpStatus_NotEnoughSpace), _letter, TransferFormat.FormatBytes(totalBytes), TransferFormat.FormatBytes(drive.AvailableFreeSpace)));
                         return;
                     }
                 }
@@ -684,7 +684,7 @@ namespace ULM.Core.Workers
                     string dst = Path.Combine(tdir, e.Filename);
                     long fs = e.LocalFileSize(_downloadDir), copied = 0;
                     var sw = Stopwatch.StartNew(); long lastMark = 0; double lastEl = 0;
-                    FileProgress?.Invoke(e.Name, 0, "Startet …");
+                    FileProgress?.Invoke(e.Name, 0, LocalizationService.T(Str.CpStatus_Starting));
                     using var srcS = new FileStream(src, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan | FileOptions.Asynchronous);
                     using var dstS = new FileStream(dst, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
                     int read;
@@ -700,17 +700,17 @@ namespace ULM.Core.Workers
                             lastMark = copied; lastEl = el;
                             int pct = fs > 0 ? (int)((copied * 100L) / fs) : 0;
                             FileProgress?.Invoke(e.Name, pct, TransferFormat.BuildDetail(bps, copied, fs));
-                            Progress?.Invoke(totalBytes > 0 ? (int)((totalCopied * 100L) / totalBytes) : 0, $"Kopiert {copiedCount + 1}/{total}…");
+                            Progress?.Invoke(totalBytes > 0 ? (int)((totalCopied * 100L) / totalBytes) : 0, string.Format(LocalizationService.T(Str.CpStatus_OverallProgress), copiedCount + 1, total));
                         }
                     }
                     await dstS.FlushAsync().ConfigureAwait(false);
                     bool ok = !_cts.IsCancellationRequested && new FileInfo(dst).Length == fs;
-                    if (!ok) { try { File.Delete(dst); } catch { } FileProgress?.Invoke(e.Name, 0, "Abgebrochen"); }
-                    else     { FileProgress?.Invoke(e.Name, 100, "Fertig"); copiedCount++; }
+                    if (!ok) { try { File.Delete(dst); } catch { } FileProgress?.Invoke(e.Name, 0, LocalizationService.T(Str.CpStatus_Cancelled)); }
+                    else     { FileProgress?.Invoke(e.Name, 100, LocalizationService.T(Str.CpStatus_Done)); copiedCount++; }
                 }
-                Completed?.Invoke(!_cts.IsCancellationRequested, copiedCount, totalCopied, _cts.IsCancellationRequested ? "Abgebrochen" : "Fertig");
+                Completed?.Invoke(!_cts.IsCancellationRequested, copiedCount, totalCopied, LocalizationService.T(_cts.IsCancellationRequested ? Str.CpStatus_Cancelled : Str.CpStatus_Done));
             }
-            catch (Exception ex) { Completed?.Invoke(false, copiedCount, totalCopied, $"Fehler: {ex.Message}"); }
+            catch (Exception ex) { Completed?.Invoke(false, copiedCount, totalCopied, string.Format(LocalizationService.T(Str.DlStatus_GeneralError), ex.Message)); }
         });
     }
 

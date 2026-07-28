@@ -1016,6 +1016,17 @@ namespace ULM.Infrastructure
 
             // ── Core/Services/HttpService.cs: Download-Fortschritt-ETA-Suffix ──
             [Str.Xfer_EtaSuffix] = "  ·  noch {0}",
+
+            // ── Core/Workers/Workers.cs: DownloadWorker.OverallProgress (Hauptfenster Statuszeile) ──
+            [Str.Dl_OverallProgressDetail] = "Lade herunter... ({0}/{1})",
+
+            // ── Core/Workers/Workers.cs: CopyToUsbWorker ──
+            [Str.CpStatus_NoFiles]         = "Keine Dateien.",
+            [Str.CpStatus_NotEnoughSpace]  = "Nicht genug Speicherplatz auf {0} (benötigt {1}, frei {2}).",
+            [Str.CpStatus_Starting]        = "Startet …",
+            [Str.CpStatus_OverallProgress] = "Kopiert {0}/{1}…",
+            [Str.CpStatus_Cancelled]       = "Abgebrochen",
+            [Str.CpStatus_Done]            = "Fertig",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1988,6 +1999,17 @@ namespace ULM.Infrastructure
 
             // ── Core/Services/HttpService.cs: download progress ETA suffix ──
             [Str.Xfer_EtaSuffix] = "  ·  {0} left",
+
+            // ── Core/Workers/Workers.cs: DownloadWorker.OverallProgress (main window status bar) ──
+            [Str.Dl_OverallProgressDetail] = "Downloading... ({0}/{1})",
+
+            // ── Core/Workers/Workers.cs: CopyToUsbWorker ──
+            [Str.CpStatus_NoFiles]         = "No files.",
+            [Str.CpStatus_NotEnoughSpace]  = "Not enough disk space on {0} (needs {1}, free {2}).",
+            [Str.CpStatus_Starting]        = "Starting …",
+            [Str.CpStatus_OverallProgress] = "Copied {0}/{1}…",
+            [Str.CpStatus_Cancelled]       = "Cancelled",
+            [Str.CpStatus_Done]            = "Done",
         };
     }
 }
