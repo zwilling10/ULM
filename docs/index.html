@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Universal Linux Manager — Multiboot USB Stick Manager</title>
-<meta name="description" content="Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz.">
+<meta name="description" content="Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz." id="metaDescription">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230075BE'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI, Arial' font-weight='bold' fill='white' text-anchor='middle'%3EUL%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -40,7 +40,7 @@
     display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
     box-shadow:0 4px 14px rgba(0,117,190,.4);
   }
-  nav .links{display:flex;gap:22px;font-size:13.5px;color:var(--text-dim)}
+  nav .links{display:flex;align-items:center;gap:22px;font-size:13.5px;color:var(--text-dim)}
   nav .links a{color:var(--text-dim)}
   nav .links a:hover{color:var(--text);text-decoration:none}
   .btn-gh-nav{
@@ -48,6 +48,13 @@
     border:1px solid var(--card-border);padding:6px 12px;border-radius:8px;font-size:13px;
   }
   .btn-gh-nav:hover{border-color:var(--blue);text-decoration:none}
+  .nav-actions{display:flex;align-items:center;gap:10px}
+  #langToggle{
+    display:flex;align-items:center;gap:6px;color:var(--text);
+    border:1px solid var(--card-border);padding:6px 12px;border-radius:8px;font-size:13px;
+    background:transparent;cursor:pointer;font-family:inherit;
+  }
+  #langToggle:hover{border-color:var(--blue)}
 
   /* ── Hero ────────────────────────────────────────────────────── */
   header.hero{position:relative;padding:88px 0 70px;overflow:hidden}
@@ -163,31 +170,34 @@
   <div class="wrap">
     <div class="brand"><span class="logo">UL</span> Universal Linux Manager</div>
     <div class="links">
-      <a href="#features">Funktionen</a>
-      <a href="#distros">Distros</a>
-      <a href="#download">Download</a>
+      <a href="#features" data-i18n="nav.features">Funktionen</a>
+      <a href="#distros" data-i18n="nav.distros">Distros</a>
+      <a href="#download" data-i18n="nav.download">Download</a>
     </div>
-    <a class="btn-gh-nav" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-      GitHub
-    </a>
+    <div class="nav-actions">
+      <button id="langToggle" type="button" aria-label="Switch language"></button>
+      <a class="btn-gh-nav" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        GitHub
+      </a>
+    </div>
   </div>
 </nav>
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow"><span class="dot"></span> v2.39.1 · Open Source · Portabel oder installierbar</div>
-    <h1>Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten</h1>
-    <p class="tagline">ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.</p>
+    <div class="eyebrow"><span class="dot"></span> <span data-i18n="hero.eyebrow">v2.39.1 · Open Source · Portabel oder installierbar</span></div>
+    <h1 data-i18n="hero.h1">Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten</h1>
+    <p class="tagline" data-i18n="hero.tagline">ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener">⬇ Download für Windows</a>
-      <a class="btn btn-ghost" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener">Quellcode auf GitHub</a>
+      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener" data-i18n="hero.cta.download">⬇ Download für Windows</a>
+      <a class="btn btn-ghost" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener" data-i18n="hero.cta.source">Quellcode auf GitHub</a>
     </div>
     <div class="meta-row">
       <span><span class="dot"></span> Windows 10 / 11 (x64)</span>
-      <span>Keine Installation nötig</span>
-      <span>Keine .NET-Runtime nötig</span>
-      <span>MIT-lizenziert</span>
+      <span data-i18n="hero.meta.noinstall">Keine Installation nötig</span>
+      <span data-i18n="hero.meta.nonet">Keine .NET-Runtime nötig</span>
+      <span data-i18n="hero.meta.mit">MIT-lizenziert</span>
     </div>
   </div>
 </header>
@@ -195,55 +205,55 @@
 <section id="features">
   <div class="wrap">
     <div class="section-head">
-      <div class="kicker">Funktionen</div>
-      <h2>Alles, was ein Multiboot-Stick braucht</h2>
-      <p>Vier Kernaufgaben, komplett automatisiert — vom Download bis zum fertigen Bootmenü.</p>
+      <div class="kicker" data-i18n="features.kicker">Funktionen</div>
+      <h2 data-i18n="features.h2">Alles, was ein Multiboot-Stick braucht</h2>
+      <p data-i18n="features.p">Vier Kernaufgaben, komplett automatisiert — vom Download bis zum fertigen Bootmenü.</p>
     </div>
     <div class="grid">
       <div class="card">
         <div class="ic ic-blue">⬇</div>
-        <h3>Automatische ISO-Downloads</h3>
-        <p>Über 20 dedizierte Erkennungsroutinen lösen für jede unterstützte Distro immer die aktuellste Download-URL direkt beim Anbieter auf — keine hartkodierten Links, die veralten. Ein Mirror-Race testet vorab alle konfigurierten Quellen und startet automatisch mit der schnellsten.</p>
+        <h3 data-i18n="features.c1.h">Automatische ISO-Downloads</h3>
+        <p data-i18n="features.c1.p">Über 20 dedizierte Erkennungsroutinen lösen für jede unterstützte Distro immer die aktuellste Download-URL direkt beim Anbieter auf — keine hartkodierten Links, die veralten. Ein Mirror-Race testet vorab alle konfigurierten Quellen und startet automatisch mit der schnellsten.</p>
       </div>
       <div class="card">
         <div class="ic ic-teal">🔍</div>
-        <h3>Neue Distros entdecken</h3>
-        <p>Zwei Online-Listen direkt von DistroWatch — die zuletzt hinzugefügten und die aktuell beliebtesten Distributionen, gefiltert auf garantiert per USB-Stick bootfähige Live-Medium-Images.</p>
+        <h3 data-i18n="features.c2.h">Neue Distros entdecken</h3>
+        <p data-i18n="features.c2.p">Zwei Online-Listen direkt von DistroWatch — die zuletzt hinzugefügten und die aktuell beliebtesten Distributionen, gefiltert auf garantiert per USB-Stick bootfähige Live-Medium-Images.</p>
       </div>
       <div class="card">
         <div class="ic ic-teal">💾</div>
-        <h3>Ventoy-Integration</h3>
-        <p>Ein Stick, viele ISOs, kein Neu-Flashen. ULM kopiert Downloads direkt auf den Stick und aktualisiert das Bootmenü automatisch nach jeder Änderung.</p>
+        <h3 data-i18n="features.c3.h">Ventoy-Integration</h3>
+        <p data-i18n="features.c3.p">Ein Stick, viele ISOs, kein Neu-Flashen. ULM kopiert Downloads direkt auf den Stick und aktualisiert das Bootmenü automatisch nach jeder Änderung.</p>
       </div>
       <div class="card">
         <div class="ic ic-green">🩺</div>
-        <h3>Gesundheitscheck & Duplikat-Schutz</h3>
-        <p>Läuft automatisch nach jedem Download oder Scan: prüft alle Einträge auf Erreichbarkeit und bereinigt doppelte Datenbank-Einträge, bevor sie auffallen.</p>
+        <h3 data-i18n="features.c4.h">Gesundheitscheck & Duplikat-Schutz</h3>
+        <p data-i18n="features.c4.p">Läuft automatisch nach jedem Download oder Scan: prüft alle Einträge auf Erreichbarkeit und bereinigt doppelte Datenbank-Einträge, bevor sie auffallen.</p>
       </div>
       <div class="card">
         <div class="ic ic-amber">🧹</div>
-        <h3>Datenmüll-Schutz</h3>
-        <p>Vergleicht jede lokale und auf dem Stick gefundene ISO per Online-Größenprüfung mit dem Original — unvollständige Downloads werden zuverlässig erkannt.</p>
+        <h3 data-i18n="features.c5.h">Datenmüll-Schutz</h3>
+        <p data-i18n="features.c5.p">Vergleicht jede lokale und auf dem Stick gefundene ISO per Online-Größenprüfung mit dem Original — unvollständige Downloads werden zuverlässig erkannt.</p>
       </div>
       <div class="card">
         <div class="ic ic-blue">📥</div>
-        <h3>Selbstlernende Erkennung</h3>
-        <p>Manuell hinzugefügte oder vom Stick importierte Distros werden automatisch einer passenden Quelle zugeordnet — gefundene URLs werden dauerhaft gemerkt. Bleibt die Suche bei einer einzelnen Distro hartnäckig erfolglos, bietet ULM direkt in der Liste einen manuellen Ausweg mit Suchfunktion.</p>
+        <h3 data-i18n="features.c6.h">Selbstlernende Erkennung</h3>
+        <p data-i18n="features.c6.p">Manuell hinzugefügte oder vom Stick importierte Distros werden automatisch einer passenden Quelle zugeordnet — gefundene URLs werden dauerhaft gemerkt. Bleibt die Suche bei einer einzelnen Distro hartnäckig erfolglos, bietet ULM direkt in der Liste einen manuellen Ausweg mit Suchfunktion.</p>
       </div>
       <div class="card">
         <div class="ic ic-teal">📦</div>
-        <h3>Portabel oder installiert</h3>
-        <p>Wahlweise eine einzige self-contained .exe ohne Installation — einfach auf den Stick oder in einen beliebigen Ordner kopieren und starten — oder ein klassischer Setup mit Startmenü-Eintrag und Deinstaller.</p>
+        <h3 data-i18n="features.c7.h">Portabel oder installiert</h3>
+        <p data-i18n="features.c7.p">Wahlweise eine einzige self-contained .exe ohne Installation — einfach auf den Stick oder in einen beliebigen Ordner kopieren und starten — oder ein klassischer Setup mit Startmenü-Eintrag und Deinstaller.</p>
       </div>
       <div class="card">
         <div class="ic ic-green">🔄</div>
-        <h3>Automatisches Selbst-Update</h3>
-        <p>Findet ULM eine neuere Programmversion, wird sie automatisch im Hintergrund heruntergeladen. Ein Klick auf „Jetzt installieren & neu starten“ genügt — ULM installiert bzw. ersetzt sich selbst und startet direkt in der neuen Version neu.</p>
+        <h3 data-i18n="features.c8.h">Automatisches Selbst-Update</h3>
+        <p data-i18n="features.c8.p">Findet ULM eine neuere Programmversion, wird sie automatisch im Hintergrund heruntergeladen. Ein Klick auf „Jetzt installieren & neu starten“ genügt — ULM installiert bzw. ersetzt sich selbst und startet direkt in der neuen Version neu.</p>
       </div>
       <div class="card">
         <div class="ic ic-amber">🌓</div>
-        <h3>Dark Mode</h3>
-        <p>Design-Wahl System/Hell/Dunkel, schaltet sofort um — kein Neustart nötig. Bei "System" folgt ULM automatisch der Windows-Einstellung, auch live.</p>
+        <h3 data-i18n="features.c9.h">Dark Mode</h3>
+        <p data-i18n="features.c9.p">Design-Wahl System/Hell/Dunkel, schaltet sofort um — kein Neustart nötig. Bei "System" folgt ULM automatisch der Windows-Einstellung, auch live.</p>
       </div>
     </div>
   </div>
@@ -252,17 +262,17 @@
 <section id="distros">
   <div class="wrap">
     <div class="section-head">
-      <div class="kicker">Katalog</div>
-      <h2>Für jeden Einsatzzweck die richtige Distro</h2>
-      <p>Vorkonfiguriert und kategorisiert — von Einsteiger-Desktops bis Pen-Testing.</p>
+      <div class="kicker" data-i18n="distros.kicker">Katalog</div>
+      <h2 data-i18n="distros.h2">Für jeden Einsatzzweck die richtige Distro</h2>
+      <p data-i18n="distros.p">Vorkonfiguriert und kategorisiert — von Einsteiger-Desktops bis Pen-Testing.</p>
     </div>
     <div class="cat-strip">
-      <span class="chip">🖥 Einsteiger</span>
-      <span class="chip">⚙ Fortgeschrittene</span>
-      <span class="chip">🪶 Leichtgewicht</span>
+      <span class="chip" data-i18n="distros.cat1">🖥 Einsteiger</span>
+      <span class="chip" data-i18n="distros.cat2">⚙ Fortgeschrittene</span>
+      <span class="chip" data-i18n="distros.cat3">🪶 Leichtgewicht</span>
       <span class="chip">🎮 Gaming</span>
-      <span class="chip">🔒 Sicherheit</span>
-      <span class="chip">🛠 Rettung</span>
+      <span class="chip" data-i18n="distros.cat5">🔒 Sicherheit</span>
+      <span class="chip" data-i18n="distros.cat6">🛠 Rettung</span>
       <span class="chip">🛡 Antivirus</span>
       <span class="chip">🪟 WinPE</span>
     </div>
@@ -272,8 +282,8 @@
 <section>
   <div class="wrap">
     <div class="section-head">
-      <div class="kicker">Technik</div>
-      <h2>Gebaut mit</h2>
+      <div class="kicker" data-i18n="tech.kicker">Technik</div>
+      <h2 data-i18n="tech.h2">Gebaut mit</h2>
     </div>
     <div class="tech-row">
       <div class="tech-badge"><span class="dot2" style="background:#0075be"></span> .NET 8</div>
@@ -287,25 +297,25 @@
 <section id="download">
   <div class="wrap">
     <div class="dl-panel">
-      <h2>Jetzt herunterladen</h2>
-      <p>Neueste Version von GitHub Releases — zwei Varianten zur Wahl.</p>
-      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener">⬇ Neueste Version herunterladen</a>
+      <h2 data-i18n="dl.h2">Jetzt herunterladen</h2>
+      <p data-i18n="dl.p">Neueste Version von GitHub Releases — zwei Varianten zur Wahl.</p>
+      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener" data-i18n="dl.cta">⬇ Neueste Version herunterladen</a>
       <div class="grid" style="margin-top:34px;text-align:left">
         <div class="card">
           <div class="ic ic-teal">📦</div>
           <h3>Portable EXE</h3>
-          <p>Eine einzige Datei, kein Installer, keine Adminrechte nötig. Herunterladen und direkt starten — auch vom USB-Stick.</p>
+          <p data-i18n="dl.c1.p">Eine einzige Datei, kein Installer, keine Adminrechte nötig. Herunterladen und direkt starten — auch vom USB-Stick.</p>
         </div>
         <div class="card">
           <div class="ic ic-blue">🛠</div>
           <h3>Setup.exe</h3>
-          <p>Klassischer Installer mit Startmenü-Eintrag und Deinstaller. Windows SmartScreen zeigt beim ersten Start eine „Unbekannter Herausgeber“-Warnung (kein kostenpflichtiges Code-Signing-Zertifikat) — über „Weitere Informationen“ → „Trotzdem ausführen“ starten.</p>
+          <p data-i18n="dl.c2.p">Klassischer Installer mit Startmenü-Eintrag und Deinstaller. Windows SmartScreen zeigt beim ersten Start eine „Unbekannter Herausgeber“-Warnung (kein kostenpflichtiges Code-Signing-Zertifikat) — über „Weitere Informationen“ → „Trotzdem ausführen“ starten.</p>
         </div>
       </div>
       <div class="req-list">
         <span>✔ Windows 10 / 11 (x64)</span>
         <span>✔ ~70&nbsp;MB</span>
-        <span>✔ Kein Administrator nötig (außer für Ventoy-Setup)</span>
+        <span data-i18n="dl.req3">✔ Kein Administrator nötig (außer für Ventoy-Setup)</span>
       </div>
     </div>
   </div>
@@ -321,6 +331,149 @@
     </div>
   </div>
 </footer>
+
+<script>
+(function(){
+  var STORAGE_KEY = "ulm-lang";
+
+  var translations = {
+    "nav.features": { de: "Funktionen", en: "Features" },
+    "nav.distros": { de: "Distros", en: "Distros" },
+    "nav.download": { de: "Download", en: "Download" },
+    "hero.eyebrow": { de: "v2.39.1 · Open Source · Portabel oder installierbar", en: "v2.39.1 · Open Source · Portable or installable" },
+    "hero.h1": { de: "Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten", en: "Keep multiboot USB&nbsp;sticks up to&nbsp;date in seconds" },
+    "hero.tagline": {
+      de: "ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.",
+      en: "ULM automatically downloads Linux live ISOs from official sources, copies them to your Ventoy stick, and keeps the whole catalog permanently up to date — even without configured URLs."
+    },
+    "hero.cta.download": { de: "⬇ Download für Windows", en: "⬇ Download for Windows" },
+    "hero.cta.source": { de: "Quellcode auf GitHub", en: "Source code on GitHub" },
+    "hero.meta.noinstall": { de: "Keine Installation nötig", en: "No installation required" },
+    "hero.meta.nonet": { de: "Keine .NET-Runtime nötig", en: "No .NET runtime required" },
+    "hero.meta.mit": { de: "MIT-lizenziert", en: "MIT licensed" },
+
+    "features.kicker": { de: "Funktionen", en: "Features" },
+    "features.h2": { de: "Alles, was ein Multiboot-Stick braucht", en: "Everything a multiboot stick needs" },
+    "features.p": { de: "Vier Kernaufgaben, komplett automatisiert — vom Download bis zum fertigen Bootmenü.", en: "Four core tasks, fully automated — from download to a finished boot menu." },
+
+    "features.c1.h": { de: "Automatische ISO-Downloads", en: "Automatic ISO downloads" },
+    "features.c1.p": {
+      de: "Über 20 dedizierte Erkennungsroutinen lösen für jede unterstützte Distro immer die aktuellste Download-URL direkt beim Anbieter auf — keine hartkodierten Links, die veralten. Ein Mirror-Race testet vorab alle konfigurierten Quellen und startet automatisch mit der schnellsten.",
+      en: "Over 20 dedicated resolvers always find the latest download URL directly from each supported distro's provider — no hardcoded links that go stale. A mirror race tests all configured sources beforehand and automatically starts with the fastest one."
+    },
+    "features.c2.h": { de: "Neue Distros entdecken", en: "Discover new distros" },
+    "features.c2.p": {
+      de: "Zwei Online-Listen direkt von DistroWatch — die zuletzt hinzugefügten und die aktuell beliebtesten Distributionen, gefiltert auf garantiert per USB-Stick bootfähige Live-Medium-Images.",
+      en: "Two live lists straight from DistroWatch — the most recently added and the currently most popular distributions, filtered to live-medium images guaranteed to boot from a USB stick."
+    },
+    "features.c3.h": { de: "Ventoy-Integration", en: "Ventoy integration" },
+    "features.c3.p": {
+      de: "Ein Stick, viele ISOs, kein Neu-Flashen. ULM kopiert Downloads direkt auf den Stick und aktualisiert das Bootmenü automatisch nach jeder Änderung.",
+      en: "One stick, many ISOs, no re-flashing. ULM copies downloads straight to the stick and refreshes the boot menu automatically after every change."
+    },
+    "features.c4.h": { de: "Gesundheitscheck & Duplikat-Schutz", en: "Health check & duplicate protection" },
+    "features.c4.p": {
+      de: "Läuft automatisch nach jedem Download oder Scan: prüft alle Einträge auf Erreichbarkeit und bereinigt doppelte Datenbank-Einträge, bevor sie auffallen.",
+      en: "Runs automatically after every download or scan: checks all entries for reachability and cleans up duplicate database entries before they become a problem."
+    },
+    "features.c5.h": { de: "Datenmüll-Schutz", en: "Junk-file protection" },
+    "features.c5.p": {
+      de: "Vergleicht jede lokale und auf dem Stick gefundene ISO per Online-Größenprüfung mit dem Original — unvollständige Downloads werden zuverlässig erkannt.",
+      en: "Compares every local and stick-found ISO against the original via an online size check — incomplete downloads are reliably detected."
+    },
+    "features.c6.h": { de: "Selbstlernende Erkennung", en: "Self-learning discovery" },
+    "features.c6.p": {
+      de: "Manuell hinzugefügte oder vom Stick importierte Distros werden automatisch einer passenden Quelle zugeordnet — gefundene URLs werden dauerhaft gemerkt. Bleibt die Suche bei einer einzelnen Distro hartnäckig erfolglos, bietet ULM direkt in der Liste einen manuellen Ausweg mit Suchfunktion.",
+      en: "Manually added or stick-imported distros are automatically matched to a suitable source — found URLs are remembered permanently. If the search for a single distro keeps failing, ULM offers a manual fallback with search right in the list."
+    },
+    "features.c7.h": { de: "Portabel oder installiert", en: "Portable or installed" },
+    "features.c7.p": {
+      de: "Wahlweise eine einzige self-contained .exe ohne Installation — einfach auf den Stick oder in einen beliebigen Ordner kopieren und starten — oder ein klassischer Setup mit Startmenü-Eintrag und Deinstaller.",
+      en: "Choose a single self-contained .exe with no installation — just copy it to the stick or any folder and run it — or a classic setup with a Start Menu entry and uninstaller."
+    },
+    "features.c8.h": { de: "Automatisches Selbst-Update", en: "Automatic self-update" },
+    "features.c8.p": {
+      de: "Findet ULM eine neuere Programmversion, wird sie automatisch im Hintergrund heruntergeladen. Ein Klick auf „Jetzt installieren & neu starten“ genügt — ULM installiert bzw. ersetzt sich selbst und startet direkt in der neuen Version neu.",
+      en: "If ULM finds a newer program version, it's downloaded automatically in the background. One click on “Install now & restart” is enough — ULM installs or replaces itself and restarts directly into the new version."
+    },
+    "features.c9.h": { de: "Dark Mode", en: "Dark mode" },
+    "features.c9.p": {
+      de: "Design-Wahl System/Hell/Dunkel, schaltet sofort um — kein Neustart nötig. Bei \"System\" folgt ULM automatisch der Windows-Einstellung, auch live.",
+      en: "Theme choice of System/Light/Dark, switches instantly — no restart needed. With \"System\", ULM automatically follows the Windows setting, even live."
+    },
+
+    "distros.kicker": { de: "Katalog", en: "Catalog" },
+    "distros.h2": { de: "Für jeden Einsatzzweck die richtige Distro", en: "The right distro for every use case" },
+    "distros.p": { de: "Vorkonfiguriert und kategorisiert — von Einsteiger-Desktops bis Pen-Testing.", en: "Pre-configured and categorized — from beginner desktops to pen-testing." },
+    "distros.cat1": { de: "🖥 Einsteiger", en: "🖥 Beginner" },
+    "distros.cat2": { de: "⚙ Fortgeschrittene", en: "⚙ Advanced" },
+    "distros.cat3": { de: "🪶 Leichtgewicht", en: "🪶 Lightweight" },
+    "distros.cat5": { de: "🔒 Sicherheit", en: "🔒 Security" },
+    "distros.cat6": { de: "🛠 Rettung", en: "🛠 Rescue" },
+
+    "tech.kicker": { de: "Technik", en: "Tech Stack" },
+    "tech.h2": { de: "Gebaut mit", en: "Built with" },
+
+    "dl.h2": { de: "Jetzt herunterladen", en: "Download now" },
+    "dl.p": { de: "Neueste Version von GitHub Releases — zwei Varianten zur Wahl.", en: "Latest version from GitHub Releases — two options available." },
+    "dl.cta": { de: "⬇ Neueste Version herunterladen", en: "⬇ Download latest version" },
+    "dl.c1.p": {
+      de: "Eine einzige Datei, kein Installer, keine Adminrechte nötig. Herunterladen und direkt starten — auch vom USB-Stick.",
+      en: "A single file, no installer, no admin rights required. Download and run directly — even from the USB stick."
+    },
+    "dl.c2.p": {
+      de: "Klassischer Installer mit Startmenü-Eintrag und Deinstaller. Windows SmartScreen zeigt beim ersten Start eine „Unbekannter Herausgeber“-Warnung (kein kostenpflichtiges Code-Signing-Zertifikat) — über „Weitere Informationen“ → „Trotzdem ausführen“ starten.",
+      en: "Classic installer with a Start Menu entry and uninstaller. Windows SmartScreen shows an “Unknown publisher” warning on first run (no paid code-signing certificate) — start via “More info” → “Run anyway”."
+    },
+    "dl.req3": { de: "✔ Kein Administrator nötig (außer für Ventoy-Setup)", en: "✔ No administrator required (except for Ventoy setup)" }
+  };
+
+  var pageMeta = {
+    de: {
+      title: "Universal Linux Manager — Multiboot USB Stick Manager",
+      description: "Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz."
+    },
+    en: {
+      title: "Universal Linux Manager — Multiboot USB Stick Manager",
+      description: "Universal Linux Manager (ULM) — portable Windows manager for Ventoy multiboot USB sticks with Linux ISOs. Automatic downloads, version checks, and junk-file protection."
+    }
+  };
+
+  function detectInitialLang(){
+    var saved = null;
+    try { saved = localStorage.getItem(STORAGE_KEY); } catch(e) {}
+    if (saved === "de" || saved === "en") return saved;
+    return (navigator.language || "").toLowerCase().indexOf("de") === 0 ? "de" : "en";
+  }
+
+  function applyLanguage(lang){
+    document.documentElement.setAttribute("lang", lang);
+    document.title = pageMeta[lang].title;
+    var metaDesc = document.getElementById("metaDescription");
+    if (metaDesc) metaDesc.setAttribute("content", pageMeta[lang].description);
+
+    var nodes = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < nodes.length; i++) {
+      var key = nodes[i].getAttribute("data-i18n");
+      var entry = translations[key];
+      if (entry && entry[lang]) nodes[i].innerHTML = entry[lang];
+    }
+
+    var toggle = document.getElementById("langToggle");
+    if (toggle) toggle.textContent = lang === "de" ? "EN" : "DE";
+
+    try { localStorage.setItem(STORAGE_KEY, lang); } catch(e) {}
+  }
+
+  var currentLang = detectInitialLang();
+  applyLanguage(currentLang);
+
+  document.getElementById("langToggle").addEventListener("click", function(){
+    currentLang = currentLang === "de" ? "en" : "de";
+    applyLanguage(currentLang);
+  });
+})();
+</script>
 
 </body>
 </html>
