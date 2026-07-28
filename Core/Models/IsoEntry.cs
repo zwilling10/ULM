@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ULM.Infrastructure;
 
 namespace ULM.Core.Models
 {
@@ -285,7 +286,11 @@ namespace ULM.Core.Models
             if (string.IsNullOrWhiteSpace(path)) return true;
             if (!File.Exists(path)) return true;
             try { File.Delete(path); return true; }
-            catch (Exception ex) { log?.Invoke($"⚠ Löschen fehlgeschlagen ({Path.GetFileName(path)}): {ex.Message}"); return false; }
+            catch (Exception ex)
+            {
+                log?.Invoke(string.Format(LocalizationService.T(Str.Log_DeleteFailed), Path.GetFileName(path), ex.Message));
+                return false;
+            }
         }
 
         public void ResetRuntimeState()

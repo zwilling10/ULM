@@ -401,5 +401,12 @@ namespace ULM.Infrastructure
         Log_FileOkUnverified, Log_FileCancelledPartial, Log_PartSearchError, Log_NoJunkFound,
         Log_JunkFilesClassified, Log_FilesDeletedSimpleStatus, Log_MaintenanceSkipped,
         Log_FileMaintenanceError,
+
+        // ── Log-Meldungen: Ventoy/DB-Suche/Abbruch (Rest MainWindow.xaml.cs) + IsoEntry ──
+        Log_StaleDuplicatesDeletedStatus, Log_DuplicateCleanupSkipped, Log_UsbDrivesDetected,
+        Log_VentoyInstallStartingOnDrive, Log_VentoyActionStartedEllipsis, Log_CheckingRequiredSpace,
+        Log_SourceManuallyAddedDeferred, Log_SourceManuallyAddedRetrying, Log_IsosAddedFromOnlineSearch,
+        Log_GitHubTokenRemoved, Log_GitHubTokenSaved, Log_CancellingOperation, Log_DeleteFailed,
+        Log_OperationSucceededLogPrefix,
     }
 }

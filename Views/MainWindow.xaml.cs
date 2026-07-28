@@ -164,7 +164,7 @@ namespace ULM.Views
             _vm.OperationSucceeded += message =>
             {
                 _downloadProgressDialog?.Close(); _downloadProgressDialog = null;
-                AppendLog($"✅ {message.Split('\n')[0]}");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_OperationSucceededLogPrefix), message.Split('\n')[0]));
                 MessageBox.Show(message, LocalizationService.T(Str.Msg_OperationComplete_Title), MessageBoxButton.OK, MessageBoxImage.Information);
             };
 
@@ -616,10 +616,11 @@ namespace ULM.Views
             {
                 int deleted = 0, failed = 0;
                 foreach (string path in dlg.ToDelete)
-                { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {Path.GetFileName(path)}"); } else failed++; }
-                AppendLog($"🗑 {deleted} veraltete Duplikat(e) auf {drive} gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
+                { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog(string.Format(LocalizationService.T(Str.Log_Deleted), Path.GetFileName(path))); } else failed++; }
+                AppendLog(string.Format(LocalizationService.T(Str.Log_StaleDuplicatesDeletedStatus), deleted, drive)
+                    + (failed > 0 ? string.Format(LocalizationService.T(Str.Log_FailedSuffix), failed) : "") + ".");
             }
-            else AppendLog($"ℹ Duplikat-Bereinigung übersprungen ({files.Count} Datei(en) behalten).");
+            else AppendLog(string.Format(LocalizationService.T(Str.Log_DuplicateCleanupSkipped), files.Count));
         }
 
         private static string? FindOldDuplicatePath(string root, string filename)
@@ -693,7 +694,7 @@ namespace ULM.Views
             UsbDrive? nd = _vm.Drives.Count == 1 ? _vm.Drives[0] : null;
             if (nd is null)
             {
-                AppendLog($"🔌 {_vm.Drives.Count} USB-Laufwerke erkannt: " + string.Join(", ", _vm.Drives.Select(d => $"{d.Letter} ({d.Label})")));
+                AppendLog(string.Format(LocalizationService.T(Str.Log_UsbDrivesDetected), _vm.Drives.Count, string.Join(", ", _vm.Drives.Select(d => $"{d.Letter} ({d.Label})"))));
                 // BUGFIX: bisher wurde hier stillschweigend Drives[0] übernommen (RefreshDrives()
                 // oben hat das bereits als Vorbelegung getan) — der Nutzer erfuhr nie, WELCHEN der
                 // mehreren Sticks ULM gerade als Ziel gewählt hat, bevor er z.B. auf "Ventoy
@@ -706,7 +707,7 @@ namespace ULM.Views
                 string.Format(LocalizationService.T(Str.Msg_NewDriveDetected_Body),
                     nd.Letter, string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label, nd.SizeBytes / 1_073_741_824.0),
                 LocalizationService.T(Str.Msg_NewDriveDetected_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            _vm.SelectedDrive = nd; AppendLog($"⚡ Ventoy-Installation auf {nd.Letter} wird gestartet …"); _vm.StartVentoyInstall(updateMode: false);
+            _vm.SelectedDrive = nd; AppendLog(string.Format(LocalizationService.T(Str.Log_VentoyInstallStartingOnDrive), nd.Letter)); _vm.StartVentoyInstall(updateMode: false);
         }
 
         /// <summary>
@@ -736,7 +737,11 @@ namespace ULM.Views
                 ? string.Format(LocalizationService.T(Str.Msg_VentoyUpdate_Body), letter, label, gb.ToString("F0"))
                 : string.Format(LocalizationService.T(Str.Msg_VentoyInstall_Body), letter, label, gb.ToString("F0"));
             if (MessageBox.Show(warn, installed ? LocalizationService.T(Str.Msg_VentoyUpdate_Title) : LocalizationService.T(Str.Msg_VentoyInstall_Title), MessageBoxButton.OKCancel, installed ? MessageBoxImage.Question : MessageBoxImage.Warning) != MessageBoxResult.OK) return;
-            _vm.SelectedDrive = target; AppendLog($"⚡ Ventoy-{(installed ? "Aktualisierung" : "Installation")} auf {letter} …");
+            _vm.SelectedDrive = target;
+            string ventoyAction = installed
+                ? LocalizationService.T(Str.Log_VentoyActionWordUpdate)
+                : LocalizationService.T(Str.Log_VentoyActionWordInstall);
+            AppendLog(string.Format(LocalizationService.T(Str.Log_VentoyActionStartedEllipsis), ventoyAction, letter));
             SetBusyUi(true); _vm.StartVentoyInstall(updateMode: installed); SetBusyUi(false);
         }
 
@@ -786,7 +791,7 @@ namespace ULM.Views
         /// </summary>
         private async Task<bool> ConfirmEnoughFreeSpaceAsync(List<IsoEntry> queue, string? stickDrive)
         {
-            SetBusyUi(true); AppendLog("🔍 Prüfe benötigten Speicherplatz …");
+            SetBusyUi(true); AppendLog(LocalizationService.T(Str.Log_CheckingRequiredSpace));
             long[] sizes;
             try { sizes = await Task.WhenAll(queue.Select(e => HttpService.Instance.GetExpectedSizeAsync(e))); }
             finally { SetBusyUi(false); }
@@ -873,10 +878,10 @@ namespace ULM.Views
             // Download-Versuch verwendet.
             if (_vm.IsBusy || _downloadProgressDialog is null)
             {
-                AppendLog($"🔧 {entry.Name}: Quelle manuell hinterlegt — wird beim nächsten Download automatisch verwendet.");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_SourceManuallyAddedDeferred), entry.Name));
                 return;
             }
-            AppendLog($"🔧 {entry.Name}: Quelle manuell hinterlegt — Download wird automatisch erneut versucht …");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_SourceManuallyAddedRetrying), entry.Name));
             SetBusyUi(true);
             await Task.Run(() => _vm.StartDownload(new List<IsoEntry> { entry }, _activeDownloadDrive, _activeDownloadCopyAfter, _activeDownloadDeleteAfter, 1));
             SetBusyUi(false);
@@ -900,7 +905,7 @@ namespace ULM.Views
             foreach (var entry in dlg.AddedEntries) IsoDatabaseService.Instance.Add(entry);
             IsoDatabaseService.Instance.Save();
             _vm.RebuildTree();
-            AppendLog($"✅ {dlg.AddedEntries.Count} ISO(s) aus der Online-Suche zur Datenbank hinzugefügt.");
+            AppendLog(string.Format(LocalizationService.T(Str.Log_IsosAddedFromOnlineSearch), dlg.AddedEntries.Count));
             // Frisch aus der Online-Suche übernommene Einträge haben nie eine geprüfte Url — wie bei
             // Stick-Importen lohnt sich hier der volle Gesundheitscheck sofort.
             _vm.RunHealthCheck();
@@ -925,7 +930,7 @@ namespace ULM.Views
             var dlg = new GitHubTokenDialog(_vm.GitHubToken) { Owner = this };
             if (dlg.ShowDialog() != true) return;
             _vm.GitHubToken = dlg.Token;
-            AppendLog(string.IsNullOrEmpty(dlg.Token) ? "🔑 GitHub-Token entfernt." : "🔑 GitHub-Token gespeichert.");
+            AppendLog(string.IsNullOrEmpty(dlg.Token) ? LocalizationService.T(Str.Log_GitHubTokenRemoved) : LocalizationService.T(Str.Log_GitHubTokenSaved));
         }
 
         private void BtnCopyUsb_Click(object sender, RoutedEventArgs e)
@@ -939,7 +944,7 @@ namespace ULM.Views
             SetBusyUi(true); _vm.StartCopyToStick(queue, _vm.SelectedDriveLetter, del); SetBusyUi(false);
         }
 
-        private void BtnCancel_Click(object sender, RoutedEventArgs e) { AppendLog("⛔ Vorgang wird abgebrochen …"); _vm.CancelCommand.Execute(null); }
+        private void BtnCancel_Click(object sender, RoutedEventArgs e) { AppendLog(LocalizationService.T(Str.Log_CancellingOperation)); _vm.CancelCommand.Execute(null); }
         private void BtnClearLog_Click(object sender, RoutedEventArgs e) => LogBox.Clear();
         private void BtnClearHistory_Click(object sender, RoutedEventArgs e) => _vm.ActivityHistory.Clear();
 

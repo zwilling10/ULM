@@ -800,6 +800,22 @@ namespace ULM.Infrastructure
             [Str.Log_FilesDeletedSimpleStatus]         = "🗑 {0} Datei(en) gelöscht",
             [Str.Log_MaintenanceSkipped]               = "ℹ Wartung übersprungen ({0} Datei(en) behalten).",
             [Str.Log_FileMaintenanceError]             = "⚠ Datei-Wartung: {0}",
+
+            // ── Log-Meldungen: Ventoy/DB-Suche/Abbruch (Rest MainWindow.xaml.cs) + IsoEntry ──
+            [Str.Log_StaleDuplicatesDeletedStatus]  = "🗑 {0} veraltete Duplikat(e) auf {1} gelöscht",
+            [Str.Log_DuplicateCleanupSkipped]       = "ℹ Duplikat-Bereinigung übersprungen ({0} Datei(en) behalten).",
+            [Str.Log_UsbDrivesDetected]             = "🔌 {0} USB-Laufwerke erkannt: {1}",
+            [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy-Installation auf {0} wird gestartet …",
+            [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy-{0} auf {1} …",
+            [Str.Log_CheckingRequiredSpace]         = "🔍 Prüfe benötigten Speicherplatz …",
+            [Str.Log_SourceManuallyAddedDeferred]   = "🔧 {0}: Quelle manuell hinterlegt — wird beim nächsten Download automatisch verwendet.",
+            [Str.Log_SourceManuallyAddedRetrying]   = "🔧 {0}: Quelle manuell hinterlegt — Download wird automatisch erneut versucht …",
+            [Str.Log_IsosAddedFromOnlineSearch]     = "✅ {0} ISO(s) aus der Online-Suche zur Datenbank hinzugefügt.",
+            [Str.Log_GitHubTokenRemoved]            = "🔑 GitHub-Token entfernt.",
+            [Str.Log_GitHubTokenSaved]              = "🔑 GitHub-Token gespeichert.",
+            [Str.Log_CancellingOperation]           = "⛔ Vorgang wird abgebrochen …",
+            [Str.Log_DeleteFailed]                  = "⚠ Löschen fehlgeschlagen ({0}): {1}",
+            [Str.Log_OperationSucceededLogPrefix]   = "✅ {0}",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1556,6 +1572,22 @@ namespace ULM.Infrastructure
             [Str.Log_FilesDeletedSimpleStatus]         = "🗑 {0} file(s) deleted",
             [Str.Log_MaintenanceSkipped]               = "ℹ Maintenance skipped ({0} file(s) kept).",
             [Str.Log_FileMaintenanceError]             = "⚠ File maintenance: {0}",
+
+            // ── Log messages: Ventoy/DB search/cancel (rest of MainWindow.xaml.cs) + IsoEntry ──
+            [Str.Log_StaleDuplicatesDeletedStatus]  = "🗑 {0} stale duplicate(s) on {1} deleted",
+            [Str.Log_DuplicateCleanupSkipped]       = "ℹ Duplicate cleanup skipped ({0} file(s) kept).",
+            [Str.Log_UsbDrivesDetected]             = "🔌 {0} USB drive(s) detected: {1}",
+            [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy installation starting on {0} …",
+            [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy {0} on {1} …",
+            [Str.Log_CheckingRequiredSpace]         = "🔍 Checking required disk space …",
+            [Str.Log_SourceManuallyAddedDeferred]   = "🔧 {0}: source added manually — will be used automatically on the next download.",
+            [Str.Log_SourceManuallyAddedRetrying]   = "🔧 {0}: source added manually — download will be retried automatically …",
+            [Str.Log_IsosAddedFromOnlineSearch]     = "✅ {0} ISO(s) from online search added to database.",
+            [Str.Log_GitHubTokenRemoved]            = "🔑 GitHub token removed.",
+            [Str.Log_GitHubTokenSaved]              = "🔑 GitHub token saved.",
+            [Str.Log_CancellingOperation]           = "⛔ Cancelling operation …",
+            [Str.Log_DeleteFailed]                  = "⚠ Delete failed ({0}): {1}",
+            [Str.Log_OperationSucceededLogPrefix]   = "✅ {0}",
         };
     }
 }
