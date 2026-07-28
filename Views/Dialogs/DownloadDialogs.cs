@@ -12,6 +12,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using ULM.Core.Models;
 using ULM.Core.Services;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -38,7 +39,7 @@ namespace ULM.Views.Dialogs
 
         public static ComboBox AddCategoryCombo(StackPanel root, string selected)
         {
-            root.Children.Add(new TextBlock { Text = "Kategorie *", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = Brush("BrushHeader") });
+            root.Children.Add(new TextBlock { Text = LocalizationService.T(Str.Db_Field_Category), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = Brush("BrushHeader") });
             var cb = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
             foreach (string cat in Constants.Categories) cb.Items.Add(cat);
             cb.SelectedItem = Constants.Categories.Contains(selected) ? selected : "Einsteiger";

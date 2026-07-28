@@ -11,6 +11,7 @@ using System.Windows.Media;
 using ULM.Core.Models;
 using ULM.Core.Services;
 using ULM.Core.Workers;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -30,7 +31,7 @@ namespace ULM.Views.Dialogs
         public IsoListDialog(IsoDatabaseService db)
         {
             _db = db;
-            Title  = "ISO-Datenbank bearbeiten";
+            Title  = LocalizationService.T(Str.Db_ListDialog_Title);
             Width  = 780; Height = 620;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = (Brush)Application.Current.Resources["BrushBg"];
@@ -50,15 +51,15 @@ namespace ULM.Views.Dialogs
             Grid.SetRow(_list, 0);
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
-            AddBtn(btns, "➕ Neu",       BtnAdd_Click,    "BtnSuccess");
-            AddBtn(btns, "✏ Bearbeiten", BtnEdit_Click,   "BtnPrimary");
-            AddBtn(btns, "🗑 Löschen",   BtnDelete_Click, "BtnDanger");
-            AddBtn(btns, "⬆ Hoch",      BtnUp_Click,     "BtnGhost");
-            AddBtn(btns, "⬇ Runter",    BtnDown_Click,   "BtnGhost");
+            AddBtn(btns, LocalizationService.T(Str.Db_Btn_New),      BtnAdd_Click,    "BtnSuccess");
+            AddBtn(btns, LocalizationService.T(Str.Db_Btn_Edit),     BtnEdit_Click,   "BtnPrimary");
+            AddBtn(btns, LocalizationService.T(Str.Db_Btn_Delete),   BtnDelete_Click, "BtnDanger");
+            AddBtn(btns, LocalizationService.T(Str.Db_Btn_MoveUp),   BtnUp_Click,     "BtnGhost");
+            AddBtn(btns, LocalizationService.T(Str.Db_Btn_MoveDown), BtnDown_Click,   "BtnGhost");
 
             var ok = new Button
             {
-                Content = "✔ Schließen",
+                Content = LocalizationService.T(Str.Db_Btn_Close),
                 Style = (Style)Application.Current.Resources["BtnPrimary"],
                 Margin = new Thickness(20, 0, 0, 0), Width = 100,
                 HorizontalAlignment = HorizontalAlignment.Right,
@@ -96,7 +97,7 @@ namespace ULM.Views.Dialogs
                     _list.Items.Add(new ListBoxItem
                     {
                         Content = "     " + e.Name, Tag = idx,
-                        ToolTip = string.IsNullOrWhiteSpace(e.Filename) ? "(kein Dateiname hinterlegt)" : e.Filename,
+                        ToolTip = string.IsNullOrWhiteSpace(e.Filename) ? LocalizationService.T(Str.Db_NoFilenameTooltip) : e.Filename,
                     });
             }
         }
@@ -150,7 +151,7 @@ namespace ULM.Views.Dialogs
         private void BtnDelete_Click(object sender, RoutedEventArgs e)
         {
             int idx = SelectedIndex(); if (idx < 0) return;
-            if (MessageBox.Show($"Eintrag löschen?\n\n{_db.Entries[idx].Name}", "Löschen bestätigen", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(string.Format(LocalizationService.T(Str.Db_DeleteEntryConfirm_Body), _db.Entries[idx].Name), LocalizationService.T(Str.Db_DeleteEntryConfirm_Title), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             _db.Remove(idx); FillList();
         }
 
@@ -175,7 +176,7 @@ namespace ULM.Views.Dialogs
         public IsoEditDialog(IsoEntry entry, bool isNew)
         {
             _entry = entry;
-            Title  = isNew ? "Neuen Eintrag hinzufügen" : $"Bearbeiten: {entry.Name}";
+            Title  = isNew ? LocalizationService.T(Str.Db_EditDialog_Title_New) : string.Format(LocalizationService.T(Str.Db_EditDialog_Title_Edit), entry.Name);
             // Höhe wächst mit dem Inhalt (alle Felder ohne Scrollen sichtbar), aber nie über die
             // verfügbare Bildschirmhöhe hinaus — der ScrollViewer im Content greift automatisch als
             // Fallback, sobald MaxHeight erreicht ist (z.B. auf kleinen/niedrig aufgelösten Displays).
@@ -189,21 +190,21 @@ namespace ULM.Views.Dialogs
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var root   = new StackPanel { Margin = new Thickness(20) };
 
-            _tbName    = AppRes.AddField(root, "Name *",          entry.Name);
+            _tbName    = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Name),        entry.Name);
             _cbCat     = AppRes.AddCategoryCombo(root, entry.Category);
-            _tbUrl     = AppRes.AddField(root, "Primäre URL",     entry.Url);
-            _tbFilename= AppRes.AddField(root, "Dateiname *",     entry.Filename);
-            _tbMirror1 = AppRes.AddField(root, "Mirror 1",        entry.Mirror1);
-            _tbMirror2 = AppRes.AddField(root, "Mirror 2",        entry.Mirror2);
-            _tbMirror3 = AppRes.AddField(root, "Mirror 3",        entry.Mirror3);
-            _tbGhRepo  = AppRes.AddField(root, "GitHub Repo",     entry.GithubRepo);
-            _tbGhAsset = AppRes.AddField(root, "GitHub Asset",    entry.GithubAsset);
-            _tbTip     = AppRes.AddField(root, "Beschreibung",    entry.Tip, multiLine: true);
+            _tbUrl     = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_PrimaryUrl),  entry.Url);
+            _tbFilename= AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Filename),    entry.Filename);
+            _tbMirror1 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror1),     entry.Mirror1);
+            _tbMirror2 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror2),     entry.Mirror2);
+            _tbMirror3 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror3),     entry.Mirror3);
+            _tbGhRepo  = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubRepo),  entry.GithubRepo);
+            _tbGhAsset = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubAsset), entry.GithubAsset);
+            _tbTip     = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Description), entry.Tip, multiLine: true);
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-            var ok = new Button { Content = "✔ Speichern", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
+            var ok = new Button { Content = LocalizationService.T(Str.Db_Btn_Save), Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
             ok.Click += OkBtn_Click;
-            var cancel = new Button { Content = "Abbrechen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(8, 0, 0, 0) };
+            var cancel = new Button { Content = LocalizationService.T(Str.Db_Btn_Cancel), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(8, 0, 0, 0) };
             cancel.Click += (_, _) => DialogResult = false;
             btns.Children.Add(ok); btns.Children.Add(cancel);
             root.Children.Add(btns);
@@ -214,7 +215,7 @@ namespace ULM.Views.Dialogs
         private void OkBtn_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(_tbName.Text) || string.IsNullOrWhiteSpace(_tbFilename.Text))
-            { MessageBox.Show("Name und Dateiname sind Pflichtfelder.", "Eingabe unvollständig", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+            { MessageBox.Show(LocalizationService.T(Str.Db_RequiredFields_Body), LocalizationService.T(Str.Db_RequiredFields_Title), MessageBoxButton.OK, MessageBoxImage.Warning); return; }
             // BUGFIX: Bisher gab es keinerlei Prüfung, ob der Name bereits von einem ANDEREN Eintrag
             // verwendet wird. Zwei Einträge mit identischem Namen sorgten dafür, dass sowohl das
             // Download-Fortschrittsfenster als auch DownloadWorkers interne Mirror-Verfolgung (beide
@@ -227,10 +228,8 @@ namespace ULM.Views.Dialogs
                 !ReferenceEquals(other, _entry) && string.Equals(other.Name, newName, StringComparison.OrdinalIgnoreCase));
             if (nameTaken)
             {
-                MessageBox.Show($"Der Name \"{newName}\" wird bereits von einem anderen Eintrag verwendet.\n\n" +
-                    "Bitte einen eindeutigen Namen vergeben — gleiche Namen können beim Download " +
-                    "(z.B. dem \"(schneller)\"-Button) zu Verwechslungen zwischen den Einträgen führen.",
-                    "Name bereits vergeben", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(string.Format(LocalizationService.T(Str.Db_NameTaken_Body), newName),
+                    LocalizationService.T(Str.Db_NameTaken_Title), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             _entry.Name = newName; _entry.Category = _cbCat.SelectedItem?.ToString() ?? "Einsteiger";
@@ -279,12 +278,12 @@ namespace ULM.Views.Dialogs
         {
             RowsPanel       = new StackPanel(),
             StatusTb        = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
-            AlsoDownloadChk = new CheckBox { Content = "Direkt herunterladen", VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrushHeader"] },
+            AlsoDownloadChk = new CheckBox { Content = LocalizationService.T(Str.Db_Chk_DownloadImmediately), VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrushHeader"] },
         };
 
         public IsoSearchDialog()
         {
-            Title = "ISO suchen"; Width = 640; Height = 580;
+            Title = LocalizationService.T(Str.Db_SearchDialog_Title); Width = 640; Height = 580;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Background = (Brush)Application.Current.Resources["BrushBg"];
@@ -294,11 +293,11 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var tabs = new TabControl { Background = (Brush)Application.Current.Resources["BrushTransparent"], BorderThickness = new Thickness(0) };
-            tabs.Items.Add(BuildDiscoveryTab("🆕 Aktuellste", _latestTab, forceRefresh => DiscoveryService.Instance.GetLatestAdditionsAsync(forceRefresh)));
-            tabs.Items.Add(BuildDiscoveryTab("🔥 Beliebteste", _popularTab, forceRefresh => DiscoveryService.Instance.GetMostPopularAsync(forceRefresh)));
+            tabs.Items.Add(BuildDiscoveryTab(LocalizationService.T(Str.Db_Tab_Latest), _latestTab, forceRefresh => DiscoveryService.Instance.GetLatestAdditionsAsync(forceRefresh)));
+            tabs.Items.Add(BuildDiscoveryTab(LocalizationService.T(Str.Db_Tab_Popular), _popularTab, forceRefresh => DiscoveryService.Instance.GetMostPopularAsync(forceRefresh)));
             Grid.SetRow(tabs, 0);
 
-            var closeBtn = new Button { Content = "Schließen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
+            var closeBtn = new Button { Content = LocalizationService.T(Str.Db_Btn_CloseSimple), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
             closeBtn.Click += (_, _) => { DialogResult = true; Close(); };
             Grid.SetRow(closeBtn, 1);
 
@@ -324,7 +323,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var headerRow = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var refreshBtn = new Button { Content = "⟳ Aktualisieren", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 130 };
+            var refreshBtn = new Button { Content = LocalizationService.T(Str.Db_Btn_Refresh), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 130 };
             DockPanel.SetDock(refreshBtn, Dock.Right);
             headerRow.Children.Add(refreshBtn);
             headerRow.Children.Add(tab.StatusTb);
@@ -335,7 +334,7 @@ namespace ULM.Views.Dialogs
             Grid.SetRow(scroll, 1);
 
             var footer = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var takeBtn = new Button { Content = "✔ Übernehmen", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 140 };
+            var takeBtn = new Button { Content = LocalizationService.T(Str.Db_Btn_TakeOver), Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 140 };
             DockPanel.SetDock(takeBtn, Dock.Right);
             takeBtn.Click += (_, _) => TakeSelected(tab);
             footer.Children.Add(takeBtn);
@@ -350,7 +349,7 @@ namespace ULM.Views.Dialogs
 
         private async Task LoadDiscoveryTabAsync(DiscoveryTab tab, bool forceRefresh, Func<bool, Task<DiscoveryService.DiscoveryResult>> fetch)
         {
-            tab.StatusTb.Text = "⏳ Lade …";
+            tab.StatusTb.Text = LocalizationService.T(Str.Db_Loading);
             tab.RowsPanel.Children.Clear(); tab.Rows.Clear();
             try
             {
@@ -358,10 +357,11 @@ namespace ULM.Views.Dialogs
                 tab.Loaded = true;
                 if (result.Items.Count == 0)
                 {
-                    tab.StatusTb.Text = "⚠ Keine Live-Medium-Distros gefunden (offline oder DistroWatch nicht erreichbar).";
+                    tab.StatusTb.Text = LocalizationService.T(Str.Db_NoDiscoveryResults);
                     return;
                 }
-                tab.StatusTb.Text = $"{(result.FromCache ? "Aus Cache" : "Aktuell geladen")} — Stand: {result.FetchedAtUtc.ToLocalTime():dd.MM.yyyy HH:mm}";
+                tab.StatusTb.Text = (result.FromCache ? LocalizationService.T(Str.Db_FromCache) : LocalizationService.T(Str.Db_FreshlyLoaded))
+                    + string.Format(LocalizationService.T(Str.Db_DiscoveryStatusSuffix), result.FetchedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm"));
                 foreach (var d in result.Items)
                 {
                     var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
@@ -376,7 +376,7 @@ namespace ULM.Views.Dialogs
 
                     var nameTb = new TextBlock
                     {
-                        Text = d.AlreadyInDb ? $"{d.Name}  (bereits vorhanden)" : d.Name,
+                        Text = d.AlreadyInDb ? string.Format(LocalizationService.T(Str.Db_NameAlreadyInDb), d.Name) : d.Name,
                         VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Margin = new Thickness(0, 4, 0, 4),
                         Foreground = (Brush)Application.Current.Resources[d.AlreadyInDb ? "BrushDim" : "BrushHeader"],
                         ToolTip = d.AlreadyInDb ? null : BuildInfoTooltip(d),
@@ -397,7 +397,7 @@ namespace ULM.Views.Dialogs
             }
             catch (Exception ex)
             {
-                tab.StatusTb.Text = $"⚠ Fehler: {ex.Message}";
+                tab.StatusTb.Text = string.Format(LocalizationService.T(Str.Db_DiscoveryError), ex.Message);
             }
         }
 
@@ -415,13 +415,13 @@ namespace ULM.Views.Dialogs
 
                 row.Distro.AlreadyInDb = true;
                 row.Chk.IsChecked = false; row.Chk.IsEnabled = false; row.CatCb.IsEnabled = false;
-                row.NameTb.Text = $"{row.Distro.Name}  (bereits vorhanden)";
+                row.NameTb.Text = string.Format(LocalizationService.T(Str.Db_NameAlreadyInDb), row.Distro.Name);
                 row.NameTb.Foreground = (Brush)Application.Current.Resources["BrushDim"];
                 row.NameTb.ToolTip = null;
                 ApplyRowHighlight(row.Row, row.Distro);
                 taken++;
             }
-            if (taken > 0) tab.StatusTb.Text = $"✔ {taken} übernommen — {tab.StatusTb.Text}";
+            if (taken > 0) tab.StatusTb.Text = string.Format(LocalizationService.T(Str.Db_TakenOverStatus), taken, tab.StatusTb.Text);
         }
 
         // Bereits in der DB vorhandene Distros werden farblich hervorgehoben (dezenter Blauton,
@@ -432,8 +432,8 @@ namespace ULM.Views.Dialogs
 
         private static string BuildInfoTooltip(DiscoveredDistro d)
         {
-            var lines = new List<string> { d.Name, d.Info, $"Vorgeschlagene Kategorie: {Constants.CategoryLabel(d.SuggestedCategory)}" };
-            if (d.Tags.Count > 0) lines.Add($"DistroWatch-Tags: {string.Join(", ", d.Tags)}");
+            var lines = new List<string> { d.Name, d.Info, string.Format(LocalizationService.T(Str.Db_SuggestedCategory), Constants.CategoryLabel(d.SuggestedCategory)) };
+            if (d.Tags.Count > 0) lines.Add(string.Format(LocalizationService.T(Str.Db_DistrowatchTags), string.Join(", ", d.Tags)));
             lines.Add($"distrowatch.com/{d.Slug}");
             return string.Join("\n", lines);
         }
@@ -459,7 +459,7 @@ namespace ULM.Views.Dialogs
 
         public ImportStickIsosDialog(IReadOnlyList<UsbService.StickIso> unknownIsos)
         {
-            Title = "Unbekannte ISOs importieren";
+            Title = LocalizationService.T(Str.Db_ImportDialog_Title);
             Width = 660; Height = 520;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -474,8 +474,7 @@ namespace ULM.Views.Dialogs
             {
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5,
                 Foreground = (Brush)Application.Current.Resources["BrushHeader"],
-                Text = $"Der Stick enthält {unknownIsos.Count} ISO-Datei(en), die noch nicht in der Datenbank stehen.\n" +
-                       "Name und Kategorie vergeben, optional eine Quelle-URL für den Online-Update-Check hinterlegen, dann importieren.",
+                Text = string.Format(LocalizationService.T(Str.Db_ImportDialog_Info), unknownIsos.Count),
             });
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -486,7 +485,7 @@ namespace ULM.Views.Dialogs
             colH.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             colH.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(160) });
             void AddCH(int c, string t) { var tb = new TextBlock { Text = t, FontWeight = FontWeights.SemiBold, FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushMid"] }; Grid.SetColumn(tb, c); colH.Children.Add(tb); }
-            AddCH(1, "Name (bearbeiten)"); AddCH(2, "Kategorie");
+            AddCH(1, LocalizationService.T(Str.Db_ColHeader_NameEdit)); AddCH(2, LocalizationService.T(Str.Db_ColHeader_Category));
             list.Children.Add(colH);
 
             foreach (var iso in unknownIsos)
@@ -512,8 +511,8 @@ namespace ULM.Views.Dialogs
                 Grid.SetColumn(chk, 0); Grid.SetColumn(nameTb, 1); Grid.SetColumn(catCb, 2);
                 rg.Children.Add(chk); rg.Children.Add(nameTb); rg.Children.Add(catCb);
                 list.Children.Add(rg);
-                list.Children.Add(new TextBlock { Text = $"  {iso.Filename}  ({iso.Size / 1_073_741_824.0:F2} GB)", FontSize = 9.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(32, 0, 0, 0) });
-                list.Children.Add(new TextBlock { Text = "  Quelle-URL (optional, für Online-Update-Check):", FontSize = 9, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(32, 4, 0, 0) });
+                list.Children.Add(new TextBlock { Text = string.Format(LocalizationService.T(Str.Db_FileSizeLine), iso.Filename, (iso.Size / 1_073_741_824.0).ToString("F2")), FontSize = 9.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(32, 0, 0, 0) });
+                list.Children.Add(new TextBlock { Text = LocalizationService.T(Str.Db_SourceUrlLabel), FontSize = 9, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(32, 4, 0, 0) });
                 list.Children.Add(urlTb);
                 list.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 6, 0, 2), Background = (Brush)Application.Current.Resources["BrushBorder"] });
                 _rows.Add(new ImportRow { Chk = chk, NameTb = nameTb, CatCb = catCb, UrlTb = urlTb, Iso = iso });
@@ -524,13 +523,13 @@ namespace ULM.Views.Dialogs
             root.Children.Add(scroll);
 
             var br = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
-            var bAll  = new Button { Content = "Alle auswählen",   Style = (Style)Application.Current.Resources["BtnGhost"], Width = 130, Margin = new Thickness(0, 0, 6, 0) };
+            var bAll  = new Button { Content = LocalizationService.T(Str.Db_Btn_SelectAll),   Style = (Style)Application.Current.Resources["BtnGhost"], Width = 130, Margin = new Thickness(0, 0, 6, 0) };
             bAll.Click  += (_, _) => { foreach (var r in _rows) { r.Chk.IsChecked = true;  r.NameTb.IsEnabled = r.CatCb.IsEnabled = true;  } };
-            var bNone = new Button { Content = "Alle abwählen",    Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 14, 0) };
+            var bNone = new Button { Content = LocalizationService.T(Str.Db_Btn_DeselectAll),    Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 14, 0) };
             bNone.Click += (_, _) => { foreach (var r in _rows) { r.Chk.IsChecked = false; r.NameTb.IsEnabled = r.CatCb.IsEnabled = false; } };
-            var bSkip = new Button { Content = "Überspringen",     Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 8, 0) };
+            var bSkip = new Button { Content = LocalizationService.T(Str.Db_Btn_Skip),     Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 8, 0) };
             bSkip.Click += (_, _) => { DialogResult = false; Close(); };
-            var bImp  = new Button { Content = "➕ Importieren",   Style = (Style)Application.Current.Resources["BtnSuccess"], Width = 130 };
+            var bImp  = new Button { Content = LocalizationService.T(Str.Db_Btn_Import),   Style = (Style)Application.Current.Resources["BtnSuccess"], Width = 130 };
             bImp.Click += BtnImport_Click;
             br.Children.Add(bAll); br.Children.Add(bNone); br.Children.Add(bSkip); br.Children.Add(bImp);
             Grid.SetRow(br, 2);
@@ -545,11 +544,11 @@ namespace ULM.Views.Dialogs
             {
                 if (row.Chk.IsChecked != true) continue;
                 string name = row.NameTb.Text.Trim();
-                if (string.IsNullOrWhiteSpace(name)) { errors.Add($"• {row.Iso.Filename}: kein Name."); continue; }
+                if (string.IsNullOrWhiteSpace(name)) { errors.Add(string.Format(LocalizationService.T(Str.Db_ImportError_NoName), row.Iso.Filename)); continue; }
                 var entry = new IsoEntry { Name = name, Category = row.CatCb.SelectedItem?.ToString() ?? "Einsteiger", Filename = row.Iso.Filename, Url = row.UrlTb.Text.Trim(), ImportedFromStick = true };
                 ImportedEntries.Add((entry, row.Iso.FullPath));
             }
-            if (errors.Count > 0) MessageBox.Show("Nicht importiert:\n\n" + string.Join("\n", errors), "Import unvollständig", MessageBoxButton.OK, MessageBoxImage.Warning);
+            if (errors.Count > 0) MessageBox.Show(string.Format(LocalizationService.T(Str.Db_ImportIncomplete_Body), string.Join("\n", errors)), LocalizationService.T(Str.Db_ImportIncomplete_Title), MessageBoxButton.OK, MessageBoxImage.Warning);
             DialogResult = ImportedEntries.Count > 0;
             Close();
         }
@@ -590,7 +589,7 @@ namespace ULM.Views.Dialogs
         public NewerVersionOnStickDialog(
             IReadOnlyList<(IsoEntry DbEntry, UsbService.StickIso StickIso)> matches)
         {
-            Title = "Neuere ISO-Versionen auf dem Stick";
+            Title = LocalizationService.T(Str.Db_NewerVersionDialog_Title);
             Width = 700; Height = 560;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -605,10 +604,7 @@ namespace ULM.Views.Dialogs
             {
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5,
                 Foreground = (Brush)Application.Current.Resources["BrushHeader"],
-                Text = $"Auf dem Stick wurden {matches.Count} ISO-Datei(en) gefunden, " +
-                       "die NEUER sind als der jeweilige Datenbank-Eintrag.\n\n" +
-                       "Bitte für jeden Eintrag wählen, wie die Datenbank aktualisiert werden soll. " +
-                       "Empfehlung: Ersetzen vermeidet Duplikate.",
+                Text = string.Format(LocalizationService.T(Str.Db_NewerVersionDialog_Info), matches.Count),
             });
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -632,7 +628,7 @@ namespace ULM.Views.Dialogs
 
                 inner.Children.Add(new TextBlock
                 {
-                    Text = $"[{dbEntry.Category}]  {dbEntry.Name}",
+                    Text = string.Format(LocalizationService.T(Str.Db_CategoryNameHeader), dbEntry.Category, dbEntry.Name),
                     FontWeight = FontWeights.Bold, FontSize = 13, Margin = new Thickness(0, 0, 0, 10),
                     Foreground = (Brush)Application.Current.Resources["BrushHeader"],
                 });
@@ -649,20 +645,20 @@ namespace ULM.Views.Dialogs
                     Grid.SetRow(l, row); Grid.SetColumn(l, 0); vg.Children.Add(l);
                     var v = new TextBlock
                     {
-                        Text = $"{fn}   (v{ver})", FontSize = 11,
+                        Text = string.Format(LocalizationService.T(Str.Db_FilenameVersionLine), fn, ver), FontSize = 11,
                         FontWeight = newer ? FontWeights.SemiBold : FontWeights.Normal,
                         Foreground = newer ? (Brush)Application.Current.Resources["BrushBlue"] : (Brush)Application.Current.Resources["BrushMid"],
                         TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center, ToolTip = fn,
                     };
                     Grid.SetRow(v, row); Grid.SetColumn(v, 1); vg.Children.Add(v);
                 }
-                AddVRow(0, "Datenbank:",    dbEntry.Filename,  dbVer,    false);
-                AddVRow(1, "Auf dem Stick:", stickIso.Filename, stickVer, true);
+                AddVRow(0, LocalizationService.T(Str.Db_Label_Database), dbEntry.Filename,  dbVer,    false);
+                AddVRow(1, LocalizationService.T(Str.Db_Label_OnStick),  stickIso.Filename, stickVer, true);
                 inner.Children.Add(vg);
 
-                var rbReplace = MakeRadio("Ersetzen (empfohlen) — Datenbank-Eintrag auf Stick-Version aktualisieren. Kein Duplikat entsteht.", grp, true);
-                var rbAdd     = MakeRadio("Hinzufügen — Neuen Eintrag anlegen. Bestehender Eintrag bleibt erhalten.", grp, false);
-                var rbSkip    = MakeRadio("Überspringen — Keine Änderung.", grp, false);
+                var rbReplace = MakeRadio(LocalizationService.T(Str.Db_Radio_Replace), grp, true);
+                var rbAdd     = MakeRadio(LocalizationService.T(Str.Db_Radio_Add), grp, false);
+                var rbSkip    = MakeRadio(LocalizationService.T(Str.Db_Radio_Skip), grp, false);
                 inner.Children.Add(rbReplace);
                 inner.Children.Add(rbAdd);
                 inner.Children.Add(rbSkip);
@@ -677,13 +673,13 @@ namespace ULM.Views.Dialogs
 
             var br = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
 
-            var bAllR = new Button { Content = "Alle ersetzen",    Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 6, 0), ToolTip = "Für alle Einträge 'Ersetzen' wählen" };
+            var bAllR = new Button { Content = LocalizationService.T(Str.Db_Btn_ReplaceAll),    Style = (Style)Application.Current.Resources["BtnGhost"], Width = 120, Margin = new Thickness(0, 0, 6, 0), ToolTip = LocalizationService.T(Str.Db_Tooltip_ReplaceAll) };
             bAllR.Click += (_, _) => { foreach (var r in _rows) { r.RbReplace.IsChecked = true; r.RbAdd.IsChecked = false; r.RbSkip.IsChecked = false; } };
-            var bAllS = new Button { Content = "Alle überspringen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 140, Margin = new Thickness(0, 0, 14, 0) };
+            var bAllS = new Button { Content = LocalizationService.T(Str.Db_Btn_SkipAll), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 140, Margin = new Thickness(0, 0, 14, 0) };
             bAllS.Click += (_, _) => { foreach (var r in _rows) { r.RbSkip.IsChecked = true; r.RbReplace.IsChecked = false; r.RbAdd.IsChecked = false; } };
-            var bCancel = new Button { Content = "Abbrechen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(0, 0, 8, 0) };
+            var bCancel = new Button { Content = LocalizationService.T(Str.Db_Btn_Cancel), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(0, 0, 8, 0) };
             bCancel.Click += (_, _) => { DialogResult = false; Close(); };
-            var bOk = new Button { Content = "✔ Auswahl anwenden", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 160 };
+            var bOk = new Button { Content = LocalizationService.T(Str.Db_Btn_ApplySelection), Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 160 };
             bOk.Click += BtnOk_Click;
 
             br.Children.Add(bAllR); br.Children.Add(bAllS); br.Children.Add(bCancel); br.Children.Add(bOk);
@@ -738,7 +734,7 @@ namespace ULM.Views.Dialogs
         public DbHealthCheckDialog(IReadOnlyList<VersionCheckEntryResult> results)
         {
             int failed = results.Count(r => !r.Resolved);
-            Title = "🩺 DB-Gesundheitscheck";
+            Title = LocalizationService.T(Str.Db_HealthCheckDialog_Title);
             Width = 600; Height = 560;
             ResizeMode = ResizeMode.CanResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -755,8 +751,8 @@ namespace ULM.Views.Dialogs
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 13, FontWeight = FontWeights.SemiBold,
                 Foreground = (Brush)Application.Current.Resources[failed == 0 ? "BrushGreen" : "BrushRed"],
                 Text = failed == 0
-                    ? $"✅ Alle {results.Count} Distros sind online erreichbar und ladbar."
-                    : $"⚠ {failed} von {results.Count} Distros aktuell NICHT online erreichbar.",
+                    ? string.Format(LocalizationService.T(Str.Db_HealthCheck_AllReachable), results.Count)
+                    : string.Format(LocalizationService.T(Str.Db_HealthCheck_SomeUnreachable), failed, results.Count),
             });
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -777,7 +773,7 @@ namespace ULM.Views.Dialogs
                 Grid.SetColumn(nameTb, 1); row.Children.Add(nameTb);
                 var infoTb = new TextBlock
                 {
-                    Text = r.Resolved ? $"v{r.RemoteVersion}" : "nicht erreichbar",
+                    Text = r.Resolved ? $"v{r.RemoteVersion}" : LocalizationService.T(Str.Log_Unreachable),
                     FontSize = 10.5, Margin = new Thickness(10, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
                     Foreground = (Brush)Application.Current.Resources[r.Resolved ? "BrushDim" : "BrushRed"],
                 };
@@ -793,15 +789,13 @@ namespace ULM.Views.Dialogs
                 {
                     FontSize = 10, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
                     Foreground = (Brush)Application.Current.Resources["BrushDim"],
-                    Text = "Tipp: Bei nicht erreichbaren Einträgen im DB-Editor (🗃 Datenbank) zusätzliche " +
-                           "Mirror-URLs oder ein GitHub-Repo hinterlegen — das erhöht die Chance auf " +
-                           "automatische Wiederherstellung deutlich.",
+                    Text = LocalizationService.T(Str.Db_HealthCheck_Tip),
                 };
                 Grid.SetRow(tip, 2);
                 root.Children.Add(tip);
             }
 
-            var close = new Button { Content = "✔ Schließen", Width = 130, Style = (Style)Application.Current.Resources["BtnPrimary"], HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
+            var close = new Button { Content = LocalizationService.T(Str.Db_Btn_Close), Width = 130, Style = (Style)Application.Current.Resources["BtnPrimary"], HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
             close.Click += (_, _) => Close();
             Grid.SetRow(close, 3);
             root.Children.Add(close);
@@ -821,7 +815,7 @@ namespace ULM.Views.Dialogs
 
         public GitHubTokenDialog(string currentToken)
         {
-            Title = "GitHub-Token";
+            Title = LocalizationService.T(Str.Db_GitHubTokenDialog_Title);
             Width = 480; Height = 240;
             ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -830,10 +824,7 @@ namespace ULM.Views.Dialogs
             var root = new StackPanel { Margin = new Thickness(20) };
             root.Children.Add(new TextBlock
             {
-                Text = "Optionales GitHub Personal Access Token — hebt nur das API-Limit für " +
-                       "GitHub-basierte Distros (z.B. CachyOS, EndeavourOS) von 60 auf 5000 " +
-                       "Anfragen/Stunde an. Kein Scope/Berechtigung nötig, ein Token ohne " +
-                       "angehakte Rechte reicht für öffentliche Repos. Leer lassen deaktiviert es.",
+                Text = LocalizationService.T(Str.Db_GitHubTokenDialog_Description),
                 TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Margin = new Thickness(0, 0, 0, 14),
                 Foreground = AppRes.Brush("BrushMid"),
             });
@@ -845,9 +836,9 @@ namespace ULM.Views.Dialogs
             root.Children.Add(tb);
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-            var ok = new Button { Content = "✔ Speichern", Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
+            var ok = new Button { Content = LocalizationService.T(Str.Db_Btn_Save), Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
             ok.Click += (_, _) => { Token = tb.Text.Trim(); DialogResult = true; };
-            var cancel = new Button { Content = "Abbrechen", Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(8, 0, 0, 0) };
+            var cancel = new Button { Content = LocalizationService.T(Str.Db_Btn_Cancel), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 100, Margin = new Thickness(8, 0, 0, 0) };
             cancel.Click += (_, _) => DialogResult = false;
             btns.Children.Add(ok); btns.Children.Add(cancel);
             root.Children.Add(btns);

@@ -3,6 +3,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -17,7 +18,7 @@ namespace ULM.Views.Dialogs
     {
         public QuickConfirmationWindow(string message)
         {
-            Title = "✔ Erledigt";
+            Title = LocalizationService.T(Str.QuickConfirm_Title);
             Width = 360; SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;

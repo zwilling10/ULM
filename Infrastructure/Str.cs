@@ -416,5 +416,34 @@ namespace ULM.Infrastructure
         Log_ProceedingDespiteSlowness, Log_UserDeclinedSlowDownload, Log_ChecksumVerified,
         Log_ChecksumMismatchWarning, Log_DownloadCompletedItem, Log_DownloadFailedItem,
         Log_GeneralDownloadError,
+
+        // ── Views/Dialogs/DatabaseDialogs.cs ──────────────────────────────
+        Db_ListDialog_Title, Db_Btn_New, Db_Btn_Edit, Db_Btn_Delete, Db_Btn_MoveUp, Db_Btn_MoveDown,
+        Db_Btn_Close, Db_NoFilenameTooltip, Db_DeleteEntryConfirm_Body, Db_DeleteEntryConfirm_Title,
+
+        Db_EditDialog_Title_New, Db_EditDialog_Title_Edit, Db_Field_Name, Db_Field_Category,
+        Db_Field_PrimaryUrl, Db_Field_Filename, Db_Field_Mirror1, Db_Field_Mirror2, Db_Field_Mirror3,
+        Db_Field_GithubRepo, Db_Field_GithubAsset, Db_Field_Description, Db_Btn_Save, Db_Btn_Cancel,
+        Db_RequiredFields_Body, Db_RequiredFields_Title, Db_NameTaken_Body, Db_NameTaken_Title,
+
+        Db_SearchDialog_Title, Db_Tab_Latest, Db_Tab_Popular, Db_Chk_DownloadImmediately,
+        Db_Btn_CloseSimple, Db_Btn_Refresh, Db_Btn_TakeOver, Db_Loading, Db_NoDiscoveryResults,
+        Db_FromCache, Db_FreshlyLoaded, Db_DiscoveryStatusSuffix, Db_NameAlreadyInDb,
+        Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
+
+        Db_ImportDialog_Title, Db_ImportDialog_Info, Db_ColHeader_NameEdit, Db_ColHeader_Category,
+        Db_FileSizeLine, Db_SourceUrlLabel, Db_Btn_SelectAll, Db_Btn_DeselectAll, Db_Btn_Skip,
+        Db_Btn_Import, Db_ImportError_NoName, Db_ImportIncomplete_Body, Db_ImportIncomplete_Title,
+
+        Db_NewerVersionDialog_Title, Db_NewerVersionDialog_Info, Db_CategoryNameHeader,
+        Db_Label_Database, Db_Label_OnStick, Db_FilenameVersionLine, Db_Radio_Replace, Db_Radio_Add,
+        Db_Radio_Skip, Db_Btn_ReplaceAll, Db_Tooltip_ReplaceAll, Db_Btn_SkipAll, Db_Btn_ApplySelection,
+
+        Db_HealthCheckDialog_Title, Db_HealthCheck_AllReachable, Db_HealthCheck_SomeUnreachable,
+        Db_HealthCheck_Tip,
+
+        Db_GitHubTokenDialog_Title, Db_GitHubTokenDialog_Description,
+
+        QuickConfirm_Title,
     }
 }
