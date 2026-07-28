@@ -745,7 +745,7 @@ namespace ULM.ViewModels
                     RecordHistory(doneMsg);
                     Log(doneMsg);
                     RefreshAllEntries(); // Hash-Status-Symbol (HashMismatchDetected) in der Liste aktualisieren
-                    QuickCheckSucceeded?.Invoke($"Integritätsprüfung {SelectedDriveLetter} abgeschlossen: {checkedCount} geprüft, {mismatches.Count} Abweichung(en).");
+                    QuickCheckSucceeded?.Invoke(string.Format(LocalizationService.T(Str.QuickConfirm_IntegrityCheckDone), SelectedDriveLetter, checkedCount, mismatches.Count));
                     if (mismatches.Count > 0) IncompleteIsosOnStickDetected?.Invoke(mismatches, SelectedDriveLetter);
                 });
             }
@@ -1250,7 +1250,7 @@ namespace ULM.ViewModels
                 StatusText = updates.Count > 0 ? string.Format(LocalizationService.T(Str.Log_UpdatesFoundStatus), updates.Count)
                            : resolved > 0      ? LocalizationService.T(Str.Log_AllCurrentSimpleStatus) : LocalizationService.T(Str.Log_NoLocalIsosStatus);
                 ProgressPercent = 100; Log(string.Format(LocalizationService.T(Str.Log_ManualUpdateCheckSummary), StatusText));
-                QuickCheckSucceeded?.Invoke($"Update-Check abgeschlossen: {StatusText}");
+                QuickCheckSucceeded?.Invoke(string.Format(LocalizationService.T(Str.QuickConfirm_UpdateCheckDone), StatusText));
             });
             _ = worker.RunAsync();
         }

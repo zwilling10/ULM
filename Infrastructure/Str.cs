@@ -493,5 +493,8 @@ namespace ULM.Infrastructure
         // ── Core/Workers/Workers.cs: CopyToUsbWorker (Hauptfenster Statuszeile + Fortschrittsdialog) ──
         CpStatus_NoFiles, CpStatus_NotEnoughSpace, CpStatus_Starting, CpStatus_OverallProgress,
         CpStatus_Cancelled, CpStatus_Done,
+
+        // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded-Nachrichtentexte (QuickConfirmationWindow) ──
+        QuickConfirm_IntegrityCheckDone, QuickConfirm_UpdateCheckDone,
     }
 }

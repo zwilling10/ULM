@@ -1027,6 +1027,10 @@ namespace ULM.Infrastructure
             [Str.CpStatus_OverallProgress] = "Kopiert {0}/{1}…",
             [Str.CpStatus_Cancelled]       = "Abgebrochen",
             [Str.CpStatus_Done]            = "Fertig",
+
+            // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded-Nachrichtentexte ──
+            [Str.QuickConfirm_IntegrityCheckDone] = "Integritätsprüfung {0} abgeschlossen: {1} geprüft, {2} Abweichung(en).",
+            [Str.QuickConfirm_UpdateCheckDone]    = "Update-Check abgeschlossen: {0}",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -2010,6 +2014,10 @@ namespace ULM.Infrastructure
             [Str.CpStatus_OverallProgress] = "Copied {0}/{1}…",
             [Str.CpStatus_Cancelled]       = "Cancelled",
             [Str.CpStatus_Done]            = "Done",
+
+            // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded message texts ──
+            [Str.QuickConfirm_IntegrityCheckDone] = "Integrity check {0} completed: {1} checked, {2} mismatch(es).",
+            [Str.QuickConfirm_UpdateCheckDone]    = "Update check completed: {0}",
         };
     }
 }
