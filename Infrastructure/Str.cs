@@ -457,5 +457,20 @@ namespace ULM.Infrastructure
         VentoyWin_Log_ExeNotFound, VentoyWin_Log_StartingExe, VentoyWin_Log_ExeStartFailed,
         VentoyWin_Log_Timeout, VentoyWin_Log_ResultFailed, VentoyWin_Log_CliDoneSuffix,
         VentoyWin_Log_GeneralError,
+
+        // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
+        Dl_SlotsDialog_Title, Dl_SlotsSelectedCount, Dl_TestingSpeed, Dl_Label_ParallelDownloads,
+        Dl_Chk_UseRecommendation, Dl_Btn_Cancel, Dl_Btn_StartDownloads, Dl_SpeedTestResult,
+        Dl_SpeedTestFailed,
+
+        Dl_ProgressDialog_Title, Dl_DownloadRunningSingle, Dl_DownloadRunningMultiple,
+        Dl_OverallStatus, Dl_Btn_CancelX, Dl_Btn_ManualSearch, Dl_Waiting, Dl_Btn_Faster,
+        Dl_Tooltip_Faster, Dl_CopyingToStickSuffix, Dl_SummaryPartial,
+
+        Dl_OrphanedDefaultTitle, Dl_OrphanedDefaultItemLabel, Dl_OrphanedFoundText,
+        Dl_Btn_DeleteSelected,
+
+        Dl_DriveSelectDialog_Title, Dl_DefaultHeaderText, Dl_NoName, Dl_DriveComboItem,
+        Dl_VentoyPresentTag, Dl_VentoyDriveHint, Dl_Btn_Select,
     }
 }

@@ -82,7 +82,7 @@ namespace ULM.Views.Dialogs
         public DownloadSlotsDialog(int queueCount, int maxSlots)
         {
             _maxSlots = Math.Max(1, Math.Min(maxSlots, queueCount));
-            Title = "Parallele Downloads";
+            Title = LocalizationService.T(Str.Dl_SlotsDialog_Title);
             Width = 460; Height = 380;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
@@ -92,19 +92,19 @@ namespace ULM.Views.Dialogs
 
             root.Children.Add(new TextBlock
             {
-                Text = $"Du hast {queueCount} ISO(s) zum Download ausgewählt.",
+                Text = string.Format(LocalizationService.T(Str.Dl_SlotsSelectedCount), queueCount),
                 FontWeight = FontWeights.Bold, FontSize = 14,
                 Margin = new Thickness(0, 0, 0, 14), TextWrapping = TextWrapping.Wrap,
                 Foreground = AppRes.Brush("BrushHeader"),
             });
 
-            _statusText = new TextBlock { Text = "🔄 Teste Verbindungsgeschwindigkeit ...", FontSize = 12.5, Foreground = AppRes.Brush("BrushMid"), Margin = new Thickness(0, 0, 0, 8) };
+            _statusText = new TextBlock { Text = LocalizationService.T(Str.Dl_TestingSpeed), FontSize = 12.5, Foreground = AppRes.Brush("BrushMid"), Margin = new Thickness(0, 0, 0, 8) };
             root.Children.Add(_statusText);
 
             _resultText = new TextBlock { Text = string.Empty, FontSize = 12, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 18), TextWrapping = TextWrapping.Wrap, Foreground = AppRes.Brush("BrushBlue") };
             root.Children.Add(_resultText);
 
-            root.Children.Add(new TextBlock { Text = "Parallele Downloads:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6), Foreground = AppRes.Brush("BrushHeader") });
+            root.Children.Add(new TextBlock { Text = LocalizationService.T(Str.Dl_Label_ParallelDownloads), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6), Foreground = AppRes.Brush("BrushHeader") });
 
             var slRow = new Grid();
             slRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -118,15 +118,15 @@ namespace ULM.Views.Dialogs
             Grid.SetColumn(_sliderValueText, 1); slRow.Children.Add(_sliderValueText);
             root.Children.Add(slRow);
 
-            _chkAuto = new CheckBox { Content = "Empfehlung automatisch verwenden", IsChecked = true, Margin = new Thickness(0, 14, 0, 0), FontSize = 12 };
+            _chkAuto = new CheckBox { Content = LocalizationService.T(Str.Dl_Chk_UseRecommendation), IsChecked = true, Margin = new Thickness(0, 14, 0, 0), FontSize = 12 };
             _chkAuto.Checked   += (_, _) => ApplyAutoState(true);
             _chkAuto.Unchecked += (_, _) => ApplyAutoState(false);
             root.Children.Add(_chkAuto);
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 28, 0, 0) };
-            var bCancel = new Button { Content = "Abbrechen", Width = 100, Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 8, 0) };
+            var bCancel = new Button { Content = LocalizationService.T(Str.Dl_Btn_Cancel), Width = 100, Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 8, 0) };
             bCancel.Click += (_, _) => { DialogResult = false; Close(); };
-            _btnOk = new Button { Content = "✔ Downloads starten", Width = 175, Style = AppRes.Style("BtnPrimary"), IsEnabled = false };
+            _btnOk = new Button { Content = LocalizationService.T(Str.Dl_Btn_StartDownloads), Width = 175, Style = AppRes.Style("BtnPrimary"), IsEnabled = false };
             _btnOk.Click += (_, _) => { ChosenSlots = (int)_slider.Value; DialogResult = true; Close(); };
             btnRow.Children.Add(bCancel); btnRow.Children.Add(_btnOk);
             root.Children.Add(btnRow);
@@ -142,8 +142,8 @@ namespace ULM.Views.Dialogs
             _recommended = RecommendSlots(mbps, _maxSlots); _testDone = true;
             _statusText.Visibility = Visibility.Collapsed; _resultText.Visibility = Visibility.Visible;
             _resultText.Text = mbps > 0
-                ? $"📶 {mbps:F1} Mbit/s  →  Empfohlen: {_recommended} parallele(r) Download(s)."
-                : $"⚠ Test fehlgeschlagen — Standard-Empfehlung: {_recommended} parallele(r) Download(s).";
+                ? string.Format(LocalizationService.T(Str.Dl_SpeedTestResult), mbps.ToString("F1"), _recommended)
+                : string.Format(LocalizationService.T(Str.Dl_SpeedTestFailed), _recommended);
             _slider.Value = _recommended; _slider.IsEnabled = _chkAuto.IsChecked != true; _btnOk.IsEnabled = true;
         }
 
@@ -203,7 +203,7 @@ namespace ULM.Views.Dialogs
         {
             var names = isoNames.ToList();
             _total = names.Count; _hasDownload = hasDownload; _hasCopy = hasCopy;
-            Title = "Download-Fortschritt";
+            Title = LocalizationService.T(Str.Dl_ProgressDialog_Title);
             Width = 540;
             // Feste Höhe (480) zeigte bei mehreren parallelen Downloads nur einen Bruchteil der
             // Zeilen — der Rest war nur per Scrollbalken erreichbar, wo die %-Anzeige kaum noch zu
@@ -225,14 +225,14 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var header = new StackPanel();
-            _summaryText = new TextBlock { Text = names.Count == 1 ? "⬇ Download läuft ..." : "⬇ Downloads laufen ...", FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
+            _summaryText = new TextBlock { Text = LocalizationService.T(names.Count == 1 ? Str.Dl_DownloadRunningSingle : Str.Dl_DownloadRunningMultiple), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
             header.Children.Add(_summaryText);
 
             // Gesamt-Fortschrittsbalken: nur bei mehreren Einträgen sinnvoll (bei einem einzigen
             // genügt dessen eigener Balken). Läuft auch während der Stick-Kopie weiter, wenn diese
             // länger dauert als der Download.
             _overallPanel = new StackPanel { Margin = new Thickness(0, 0, 0, 12), Visibility = _total > 1 ? Visibility.Visible : Visibility.Collapsed };
-            _overallText  = new TextBlock { Text = $"Gesamt: 0 %   (0/{_total} fertig)", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), Margin = new Thickness(0, 0, 0, 3) };
+            _overallText  = new TextBlock { Text = string.Format(LocalizationService.T(Str.Dl_OverallStatus), 0, 0, _total), FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), Margin = new Thickness(0, 0, 0, 3) };
             _overallBar   = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8 };
             _overallPanel.Children.Add(_overallText);
             _overallPanel.Children.Add(_overallBar);
@@ -248,9 +248,9 @@ namespace ULM.Views.Dialogs
             foreach (string name in names) GetOrCreate(name);
 
             var btnRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
-            var bCan = new Button { Content = "✕ Abbrechen", Width = 120, Style = AppRes.Style("BtnDanger"), Margin = new Thickness(0, 0, 8, 0) };
+            var bCan = new Button { Content = LocalizationService.T(Str.Dl_Btn_CancelX), Width = 120, Style = AppRes.Style("BtnDanger"), Margin = new Thickness(0, 0, 8, 0) };
             bCan.Click += (_, _) => CancelRequested?.Invoke();
-            var bClose = new Button { Content = "Schließen", Width = 110, Style = AppRes.Style("BtnGhost") };
+            var bClose = new Button { Content = LocalizationService.T(Str.Db_Btn_CloseSimple), Width = 110, Style = AppRes.Style("BtnGhost") };
             bClose.Click += (_, _) => Close();
             btnRow.Children.Add(bCan); btnRow.Children.Add(bClose);
             Grid.SetRow(btnRow, 2); root.Children.Add(btnRow);
@@ -292,14 +292,14 @@ namespace ULM.Views.Dialogs
             var statRow = new DockPanel();
             var manualBtn = new Button
             {
-                Content = "🔧 Quelle manuell suchen", Style = AppRes.Style("BtnGhost"),
+                Content = LocalizationService.T(Str.Dl_Btn_ManualSearch), Style = AppRes.Style("BtnGhost"),
                 FontSize = 10, Padding = new Thickness(6, 1, 6, 1), Height = 20,
                 Visibility = Visibility.Collapsed, Margin = new Thickness(8, 0, 0, 0),
             };
             manualBtn.Click += (_, _) => ManualSearchRequested?.Invoke(name);
             DockPanel.SetDock(manualBtn, Dock.Right);
             statRow.Children.Add(manualBtn);
-            var stat = new TextBlock { Text = "Wartet ...", FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+            var stat = new TextBlock { Text = LocalizationService.T(Str.Dl_Waiting), FontSize = 10.5, Foreground = AppRes.Brush("BrushDim"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
             statRow.Children.Add(stat); // zuletzt hinzugefügt → füllt (DockPanel.LastChildFill) den Rest der Zeile
             stack.Children.Add(statRow);
 
@@ -329,12 +329,12 @@ namespace ULM.Views.Dialogs
 
             return new Button
             {
-                Content = "(schneller)",
+                Content = LocalizationService.T(Str.Dl_Btn_Faster),
                 FontSize = 8, Height = 18,
                 Background = AppRes.Brush("BrushBlue"), Foreground = Brushes.White,
                 BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
                 Template = template,
-                ToolTip = "Aktuellen Server abbrechen und zum nächsten (bereits getesteten) Mirror wechseln",
+                ToolTip = LocalizationService.T(Str.Dl_Tooltip_Faster),
                 Visibility = Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0),
@@ -383,7 +383,7 @@ namespace ULM.Views.Dialogs
             it.CopyFrac = c / 100.0;
             if (it.UiRow is { } r)
             {
-                r.NameText.Text = $"{r.OriginalName}  —  Kopiere auf Stick";
+                r.NameText.Text = string.Format(LocalizationService.T(Str.Dl_CopyingToStickSuffix), r.OriginalName);
                 r.Bar.Value = c; r.Bar.Foreground = ProgressColor(c); r.PercentText.Text = $"{c}%"; r.StatusText.Text = status;
                 r.FasterBtn.Visibility = Visibility.Collapsed; // Mirror-Wahl betrifft nur den Download, nicht die Stick-Kopie.
             }
@@ -433,7 +433,7 @@ namespace ULM.Views.Dialogs
             pct = Math.Max(0, Math.Min(100, pct));
             _overallBar.Value = pct;
             _overallBar.Foreground = ProgressColor(pct);
-            _overallText.Text = $"Gesamt: {pct} %   ({done}/{_total} fertig)";
+            _overallText.Text = string.Format(LocalizationService.T(Str.Dl_OverallStatus), pct, done, _total);
         }
 
         // BUGFIX: Gesamt-Balken/-Text wurden hier bisher hart auf 100%/"{_total}/{_total} fertig"
@@ -445,7 +445,7 @@ namespace ULM.Views.Dialogs
         {
             RecomputeOverall();
             bool allDone = _items.Values.All(it => it.Done);
-            _summaryText.Text = $"{(allDone ? "✅" : "⚠")} {summary}";
+            _summaryText.Text = string.Format(LocalizationService.T(allDone ? Str.Log_OperationSucceededLogPrefix : Str.Dl_SummaryPartial), summary);
         }
     }
 
@@ -458,10 +458,11 @@ namespace ULM.Views.Dialogs
         private readonly Dictionary<string, CheckBox> _checks = new();
 
         public OrphanedDownloadsDialog(List<(string Path, long Size)> files,
-            string title = "Unvollständige Downloads gefunden",
-            string itemLabel = "unvollständige Download-Datei(en)")
+            string? title = null,
+            string? itemLabel = null)
         {
-            Title = title;
+            Title = title ?? LocalizationService.T(Str.Dl_OrphanedDefaultTitle);
+            string resolvedItemLabel = itemLabel ?? LocalizationService.T(Str.Dl_OrphanedDefaultItemLabel);
             Width = 560; Height = 460;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = AppRes.Brush("BrushBg");
@@ -471,7 +472,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            root.Children.Add(new TextBlock { Text = $"Beim letzten Mal wurden {files.Count} {itemLabel} gefunden.\nDiese können bedenkenlos gelöscht werden:", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5, Foreground = AppRes.Brush("BrushHeader") });
+            root.Children.Add(new TextBlock { Text = string.Format(LocalizationService.T(Str.Dl_OrphanedFoundText), files.Count, resolvedItemLabel), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14), FontSize = 12.5, Foreground = AppRes.Brush("BrushHeader") });
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var list   = new StackPanel();
@@ -484,9 +485,9 @@ namespace ULM.Views.Dialogs
             Grid.SetRow(scroll, 1); root.Children.Add(scroll);
 
             var br = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-            var bSkip = new Button { Content = "Überspringen", Width = 120, Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 8, 0) };
+            var bSkip = new Button { Content = LocalizationService.T(Str.Db_Btn_Skip), Width = 120, Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 8, 0) };
             bSkip.Click += (_, _) => { DialogResult = false; Close(); };
-            var bDel = new Button { Content = "🗑 Ausgewählte löschen", Width = 190, Style = AppRes.Style("BtnDanger") };
+            var bDel = new Button { Content = LocalizationService.T(Str.Dl_Btn_DeleteSelected), Width = 190, Style = AppRes.Style("BtnDanger") };
             bDel.Click += (_, _) =>
             {
                 ToDelete.Clear();
@@ -528,7 +529,7 @@ namespace ULM.Views.Dialogs
         /// </summary>
         public DriveSelectDialog(IReadOnlyList<UsbDrive> drives, string? headerText = null, UsbDrive? preselect = null)
         {
-            Title  = "Ziel-USB-Stick auswählen";
+            Title  = LocalizationService.T(Str.Dl_DriveSelectDialog_Title);
             // BUGFIX: feste Height=240 reichte bei längeren Überschriften (z.B. dem neuen "Es sind
             // N USB-Sticks angeschlossen …"-Text) nicht aus — der untere Bereich inkl. der Buttons
             // wurde vom Fensterrand abgeschnitten, da kein ScrollViewer und kein Auto-Sizing vorhanden
@@ -542,8 +543,7 @@ namespace ULM.Views.Dialogs
 
             root.Children.Add(new TextBlock
             {
-                Text         = headerText ?? ($"Es wurden {drives.Count} USB-Laufwerke erkannt.\n" +
-                               "Bitte das Ziel-Laufwerk für die Ventoy-Installation auswählen:"),
+                Text         = headerText ?? string.Format(LocalizationService.T(Str.Dl_DefaultHeaderText), drives.Count),
                 TextWrapping = TextWrapping.Wrap,
                 FontSize     = 12.5,
                 Margin       = new Thickness(0, 0, 0, 18),
@@ -559,14 +559,14 @@ namespace ULM.Views.Dialogs
 
             foreach (var drive in drives)
             {
-                string label = string.IsNullOrWhiteSpace(drive.Label) ? "Kein Name" : drive.Label;
+                string label = string.IsNullOrWhiteSpace(drive.Label) ? LocalizationService.T(Str.Dl_NoName) : drive.Label;
                 double gb    = drive.SizeBytes / 1_073_741_824.0;
                 bool   isV   = UsbService.IsVentoyInstalled(drive.Letter);
-                string tag   = isV ? "  [Ventoy vorhanden]" : "";
+                string tag   = isV ? LocalizationService.T(Str.Dl_VentoyPresentTag) : "";
 
                 _combo.Items.Add(new ComboBoxItem
                 {
-                    Content = $"{drive.Letter}   {label}   ({gb:F0} GB){tag}",
+                    Content = string.Format(LocalizationService.T(Str.Dl_DriveComboItem), drive.Letter, label, gb.ToString("F0"), tag),
                     Tag     = drive,
                     FontWeight = isV ? FontWeights.SemiBold : FontWeights.Normal,
                 });
@@ -578,8 +578,7 @@ namespace ULM.Views.Dialogs
             // Hinweis-Text unter dem ComboBox
             root.Children.Add(new TextBlock
             {
-                Text       = "ℹ Laufwerke mit 'Ventoy vorhanden' können aktualisiert werden,\n" +
-                             "   alle anderen werden neu formatiert (Datenverlust!).",
+                Text       = LocalizationService.T(Str.Dl_VentoyDriveHint),
                 FontSize   = 10.5,
                 Foreground = AppRes.Brush("BrushDim"),
                 Margin     = new Thickness(0, 4, 0, 20),
@@ -590,9 +589,9 @@ namespace ULM.Views.Dialogs
             // BUGFIX: BtnGhost (nur 1px Rand, kein Hintergrund) hob sich auf diesem Dialog kaum vom
             // Fenster-Hintergrund (BrushBg) ab — der Button war praktisch nicht als solcher erkennbar.
             // BtnSecondary (gefüllter BrushCard-Hintergrund) ist deutlich sichtbarer.
-            var bCancel = new Button { Content = "Abbrechen", Width = 100, Style = AppRes.Style("BtnSecondary"), Margin = new Thickness(0, 0, 8, 0) };
+            var bCancel = new Button { Content = LocalizationService.T(Str.Dl_Btn_Cancel), Width = 100, Style = AppRes.Style("BtnSecondary"), Margin = new Thickness(0, 0, 8, 0) };
             bCancel.Click += (_, _) => { DialogResult = false; Close(); };
-            var bOk = new Button { Content = "✔ Auswählen", Width = 130, Style = AppRes.Style("BtnPrimary") };
+            var bOk = new Button { Content = LocalizationService.T(Str.Dl_Btn_Select), Width = 130, Style = AppRes.Style("BtnPrimary") };
             bOk.Click += (_, _) =>
             {
                 if (_combo.SelectedItem is ComboBoxItem ci && ci.Tag is UsbDrive d)

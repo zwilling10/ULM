@@ -954,6 +954,42 @@ namespace ULM.Infrastructure
             [Str.VentoyWin_Log_ResultFailed]     = "❌ Fehlgeschlagen (ExitCode {0}{1}).",
             [Str.VentoyWin_Log_CliDoneSuffix]    = ", cli_done={0}",
             [Str.VentoyWin_Log_GeneralError]     = "Fehler: {0}: {1}",
+
+            // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
+            [Str.Dl_SlotsDialog_Title]        = "Parallele Downloads",
+            [Str.Dl_SlotsSelectedCount]       = "Du hast {0} ISO(s) zum Download ausgewählt.",
+            [Str.Dl_TestingSpeed]             = "🔄 Teste Verbindungsgeschwindigkeit ...",
+            [Str.Dl_Label_ParallelDownloads]  = "Parallele Downloads:",
+            [Str.Dl_Chk_UseRecommendation]    = "Empfehlung automatisch verwenden",
+            [Str.Dl_Btn_Cancel]               = "Abbrechen",
+            [Str.Dl_Btn_StartDownloads]       = "✔ Downloads starten",
+            [Str.Dl_SpeedTestResult]          = "📶 {0} Mbit/s  →  Empfohlen: {1} parallele(r) Download(s).",
+            [Str.Dl_SpeedTestFailed]          = "⚠ Test fehlgeschlagen — Standard-Empfehlung: {0} parallele(r) Download(s).",
+
+            [Str.Dl_ProgressDialog_Title]      = "Download-Fortschritt",
+            [Str.Dl_DownloadRunningSingle]     = "⬇ Download läuft ...",
+            [Str.Dl_DownloadRunningMultiple]   = "⬇ Downloads laufen ...",
+            [Str.Dl_OverallStatus]             = "Gesamt: {0} %   ({1}/{2} fertig)",
+            [Str.Dl_Btn_CancelX]               = "✕ Abbrechen",
+            [Str.Dl_Btn_ManualSearch]          = "🔧 Quelle manuell suchen",
+            [Str.Dl_Waiting]                   = "Wartet ...",
+            [Str.Dl_Btn_Faster]                = "(schneller)",
+            [Str.Dl_Tooltip_Faster]            = "Aktuellen Server abbrechen und zum nächsten (bereits getesteten) Mirror wechseln",
+            [Str.Dl_CopyingToStickSuffix]      = "{0}  —  Kopiere auf Stick",
+            [Str.Dl_SummaryPartial]            = "⚠ {0}",
+
+            [Str.Dl_OrphanedDefaultTitle]      = "Unvollständige Downloads gefunden",
+            [Str.Dl_OrphanedDefaultItemLabel]  = "unvollständige Download-Datei(en)",
+            [Str.Dl_OrphanedFoundText]         = "Beim letzten Mal wurden {0} {1} gefunden.\nDiese können bedenkenlos gelöscht werden:",
+            [Str.Dl_Btn_DeleteSelected]        = "🗑 Ausgewählte löschen",
+
+            [Str.Dl_DriveSelectDialog_Title]   = "Ziel-USB-Stick auswählen",
+            [Str.Dl_DefaultHeaderText]         = "Es wurden {0} USB-Laufwerke erkannt.\nBitte das Ziel-Laufwerk für die Ventoy-Installation auswählen:",
+            [Str.Dl_NoName]                    = "Kein Name",
+            [Str.Dl_DriveComboItem]            = "{0}   {1}   ({2} GB){3}",
+            [Str.Dl_VentoyPresentTag]          = "  [Ventoy vorhanden]",
+            [Str.Dl_VentoyDriveHint]           = "ℹ Laufwerke mit 'Ventoy vorhanden' können aktualisiert werden,\n   alle anderen werden neu formatiert (Datenverlust!).",
+            [Str.Dl_Btn_Select]                = "✔ Auswählen",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1864,6 +1900,42 @@ namespace ULM.Infrastructure
             [Str.VentoyWin_Log_ResultFailed]     = "❌ Failed (ExitCode {0}{1}).",
             [Str.VentoyWin_Log_CliDoneSuffix]    = ", cli_done={0}",
             [Str.VentoyWin_Log_GeneralError]     = "Error: {0}: {1}",
+
+            // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
+            [Str.Dl_SlotsDialog_Title]        = "Parallel Downloads",
+            [Str.Dl_SlotsSelectedCount]       = "You selected {0} ISO(s) for download.",
+            [Str.Dl_TestingSpeed]             = "🔄 Testing connection speed ...",
+            [Str.Dl_Label_ParallelDownloads]  = "Parallel downloads:",
+            [Str.Dl_Chk_UseRecommendation]    = "Use recommendation automatically",
+            [Str.Dl_Btn_Cancel]               = "Cancel",
+            [Str.Dl_Btn_StartDownloads]       = "✔ Start downloads",
+            [Str.Dl_SpeedTestResult]          = "📶 {0} Mbit/s  →  Recommended: {1} parallel download(s).",
+            [Str.Dl_SpeedTestFailed]          = "⚠ Test failed — default recommendation: {0} parallel download(s).",
+
+            [Str.Dl_ProgressDialog_Title]      = "Download Progress",
+            [Str.Dl_DownloadRunningSingle]     = "⬇ Download running ...",
+            [Str.Dl_DownloadRunningMultiple]   = "⬇ Downloads running ...",
+            [Str.Dl_OverallStatus]             = "Total: {0} %   ({1}/{2} done)",
+            [Str.Dl_Btn_CancelX]               = "✕ Cancel",
+            [Str.Dl_Btn_ManualSearch]          = "🔧 Search source manually",
+            [Str.Dl_Waiting]                   = "Waiting ...",
+            [Str.Dl_Btn_Faster]                = "(faster)",
+            [Str.Dl_Tooltip_Faster]            = "Cancel the current server and switch to the next (already tested) mirror",
+            [Str.Dl_CopyingToStickSuffix]      = "{0}  —  Copying to stick",
+            [Str.Dl_SummaryPartial]            = "⚠ {0}",
+
+            [Str.Dl_OrphanedDefaultTitle]      = "Incomplete downloads found",
+            [Str.Dl_OrphanedDefaultItemLabel]  = "incomplete download file(s)",
+            [Str.Dl_OrphanedFoundText]         = "{0} {1} were found last time.\nThese can be safely deleted:",
+            [Str.Dl_Btn_DeleteSelected]        = "🗑 Delete selected",
+
+            [Str.Dl_DriveSelectDialog_Title]   = "Select Target USB Stick",
+            [Str.Dl_DefaultHeaderText]         = "{0} USB drive(s) were detected.\nPlease select the target drive for the Ventoy installation:",
+            [Str.Dl_NoName]                    = "No name",
+            [Str.Dl_DriveComboItem]            = "{0}   {1}   ({2} GB){3}",
+            [Str.Dl_VentoyPresentTag]          = "  [Ventoy present]",
+            [Str.Dl_VentoyDriveHint]           = "ℹ Drives with 'Ventoy present' can be updated,\n   all others will be reformatted (data loss!).",
+            [Str.Dl_Btn_Select]                = "✔ Select",
         };
     }
 }
