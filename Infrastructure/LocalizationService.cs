@@ -1013,6 +1013,9 @@ namespace ULM.Infrastructure
             [Str.OpSucceeded_FailedSuffixSimple] = "\n\n⚠ {0} fehlgeschlagen.",
             [Str.OpSucceeded_CopyOnlyBody]     = "{0} ISO(s) auf {1} kopiert ({2} GB).\n\nDas Ventoy-Bootmenü wurde automatisch aktualisiert.",
             [Str.OpSucceeded_LocalFilesDeletedSuffix] = "\n\nDie lokalen ISO-Dateien wurden gelöscht.",
+
+            // ── Core/Services/HttpService.cs: Download-Fortschritt-ETA-Suffix ──
+            [Str.Xfer_EtaSuffix] = "  ·  noch {0}",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1982,6 +1985,9 @@ namespace ULM.Infrastructure
             [Str.OpSucceeded_FailedSuffixSimple] = "\n\n⚠ {0} failed.",
             [Str.OpSucceeded_CopyOnlyBody]     = "{0} ISO(s) copied to {1} ({2} GB).\n\nThe Ventoy boot menu was updated automatically.",
             [Str.OpSucceeded_LocalFilesDeletedSuffix] = "\n\nThe local ISO files were deleted.",
+
+            // ── Core/Services/HttpService.cs: download progress ETA suffix ──
+            [Str.Xfer_EtaSuffix] = "  ·  {0} left",
         };
     }
 }

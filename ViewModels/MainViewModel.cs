@@ -1167,7 +1167,7 @@ namespace ULM.ViewModels
             static string FmtEta(double s) { if (s < 1) return "<1s"; var ts = TimeSpan.FromSeconds(s); return ts.TotalHours >= 1 ? $"{(int)ts.TotalHours}h {ts.Minutes}m" : ts.TotalMinutes >= 1 ? $"{(int)ts.TotalMinutes}m {ts.Seconds}s" : $"{ts.Seconds}s"; }
             string speed = FmtB(bps) + "/s";
             if (total <= 0) return $"{speed}  ·  {FmtB(done)}";
-            return $"{speed}  ·  noch {FmtEta((total - done) / Math.Max(0.001, bps))}  ·  {FmtB(done)} / {FmtB(total)}";
+            return string.Format(LocalizationService.T(Str.Xfer_DetailWithEta), speed, FmtEta((total - done) / Math.Max(0.001, bps)), FmtB(done), FmtB(total));
         }
 
         public void StartCopyToStick(List<IsoEntry> queue, string drive, bool deleteAfter)

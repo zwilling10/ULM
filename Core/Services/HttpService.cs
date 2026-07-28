@@ -1230,7 +1230,7 @@ namespace ULM.Core.Services
                             // auf den Stick (TransferFormat.BuildDetail) gibt es die geschätzte
                             // Restzeit schon lange, beim eigentlichen Download fehlte sie bisher.
                             string spd = bps > 0 ? FormatBytes(bps) + "/s" : string.Empty;
-                            string eta = total > 0 && bps > 0.01 ? $"  ·  noch {FormatEta((total - written) / bps)}" : string.Empty;
+                            string eta = total > 0 && bps > 0.01 ? string.Format(LocalizationService.T(Str.Xfer_EtaSuffix), FormatEta((total - written) / bps)) : string.Empty;
                             progress?.Report((pct, $"{FormatBytes(written)} / {FormatBytes(total)}" + (string.IsNullOrEmpty(spd) ? string.Empty : $"  {spd}") + eta));
                         }
                     }

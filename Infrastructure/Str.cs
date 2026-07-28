@@ -483,5 +483,8 @@ namespace ULM.Infrastructure
         // ── ViewModels/MainViewModel.cs: OperationSucceeded-Nachrichtentexte (MessageBox-Body) ──
         OpSucceeded_PipelineBody, OpSucceeded_FailedSuffix, OpSucceeded_DownloadOnlyBody,
         OpSucceeded_FailedSuffixSimple, OpSucceeded_CopyOnlyBody, OpSucceeded_LocalFilesDeletedSuffix,
+
+        // ── Core/Services/HttpService.cs: Download-Fortschritt-ETA-Suffix ──
+        Xfer_EtaSuffix,
     }
 }
