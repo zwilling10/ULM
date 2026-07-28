@@ -232,7 +232,7 @@ namespace ULM.Views.Dialogs
                     LocalizationService.T(Str.Db_NameTaken_Title), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            _entry.Name = newName; _entry.Category = _cbCat.SelectedItem?.ToString() ?? "Einsteiger";
+            _entry.Name = newName; _entry.Category = AppRes.SelectedCategory(_cbCat);
             _entry.Url = _tbUrl.Text.Trim(); _entry.Filename = _tbFilename.Text.Trim();
             _entry.Mirror1 = _tbMirror1.Text.Trim(); _entry.Mirror2 = _tbMirror2.Text.Trim(); _entry.Mirror3 = _tbMirror3.Text.Trim();
             _entry.GithubRepo = _tbGhRepo.Text.Trim(); _entry.GithubAsset = _tbGhAsset.Text.Trim();
@@ -384,8 +384,7 @@ namespace ULM.Views.Dialogs
                     Grid.SetColumn(nameTb, 1); row.Children.Add(nameTb);
 
                     var catCb = new ComboBox { Margin = new Thickness(6, 2, 6, 2), IsEnabled = !d.AlreadyInDb };
-                    foreach (string cat in Constants.Categories) catCb.Items.Add(cat);
-                    catCb.SelectedItem = Constants.Categories.Contains(d.SuggestedCategory) ? d.SuggestedCategory : "Einsteiger";
+                    AppRes.FillCategoryCombo(catCb, d.SuggestedCategory);
                     Grid.SetColumn(catCb, 2); row.Children.Add(catCb);
 
                     var infoTb = new TextBlock { Text = d.Info, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 4, 4), Foreground = (Brush)Application.Current.Resources["BrushDim"] };
@@ -408,7 +407,7 @@ namespace ULM.Views.Dialogs
             foreach (var row in tab.Rows)
             {
                 if (row.Distro.AlreadyInDb || row.Chk.IsChecked != true) continue;
-                string category = row.CatCb.SelectedItem as string ?? "Einsteiger";
+                string category = AppRes.SelectedCategory(row.CatCb);
                 var entry = new IsoEntry { Name = row.Distro.Name, Category = category };
                 AddedEntries.Add(entry);
                 if (alsoDownload) ToDownload.Add(entry);
@@ -500,8 +499,7 @@ namespace ULM.Views.Dialogs
                 var nameTb = new TextBox  { Text = suggested, MinHeight = 28, Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(4, 0, 4, 0) };
                 string defCat = Constants.Categories.Contains(iso.Category, StringComparer.OrdinalIgnoreCase) ? Constants.Categories.First(c => c.Equals(iso.Category, StringComparison.OrdinalIgnoreCase)) : "Einsteiger";
                 var catCb = new ComboBox { Margin = new Thickness(0) };
-                foreach (string cat in Constants.Categories) catCb.Items.Add(cat);
-                catCb.SelectedItem = defCat;
+                AppRes.FillCategoryCombo(catCb, defCat);
 
                 var urlTb = new TextBox { MinHeight = 24, FontSize = 10.5, Padding = new Thickness(4, 2, 4, 2), Margin = new Thickness(32, 2, 0, 6) };
 
@@ -545,7 +543,7 @@ namespace ULM.Views.Dialogs
                 if (row.Chk.IsChecked != true) continue;
                 string name = row.NameTb.Text.Trim();
                 if (string.IsNullOrWhiteSpace(name)) { errors.Add(string.Format(LocalizationService.T(Str.Db_ImportError_NoName), row.Iso.Filename)); continue; }
-                var entry = new IsoEntry { Name = name, Category = row.CatCb.SelectedItem?.ToString() ?? "Einsteiger", Filename = row.Iso.Filename, Url = row.UrlTb.Text.Trim(), ImportedFromStick = true };
+                var entry = new IsoEntry { Name = name, Category = AppRes.SelectedCategory(row.CatCb), Filename = row.Iso.Filename, Url = row.UrlTb.Text.Trim(), ImportedFromStick = true };
                 ImportedEntries.Add((entry, row.Iso.FullPath));
             }
             if (errors.Count > 0) MessageBox.Show(string.Format(LocalizationService.T(Str.Db_ImportIncomplete_Body), string.Join("\n", errors)), LocalizationService.T(Str.Db_ImportIncomplete_Title), MessageBoxButton.OK, MessageBoxImage.Warning);

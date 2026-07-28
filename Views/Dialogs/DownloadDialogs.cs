@@ -41,11 +41,25 @@ namespace ULM.Views.Dialogs
         {
             root.Children.Add(new TextBlock { Text = LocalizationService.T(Str.Db_Field_Category), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2), Foreground = Brush("BrushHeader") });
             var cb = new ComboBox { Margin = new Thickness(0, 0, 0, 10) };
-            foreach (string cat in Constants.Categories) cb.Items.Add(cat);
-            cb.SelectedItem = Constants.Categories.Contains(selected) ? selected : "Einsteiger";
+            FillCategoryCombo(cb, selected);
             root.Children.Add(cb);
             return cb;
         }
+
+        // Combo-Einträge zeigen das übersetzte Kategorie-Label (Content), der interne, stabile
+        // Kategorie-Schlüssel (z.B. "Einsteiger") bleibt im Tag hinterlegt — SelectedCategory()
+        // liest ihn zurück. Ohne diese Trennung würde die Anzeige (bei Sprachwechsel) den intern
+        // gespeicherten Wert verändern, da WPF-ComboBoxen mit reinen Strings Content == Value setzen.
+        public static void FillCategoryCombo(ComboBox cb, string selected)
+        {
+            foreach (string cat in Constants.Categories)
+                cb.Items.Add(new ComboBoxItem { Content = Constants.CategoryLabel(cat), Tag = cat });
+            string sel = Constants.Categories.Contains(selected) ? selected : "Einsteiger";
+            cb.SelectedItem = cb.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (string)i.Tag == sel);
+        }
+
+        public static string SelectedCategory(ComboBox cb) =>
+            (cb.SelectedItem as ComboBoxItem)?.Tag as string ?? "Einsteiger";
     }
 
     // ═══════════════════════════════════════════════════════════════════
