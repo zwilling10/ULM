@@ -472,5 +472,16 @@ namespace ULM.Infrastructure
 
         Dl_DriveSelectDialog_Title, Dl_DefaultHeaderText, Dl_NoName, Dl_DriveComboItem,
         Dl_VentoyPresentTag, Dl_VentoyDriveHint, Dl_Btn_Select,
+
+        // ── Core/Workers/Workers.cs: TransferFormat + DownloadWorker.sa.Status ──
+        Xfer_DetailWithEta,
+        DlStatus_NoUrlFound, DlStatus_TestingMirrors, DlStatus_LabelPrimary, DlStatus_LabelMirrorN,
+        DlStatus_LabelEllipsis, DlStatus_LabelDetail, DlStatus_NoFasterServerContinuing,
+        DlStatus_LabelResumed, DlStatus_LabelSlow, DlStatus_Done, DlStatus_FailedAllMirrorsTried,
+        DlStatus_GeneralError,
+
+        // ── ViewModels/MainViewModel.cs: OperationSucceeded-Nachrichtentexte (MessageBox-Body) ──
+        OpSucceeded_PipelineBody, OpSucceeded_FailedSuffix, OpSucceeded_DownloadOnlyBody,
+        OpSucceeded_FailedSuffixSimple, OpSucceeded_CopyOnlyBody, OpSucceeded_LocalFilesDeletedSuffix,
     }
 }

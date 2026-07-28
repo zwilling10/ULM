@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using ULM.Infrastructure;
 using ULM.ViewModels;
 using Xunit;
 
@@ -9,9 +12,22 @@ namespace ULM.Tests;
 /// Stick-Kopie fehl, meldete die App trotzdem "X ISO(s) heruntergeladen und kopiert.", obwohl keine
 /// einzige davon tatsächlich auf dem Stick landete. BuildPipelineCompletionMessage() verwendet
 /// stattdessen die ECHTEN Kopier-Erfolgszahlen (copyOk aus RunPipelineCopyConsumerAsync).
+///
+/// BuildPipelineCompletionMessage() liest inzwischen über LocalizationService.T(...) die aktuell
+/// eingestellte Sprache (LocalizationService.Current) — ein globaler, statischer Zustand, den
+/// andere Tests (z.B. LocalizationServiceSetLanguageTests) im selben Testlauf verändern können.
+/// Sprache hier deshalb explizit auf Deutsch setzen, damit diese Tests unabhängig von der
+/// Ausführungsreihenfolge deterministisch bleiben.
 /// </summary>
+[Collection("LocalizationCurrent")]
 public class MainViewModelPipelineSummaryTests
 {
+    public MainViewModelPipelineSummaryTests()
+    {
+        string tempFile = Path.Combine(Path.GetTempPath(), $"ulm-loc-{Guid.NewGuid():N}.ini");
+        try { LocalizationService.SetLanguage(AppLanguage.German, tempFile); } finally { File.Delete(tempFile); }
+    }
+
     [Fact]
     public void AllCopiesSucceeded_ReportsFullSuccessWithoutFailureNote()
     {

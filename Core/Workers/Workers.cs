@@ -38,7 +38,7 @@ namespace ULM.Core.Workers
         public static string BuildDetail(double bps, long done, long total)
         {
             string speed = FormatBytes(bps) + "/s";
-            if (total > 0) { string eta = bps > 0.01 ? FormatEta((total - done) / bps) : "—"; return $"{speed}  ·  noch {eta}  ·  {FormatBytes(done)} / {FormatBytes(total)}"; }
+            if (total > 0) { string eta = bps > 0.01 ? FormatEta((total - done) / bps) : "—"; return string.Format(LocalizationService.T(Str.Xfer_DetailWithEta), speed, eta, FormatBytes(done), FormatBytes(total)); }
             return $"{speed}  ·  {FormatBytes(done)}";
         }
     }
@@ -364,7 +364,7 @@ namespace ULM.Core.Workers
 
                         if (string.IsNullOrWhiteSpace(resolvedUrl))
                         {
-                            sa.Status = "❌ Keine URL gefunden"; sa.NoUrlFound = true; SlotUpdated?.Invoke(sa);
+                            sa.Status = LocalizationService.T(Str.DlStatus_NoUrlFound); sa.NoUrlFound = true; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_NoDownloadUrlFound), entry.Name));
                             return;
                         }
@@ -404,7 +404,7 @@ namespace ULM.Core.Workers
                         // damit spät hochfahrende CDNs nicht fälschlich als langsam gelten).
                         if (urlsToTry.Count > 1)
                         {
-                            sa.Status = $"🔎 Teste {urlsToTry.Count} Mirror(s) …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                            sa.Status = string.Format(LocalizationService.T(Str.DlStatus_TestingMirrors), urlsToTry.Count); sa.Percent = 0; SlotUpdated?.Invoke(sa);
                             var raced = await HttpService.Instance.RaceMirrorsAsync(urlsToTry, TimeSpan.FromSeconds(3), _cts.Token).ConfigureAwait(false);
                             urlsToTry = raced.Select(r => r.Url).ToList();
                             string mirrorList = string.Join(", ", raced.Select(r =>
@@ -425,12 +425,14 @@ namespace ULM.Core.Workers
                         {
                             mirrorIdx++;
                             string host = TryGetSourceLabel(tryUrl);
-                            string label = mirrorIdx == 1 ? $"⬇ {host}" : $"⬇ Mirror {mirrorIdx}: {host}";
+                            string label = mirrorIdx == 1
+                                ? string.Format(LocalizationService.T(Str.DlStatus_LabelPrimary), host)
+                                : string.Format(LocalizationService.T(Str.DlStatus_LabelMirrorN), mirrorIdx, host);
                             bool hasMoreMirrors = mirrorIdx < urlsToTry.Count;
                             // Button bleibt zunächst versteckt — erscheint erst im Progress-Callback
                             // unten, sobald Anlaufzeit UND gemessene Geschwindigkeit das rechtfertigen
                             // (siehe ShouldShowFasterMirrorButton).
-                            sa.Status = $"{label} …"; sa.Percent = 0; sa.CanRequestFasterMirror = false; SlotUpdated?.Invoke(sa);
+                            sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelEllipsis), label); sa.Percent = 0; sa.CanRequestFasterMirror = false; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_TryingUrl), entry.Name, tryUrl));
 
                             // ── Geschwindigkeits-Wächter: bleibt die Übertragung (nach Anlaufzeit —
@@ -458,7 +460,7 @@ namespace ULM.Core.Workers
                                     (p, d) =>
                                     {
                                         double bps = ParseSpeedBytesPerSec(d);
-                                        sa.Status = $"{label}  {d}"; sa.Percent = p;
+                                        sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelDetail), label, d); sa.Percent = p;
                                         sa.CanRequestFasterMirror = ShouldShowFasterMirrorButton(hasMoreMirrors, attemptSw.Elapsed, bps);
                                         SlotUpdated?.Invoke(sa);
                                         if (bps < 0 || bps >= SlowSpeedThresholdBytesPerSec) lastFastEnough = attemptSw.Elapsed;
@@ -519,17 +521,17 @@ namespace ULM.Core.Workers
                         // Wechsel selbst angestoßen) — nur ein kurzer Hinweis, dann Fortsetzung.
                         if (!ok && manualSkipFallbackUrl != null && !_cts.IsCancellationRequested)
                         {
-                            sa.Status = "⚡ Kein schnellerer Server gefunden — Download wird fortgesetzt …";
+                            sa.Status = LocalizationService.T(Str.DlStatus_NoFasterServerContinuing);
                             sa.Percent = 0; SlotUpdated?.Invoke(sa);
                             LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_NoFasterMirrorFound), entry.Name, manualSkipFallbackHost));
                             try { await Task.Delay(3000, _cts.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
                             if (!_cts.IsCancellationRequested)
                             {
-                                string fallbackLabel = $"⬇ {manualSkipFallbackHost} (fortgesetzt)";
-                                sa.Status = $"{fallbackLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                string fallbackLabel = string.Format(LocalizationService.T(Str.DlStatus_LabelResumed), manualSkipFallbackHost);
+                                sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelEllipsis), fallbackLabel); sa.Percent = 0; SlotUpdated?.Invoke(sa);
                                 ok = await HttpService.Instance.DownloadFileAsync(
                                     manualSkipFallbackUrl, destPath, _cts.Token,
-                                    (p, d) => { sa.Status = $"{fallbackLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); },
+                                    (p, d) => { sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelDetail), fallbackLabel, d); sa.Percent = p; SlotUpdated?.Invoke(sa); },
                                     onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = manualSkipFallbackUrl;
@@ -548,11 +550,11 @@ namespace ULM.Core.Workers
                             if (proceed)
                             {
                                 LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_ProceedingDespiteSlowness), entry.Name, slowAbortedHost));
-                                string slowLabel = $"⬇ {slowAbortedHost} (langsam)";
-                                sa.Status = $"{slowLabel} …"; sa.Percent = 0; SlotUpdated?.Invoke(sa);
+                                string slowLabel = string.Format(LocalizationService.T(Str.DlStatus_LabelSlow), slowAbortedHost);
+                                sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelEllipsis), slowLabel); sa.Percent = 0; SlotUpdated?.Invoke(sa);
                                 ok = await HttpService.Instance.DownloadFileAsync(
                                     slowAbortedUrl, destPath, _cts.Token,
-                                    (p, d) => { sa.Status = $"{slowLabel}  {d}"; sa.Percent = p; SlotUpdated?.Invoke(sa); },
+                                    (p, d) => { sa.Status = string.Format(LocalizationService.T(Str.DlStatus_LabelDetail), slowLabel, d); sa.Percent = p; SlotUpdated?.Invoke(sa); },
                                     onTotalKnown: total => _db?.SaveExpectedSize(entry, total))
                                     .ConfigureAwait(false);
                                 if (ok) usedUrl = slowAbortedUrl;
@@ -585,13 +587,13 @@ namespace ULM.Core.Workers
                                         LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_ChecksumMismatchWarning), entry.Name));
                                 }
                             }
-                            sa.Percent = 100; sa.Status = "✅ Fertig";
+                            sa.Percent = 100; sa.Status = LocalizationService.T(Str.DlStatus_Done);
                             Interlocked.Increment(ref successCount);
                             LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_DownloadCompletedItem), entry.Name, fname, TryGetHost(usedUrl)));
                         }
                         else
                         {
-                            sa.Status = "❌ Fehlgeschlagen — alle Mirror versucht";
+                            sa.Status = LocalizationService.T(Str.DlStatus_FailedAllMirrorsTried);
                             LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_DownloadFailedItem), entry.Name, urlsToTry.Count));
                         }
                         SlotUpdated?.Invoke(sa);
@@ -606,7 +608,7 @@ namespace ULM.Core.Workers
                         // (harmlos, da der zugehörige Versuch längst aus _activeAttempts entfernt ist,
                         // aber optisch falsch).
                         sa.CanRequestFasterMirror = false;
-                        sa.Status = $"Fehler: {ex.Message}"; SlotUpdated?.Invoke(sa);
+                        sa.Status = string.Format(LocalizationService.T(Str.DlStatus_GeneralError), ex.Message); SlotUpdated?.Invoke(sa);
                         LogMessage?.Invoke(string.Format(LocalizationService.T(Str.Log_GeneralDownloadError), entry.Name, ex.GetType().Name, ex.Message));
                     }
                     finally

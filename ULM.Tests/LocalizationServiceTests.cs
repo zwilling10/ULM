@@ -131,6 +131,15 @@ public class LocalizationServiceLoadFromIniTests
     }
 }
 
+// Serialisiert Tests, die den globalen, statischen LocalizationService.Current-Zustand
+// lesen/schreiben (xUnit führt verschiedene Test-Klassen sonst parallel aus — ohne dieses
+// Collection-Attribut könnte SetLanguage_WritesToIniAndUpdatesCurrent mitten in einem Test einer
+// anderen Klasse, die ambient über LocalizationService.T(...) liest, die Sprache umschalten).
+// Siehe MainViewModelPipelineSummaryTests, das dieselbe Collection nutzt.
+[CollectionDefinition("LocalizationCurrent", DisableParallelization = true)]
+public class LocalizationCurrentCollection { }
+
+[Collection("LocalizationCurrent")]
 public class LocalizationServiceSetLanguageTests
 {
     [Fact]

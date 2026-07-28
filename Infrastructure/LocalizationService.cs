@@ -990,6 +990,29 @@ namespace ULM.Infrastructure
             [Str.Dl_VentoyPresentTag]          = "  [Ventoy vorhanden]",
             [Str.Dl_VentoyDriveHint]           = "ℹ Laufwerke mit 'Ventoy vorhanden' können aktualisiert werden,\n   alle anderen werden neu formatiert (Datenverlust!).",
             [Str.Dl_Btn_Select]                = "✔ Auswählen",
+
+            // ── Core/Workers/Workers.cs: TransferFormat + DownloadWorker.sa.Status ──
+            [Str.Xfer_DetailWithEta]              = "{0}  ·  noch {1}  ·  {2} / {3}",
+            [Str.DlStatus_NoUrlFound]              = "❌ Keine URL gefunden",
+            [Str.DlStatus_TestingMirrors]          = "🔎 Teste {0} Mirror(s) …",
+            [Str.DlStatus_LabelPrimary]            = "⬇ {0}",
+            [Str.DlStatus_LabelMirrorN]            = "⬇ Mirror {0}: {1}",
+            [Str.DlStatus_LabelEllipsis]           = "{0} …",
+            [Str.DlStatus_LabelDetail]             = "{0}  {1}",
+            [Str.DlStatus_NoFasterServerContinuing] = "⚡ Kein schnellerer Server gefunden — Download wird fortgesetzt …",
+            [Str.DlStatus_LabelResumed]            = "⬇ {0} (fortgesetzt)",
+            [Str.DlStatus_LabelSlow]               = "⬇ {0} (langsam)",
+            [Str.DlStatus_Done]                    = "✅ Fertig",
+            [Str.DlStatus_FailedAllMirrorsTried]   = "❌ Fehlgeschlagen — alle Mirror versucht",
+            [Str.DlStatus_GeneralError]            = "Fehler: {0}",
+
+            // ── ViewModels/MainViewModel.cs: OperationSucceeded-Nachrichtentexte (MessageBox-Body) ──
+            [Str.OpSucceeded_PipelineBody]     = "{0} ISO(s) heruntergeladen und auf {1} kopiert.\n\nJede ISO wurde direkt nach dem Download kopiert und lokal gelöscht.\nDas Ventoy-Bootmenü wurde automatisch aktualisiert.",
+            [Str.OpSucceeded_FailedSuffix]     = "\n\n⚠ {0} ISO(s) fehlgeschlagen.",
+            [Str.OpSucceeded_DownloadOnlyBody] = "{0} ISO(s) erfolgreich heruntergeladen.\n\nGespeichert unter:\n{1}",
+            [Str.OpSucceeded_FailedSuffixSimple] = "\n\n⚠ {0} fehlgeschlagen.",
+            [Str.OpSucceeded_CopyOnlyBody]     = "{0} ISO(s) auf {1} kopiert ({2} GB).\n\nDas Ventoy-Bootmenü wurde automatisch aktualisiert.",
+            [Str.OpSucceeded_LocalFilesDeletedSuffix] = "\n\nDie lokalen ISO-Dateien wurden gelöscht.",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1936,6 +1959,29 @@ namespace ULM.Infrastructure
             [Str.Dl_VentoyPresentTag]          = "  [Ventoy present]",
             [Str.Dl_VentoyDriveHint]           = "ℹ Drives with 'Ventoy present' can be updated,\n   all others will be reformatted (data loss!).",
             [Str.Dl_Btn_Select]                = "✔ Select",
+
+            // ── Core/Workers/Workers.cs: TransferFormat + DownloadWorker.sa.Status ──
+            [Str.Xfer_DetailWithEta]              = "{0}  ·  {1} left  ·  {2} / {3}",
+            [Str.DlStatus_NoUrlFound]              = "❌ No URL found",
+            [Str.DlStatus_TestingMirrors]          = "🔎 Testing {0} mirror(s) …",
+            [Str.DlStatus_LabelPrimary]            = "⬇ {0}",
+            [Str.DlStatus_LabelMirrorN]            = "⬇ Mirror {0}: {1}",
+            [Str.DlStatus_LabelEllipsis]           = "{0} …",
+            [Str.DlStatus_LabelDetail]             = "{0}  {1}",
+            [Str.DlStatus_NoFasterServerContinuing] = "⚡ No faster server found — resuming download …",
+            [Str.DlStatus_LabelResumed]            = "⬇ {0} (resumed)",
+            [Str.DlStatus_LabelSlow]               = "⬇ {0} (slow)",
+            [Str.DlStatus_Done]                    = "✅ Done",
+            [Str.DlStatus_FailedAllMirrorsTried]   = "❌ Failed — all mirrors tried",
+            [Str.DlStatus_GeneralError]            = "Error: {0}",
+
+            // ── ViewModels/MainViewModel.cs: OperationSucceeded message texts (MessageBox body) ──
+            [Str.OpSucceeded_PipelineBody]     = "{0} ISO(s) downloaded and copied to {1}.\n\nEach ISO was copied right after downloading and deleted locally.\nThe Ventoy boot menu was updated automatically.",
+            [Str.OpSucceeded_FailedSuffix]     = "\n\n⚠ {0} ISO(s) failed.",
+            [Str.OpSucceeded_DownloadOnlyBody] = "{0} ISO(s) downloaded successfully.\n\nSaved to:\n{1}",
+            [Str.OpSucceeded_FailedSuffixSimple] = "\n\n⚠ {0} failed.",
+            [Str.OpSucceeded_CopyOnlyBody]     = "{0} ISO(s) copied to {1} ({2} GB).\n\nThe Ventoy boot menu was updated automatically.",
+            [Str.OpSucceeded_LocalFilesDeletedSuffix] = "\n\nThe local ISO files were deleted.",
         };
     }
 }

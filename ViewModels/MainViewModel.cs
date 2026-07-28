@@ -986,8 +986,8 @@ namespace ULM.ViewModels
                     if (!string.IsNullOrEmpty(drive)) TriggerUsbScan();
                     if (ok > 0)
                     {
-                        string msg = $"{ok} ISO(s) erfolgreich heruntergeladen.\n\nGespeichert unter:\n{_paths.DownloadDir}";
-                        if (failed > 0) msg += $"\n\n⚠ {failed} fehlgeschlagen.";
+                        string msg = string.Format(LocalizationService.T(Str.OpSucceeded_DownloadOnlyBody), ok, _paths.DownloadDir);
+                        if (failed > 0) msg += string.Format(LocalizationService.T(Str.OpSucceeded_FailedSuffixSimple), failed);
                         OperationSucceeded?.Invoke(msg);
                     }
                 }
@@ -1007,10 +1007,8 @@ namespace ULM.ViewModels
         {
             if (copyOk <= 0) return string.Empty;
             int failed = totalQueued - copyOk;
-            string msg = $"{copyOk} ISO(s) heruntergeladen und auf {drive} kopiert.\n\n" +
-                         "Jede ISO wurde direkt nach dem Download kopiert und lokal gelöscht.\n" +
-                         "Das Ventoy-Bootmenü wurde automatisch aktualisiert.";
-            if (failed > 0) msg += $"\n\n⚠ {failed} ISO(s) fehlgeschlagen.";
+            string msg = string.Format(LocalizationService.T(Str.OpSucceeded_PipelineBody), copyOk, drive);
+            if (failed > 0) msg += string.Format(LocalizationService.T(Str.OpSucceeded_FailedSuffix), failed);
             return msg;
         }
 
@@ -1213,9 +1211,8 @@ namespace ULM.ViewModels
                 TriggerUsbScan();
                 if (count > 0)
                 {
-                    string msg = $"{count} ISO(s) auf {drive} kopiert ({bytes / (1024.0 * 1024 * 1024):F2} GB).\n\n" +
-                                 "Das Ventoy-Bootmenü wurde automatisch aktualisiert.";
-                    if (deleteAfter) msg += "\n\nDie lokalen ISO-Dateien wurden gelöscht.";
+                    string msg = string.Format(LocalizationService.T(Str.OpSucceeded_CopyOnlyBody), count, drive, (bytes / (1024.0 * 1024 * 1024)).ToString("F2"));
+                    if (deleteAfter) msg += LocalizationService.T(Str.OpSucceeded_LocalFilesDeletedSuffix);
                     OperationSucceeded?.Invoke(msg);
                 }
             });
