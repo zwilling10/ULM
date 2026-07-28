@@ -496,5 +496,8 @@ namespace ULM.Infrastructure
 
         // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded-Nachrichtentexte (QuickConfirmationWindow) ──
         QuickConfirm_IntegrityCheckDone, QuickConfirm_UpdateCheckDone,
+
+        // ── IsoEditDialog/ManualSourceSearchDialog: zweites Beschreibungsfeld (TipEn) ──
+        Db_Field_DescriptionEn,
     }
 }

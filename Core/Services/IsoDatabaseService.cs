@@ -14,9 +14,9 @@ namespace ULM.Core.Services
     /// INI-Format: [General] Count=N, [ISO_0] … [ISO_N-1]
     ///
     /// Mirror-Felder: Mirror1-5 werden gelesen/geschrieben.
-    /// DefaultDatabase-Format: 12 Spalten
+    /// DefaultDatabase-Format: 13 Spalten
     ///   [Name, Category, Url, Filename, Mirror1, Mirror2, Mirror3,
-    ///    Mirror4, Mirror5, GitHubRepo, GitHubAsset, Tip]
+    ///    Mirror4, Mirror5, GitHubRepo, GitHubAsset, Tip, TipEn]
     /// </summary>
     public interface IIsoDatabaseService
     {
@@ -88,6 +88,7 @@ namespace ULM.Core.Services
                     GithubRepo  = d.GetValueOrDefault("GitHubRepo",  string.Empty),
                     GithubAsset = d.GetValueOrDefault("GitHubAsset", string.Empty),
                     Tip         = d.GetValueOrDefault("Tip",         string.Empty).Replace("\\n", "\n"),
+                    TipEn       = d.GetValueOrDefault("TipEn",       string.Empty).Replace("\\n", "\n"),
                     // BUGFIX (finaler Review): Sha256/Sha256Source wurden hier bisher NICHT gelesen
                     // und landeten dadurch nach jedem Neuladen als leerer String — die gesamte
                     // Integritaetspruefung (DetectVersionlessHashMismatchesAsync/
@@ -138,6 +139,7 @@ namespace ULM.Core.Services
                 sb.AppendLine($"GitHubRepo  = {e.GithubRepo}");
                 sb.AppendLine($"GitHubAsset = {e.GithubAsset}");
                 sb.AppendLine($"Tip         = {e.Tip.Replace("\n", "\\n")}");
+                sb.AppendLine($"TipEn       = {e.TipEn.Replace("\n", "\\n")}");
                 // BUGFIX (finaler Review): Sha256/Sha256Source wurden hier bisher NICHT geschrieben
                 // (fester INI-Feld-Katalog statt Reflection-Serializer) — der Referenz-Hash ging bei
                 // jedem Save() (z.B. nach Download/Stick-Import) stillschweigend verloren, sobald die
@@ -192,10 +194,10 @@ namespace ULM.Core.Services
         public void MoveDown(int index)    { if (index >= 0 && index < _entries.Count - 1) (_entries[index], _entries[index + 1]) = (_entries[index + 1], _entries[index]); }
 
         // ── Standard-Datenbank ───────────────────────────────────────────
-        // 12 Spalten pro Zeile:
+        // 13 Spalten pro Zeile:
         // [0] Name   [1] Category  [2] Url      [3] Filename
         // [4] Mirror1 [5] Mirror2  [6] Mirror3  [7] Mirror4   [8] Mirror5
-        // [9] GitHubRepo  [10] GitHubAsset  [11] Tip
+        // [9] GitHubRepo  [10] GitHubAsset  [11] Tip  [12] TipEn
         private static readonly string[][] DefaultDatabase =
         {
             // ── Antivirus ─────────────────────────────────────────────────
@@ -204,6 +206,10 @@ namespace ULM.Core.Services
              "🛡 Dr.Web LiveDisk — Antivirus Live-System\n" +
              "✅ Bootet OHNE Installation (Debian-basiert)\n" +
              "• Erkennt und entfernt Malware, Viren, Trojaner\n" +
+             "• Web: https://free.drweb.com/livedisk/",
+             "🛡 Dr.Web LiveDisk — Antivirus live system\n" +
+             "✅ Boots WITHOUT installation (Debian-based)\n" +
+             "• Detects and removes malware, viruses, trojans\n" +
              "• Web: https://free.drweb.com/livedisk/"],
 
             // ── Rettung ───────────────────────────────────────────────────
@@ -212,6 +218,10 @@ namespace ULM.Core.Services
              "🛠 SystemRescue — Rettungssystem\n" +
              "✅ Bootet OHNE Installation (Arch-basiert)\n" +
              "• GParted, TestDisk, PhotoRec, fsck, Partclone\n" +
+             "• Web: https://www.system-rescue.org/",
+             "🛠 SystemRescue — Rescue system\n" +
+             "✅ Boots WITHOUT installation (Arch-based)\n" +
+             "• GParted, TestDisk, PhotoRec, fsck, Partclone\n" +
              "• Web: https://www.system-rescue.org/"],
 
             ["GParted Live 1.8.1-2", "Rettung",
@@ -219,6 +229,10 @@ namespace ULM.Core.Services
              "💽 GParted Live — Partitionierung\n" +
              "✅ Bootet OHNE Installation (grafisch)\n" +
              "• Partitionen erstellen, verschieben, vergrößern\n" +
+             "• Web: https://gparted.org/",
+             "💽 GParted Live — Partitioning\n" +
+             "✅ Boots WITHOUT installation (graphical)\n" +
+             "• Create, move, resize partitions\n" +
              "• Web: https://gparted.org/"],
 
             ["Clonezilla 3.3.0-33", "Rettung",
@@ -226,6 +240,10 @@ namespace ULM.Core.Services
              "💾 Clonezilla — Backup & Systemklon\n" +
              "✅ Bootet OHNE Installation (Text-Menü)\n" +
              "• Disk-Klon und Image-Backup\n" +
+             "• Web: https://clonezilla.org/",
+             "💾 Clonezilla — Backup & system cloning\n" +
+             "✅ Boots WITHOUT installation (text menu)\n" +
+             "• Disk cloning and image backup\n" +
              "• Web: https://clonezilla.org/"],
 
             ["Rescuezilla 2.6.1", "Rettung",
@@ -234,6 +252,10 @@ namespace ULM.Core.Services
              "🖥 Rescuezilla — Grafisches Backup-Tool\n" +
              "✅ Bootet OHNE Installation (Ubuntu Live-Desktop)\n" +
              "• Clonezilla-kompatibel mit GUI\n" +
+             "• Web: https://rescuezilla.com/",
+             "🖥 Rescuezilla — Graphical backup tool\n" +
+             "✅ Boots WITHOUT installation (Ubuntu live desktop)\n" +
+             "• Clonezilla-compatible with GUI\n" +
              "• Web: https://rescuezilla.com/"],
 
             ["Finnix 251", "Rettung",
@@ -241,6 +263,10 @@ namespace ULM.Core.Services
              "🛠 Finnix — Systemwartungs-Live-CD\n" +
              "✅ Bootet OHNE Installation (Debian Sid, Bash)\n" +
              "• Festplattenreparatur, Diagnose, Datenrettung\n" +
+             "• Web: https://www.finnix.org/",
+             "🛠 Finnix — System maintenance live CD\n" +
+             "✅ Boots WITHOUT installation (Debian Sid, Bash)\n" +
+             "• Disk repair, diagnostics, data recovery\n" +
              "• Web: https://www.finnix.org/"],
 
             // ── Leichtgewicht ─────────────────────────────────────────────
@@ -249,6 +275,10 @@ namespace ULM.Core.Services
              "🖥 Debian — Das stabilste Linux\n" +
              "✅ Bootet OHNE Installation (XFCE)\n" +
              "• Läuft ab 512 MB RAM\n" +
+             "• Web: https://www.debian.org/",
+             "🖥 Debian — The most stable Linux\n" +
+             "✅ Boots WITHOUT installation (XFCE)\n" +
+             "• Runs on as little as 512 MB RAM\n" +
              "• Web: https://www.debian.org/"],
 
             ["Linux Mint 22.3 (MATE)", "Leichtgewicht",
@@ -256,6 +286,10 @@ namespace ULM.Core.Services
              "🖥 Linux Mint MATE — Bestes für Windows-Umsteiger\n" +
              "✅ Bootet OHNE Installation\n" +
              "• Klassische Taskleiste wie Windows\n" +
+             "• Web: https://linuxmint.com/",
+             "🖥 Linux Mint MATE — Best for Windows switchers\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• Classic taskbar like Windows\n" +
              "• Web: https://linuxmint.com/"],
 
             ["Linux Mint 22.3 (XFCE)", "Leichtgewicht",
@@ -263,6 +297,10 @@ namespace ULM.Core.Services
              "🖥 Linux Mint XFCE — Schlank & schnell\n" +
              "✅ Bootet OHNE Installation\n" +
              "• Ideal für ältere Hardware\n" +
+             "• Web: https://linuxmint.com/",
+             "🖥 Linux Mint XFCE — Lean & fast\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• Ideal for older hardware\n" +
              "• Web: https://linuxmint.com/"],
 
             ["Lubuntu 24.04.4 LTS", "Leichtgewicht",
@@ -270,18 +308,28 @@ namespace ULM.Core.Services
              "🪶 Lubuntu — Ubuntu ultraleicht (LXQt)\n" +
              "✅ Bootet OHNE Installation\n" +
              "• Läuft auf 512 MB RAM\n" +
+             "• Web: https://lubuntu.me/",
+             "🪶 Lubuntu — Ubuntu ultra-lightweight (LXQt)\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• Runs on 512 MB RAM\n" +
              "• Web: https://lubuntu.me/"],
 
             ["Manjaro 26.0.3 (XFCE)", "Leichtgewicht",
              "", "manjaro-xfce-26.0.3-260228-linux618.iso", "", "", "", "", "", "", "",
              "⚙ Manjaro XFCE — Arch-basiert, sehr ressourcenschonend\n" +
              "✅ Bootet OHNE Installation\n" +
+             "• Web: https://manjaro.org/",
+             "⚙ Manjaro XFCE — Arch-based, very resource-friendly\n" +
+             "✅ Boots WITHOUT installation\n" +
              "• Web: https://manjaro.org/"],
 
             ["MX Linux 25.1 XFCE", "Leichtgewicht",
              "", "MX-25.1_Xfce_x64.iso", "", "", "", "", "", "", "",
              "🪶 MX Linux — #1 DistroWatch, sehr effizient\n" +
              "✅ Bootet OHNE Installation (XFCE)\n" +
+             "• Web: https://mxlinux.org/",
+             "🪶 MX Linux — #1 on DistroWatch, very efficient\n" +
+             "✅ Boots WITHOUT installation (XFCE)\n" +
              "• Web: https://mxlinux.org/"],
 
             // ── Einsteiger ────────────────────────────────────────────────
@@ -290,12 +338,19 @@ namespace ULM.Core.Services
              "🖥 Ubuntu — Weltweite #1\n" +
              "✅ Bootet OHNE Installation (GNOME)\n" +
              "• 5 Jahre LTS-Support\n" +
+             "• Web: https://ubuntu.com/",
+             "🖥 Ubuntu — World's #1\n" +
+             "✅ Boots WITHOUT installation (GNOME)\n" +
+             "• 5 years of LTS support\n" +
              "• Web: https://ubuntu.com/"],
 
             ["Linux Mint 22.3 (Cinnamon)", "Einsteiger",
              "", "linuxmint-22.3-cinnamon-64bit.iso", "", "", "", "", "", "", "",
              "🖥 Linux Mint Cinnamon — Modern & elegant\n" +
              "✅ Bootet OHNE Installation\n" +
+             "• Web: https://linuxmint.com/",
+             "🖥 Linux Mint Cinnamon — Modern & elegant\n" +
+             "✅ Boots WITHOUT installation\n" +
              "• Web: https://linuxmint.com/"],
 
             ["Zorin OS 18 Core", "Einsteiger",
@@ -303,6 +358,10 @@ namespace ULM.Core.Services
              "🖥 Zorin OS — Schönster Windows-Ersatz\n" +
              "✅ Bootet OHNE Installation\n" +
              "• Windows-11-ähnliches Layout\n" +
+             "• Web: https://zorin.com/os/",
+             "🖥 Zorin OS — The most beautiful Windows replacement\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• Windows 11-like layout\n" +
              "• Web: https://zorin.com/os/"],
 
             ["Pop!_OS 24.04 LTS NVIDIA", "Einsteiger",
@@ -310,6 +369,10 @@ namespace ULM.Core.Services
              "🖥 Pop!_OS — NVIDIA-optimierter Live-Desktop\n" +
              "✅ Bootet OHNE Installation\n" +
              "• NVIDIA-Treiber direkt im ISO\n" +
+             "• Web: https://pop.system76.com/",
+             "🖥 Pop!_OS — NVIDIA-optimized live desktop\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• NVIDIA drivers built into the ISO\n" +
              "• Web: https://pop.system76.com/"],
 
             // ── Fortgeschrittene ──────────────────────────────────────────
@@ -318,6 +381,10 @@ namespace ULM.Core.Services
              "⚙ Fedora — Modernste GNOME-Distribution\n" +
              "✅ Bootet OHNE Installation\n" +
              "• Cutting Edge — neueste Technologien\n" +
+             "• Web: https://fedoraproject.org/",
+             "⚙ Fedora — Most modern GNOME distribution\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• Cutting edge — latest technologies\n" +
              "• Web: https://fedoraproject.org/"],
 
             ["Manjaro 26.0.3 (KDE)", "Fortgeschrittene",
@@ -325,12 +392,19 @@ namespace ULM.Core.Services
              "⚙ Manjaro KDE — Arch-Linux mit KDE Plasma 6\n" +
              "✅ Bootet OHNE Installation\n" +
              "• AUR, Rolling Release\n" +
+             "• Web: https://manjaro.org/",
+             "⚙ Manjaro KDE — Arch Linux with KDE Plasma 6\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• AUR, rolling release\n" +
              "• Web: https://manjaro.org/"],
 
             ["Manjaro 26.0.3 (GNOME)", "Fortgeschrittene",
              "", "manjaro-gnome-26.0.3-260228-linux618.iso", "", "", "", "", "", "", "",
              "⚙ Manjaro GNOME — Arch-Linux mit GNOME\n" +
              "✅ Bootet OHNE Installation\n" +
+             "• Web: https://manjaro.org/",
+             "⚙ Manjaro GNOME — Arch Linux with GNOME\n" +
+             "✅ Boots WITHOUT installation\n" +
              "• Web: https://manjaro.org/"],
 
             ["EndeavourOS Titan 2026.03", "Fortgeschrittene",
@@ -338,6 +412,9 @@ namespace ULM.Core.Services
              "", "EndeavourOS/ISO", "EndeavourOS_*.iso",
              "🚀 EndeavourOS — Arch Linux mit Live-Desktop\n" +
              "✅ Echter Live-Boot, Rolling Release, AUR\n" +
+             "• Web: https://endeavouros.com/",
+             "🚀 EndeavourOS — Arch Linux with live desktop\n" +
+             "✅ True live boot, rolling release, AUR\n" +
              "• Web: https://endeavouros.com/"],
 
             // ── Sicherheit ────────────────────────────────────────────────
@@ -346,12 +423,19 @@ namespace ULM.Core.Services
              "🔒 Tails — Maximum Privatsphäre\n" +
              "✅ Bootet OHNE Installation (RAM-only)\n" +
              "• Alle Verbindungen über Tor\n" +
+             "• Web: https://tails.net/",
+             "🔒 Tails — Maximum privacy\n" +
+             "✅ Boots WITHOUT installation (RAM-only)\n" +
+             "• All connections routed through Tor\n" +
              "• Web: https://tails.net/"],
 
             ["Parrot Security 7.1", "Sicherheit",
              "", "Parrot-security-7.1_amd64.iso", "", "", "", "", "", "", "",
              "🔒 Parrot Security — Pen-Testing & Forensik\n" +
              "✅ Bootet OHNE Installation (MATE)\n" +
+             "• Web: https://www.parrotsec.org/",
+             "🔒 Parrot Security — Pen-testing & forensics\n" +
+             "✅ Boots WITHOUT installation (MATE)\n" +
              "• Web: https://www.parrotsec.org/"],
 
             // Linux Kodachi: 5 Mirror konfiguriert für maximale Ausfallsicherheit.
@@ -379,6 +463,11 @@ namespace ULM.Core.Services
              "• Tor, I2P, VPN, DNSCrypt vorinstalliert\n" +
              "• RAM-only Modus: hinterlässt keine Spuren\n" +
              "• 5 Mirror konfiguriert (SourceForge + kodachi.cloud CDN)\n" +
+             "• Web: https://www.digi77.com/linux-kodachi/",
+             "🔒 Linux Kodachi — Privacy & anonymity\n" +
+             "• Tor, I2P, VPN, DNSCrypt pre-installed\n" +
+             "• RAM-only mode: leaves no traces\n" +
+             "• 5 mirrors configured (SourceForge + kodachi.cloud CDN)\n" +
              "• Web: https://www.digi77.com/linux-kodachi/"],
 
             // ── Gaming ────────────────────────────────────────────────────
@@ -387,6 +476,10 @@ namespace ULM.Core.Services
              "🎮 Nobara Linux — Gaming-Distro (ProtonGE)\n" +
              "✅ Bootet OHNE Installation\n" +
              "• ProtonGE, Steam, Lutris, OBS, MangoHud vorinstalliert\n" +
+             "• Web: https://nobaraproject.org/",
+             "🎮 Nobara Linux — Gaming distro (ProtonGE)\n" +
+             "✅ Boots WITHOUT installation\n" +
+             "• ProtonGE, Steam, Lutris, OBS, MangoHud pre-installed\n" +
              "• Web: https://nobaraproject.org/"],
 
             ["CachyOS 2026.03 (Gaming KDE)", "Gaming",
@@ -395,6 +488,10 @@ namespace ULM.Core.Services
              "🎮 CachyOS — Performance-Linux für Gaming\n" +
              "✅ Bootet OHNE Installation (KDE Plasma 6)\n" +
              "• x86-64-v3/v4-Optimierung + BORE/EEVDF Scheduler\n" +
+             "• Web: https://cachyos.org/",
+             "🎮 CachyOS — Performance Linux for gaming\n" +
+             "✅ Boots WITHOUT installation (KDE Plasma 6)\n" +
+             "• x86-64-v3/v4 optimization + BORE/EEVDF scheduler\n" +
              "• Web: https://cachyos.org/"],
 
             ["Ubuntu GamePack 24.04", "Gaming",
@@ -402,6 +499,10 @@ namespace ULM.Core.Services
              "🎮 Ubuntu GamePack — Gaming-Ubuntu\n" +
              "✅ Bootet OHNE Installation (GNOME)\n" +
              "• Steam, Lutris, PlayOnLinux vorinstalliert\n" +
+             "• Web: https://ualinux.com/",
+             "🎮 Ubuntu GamePack — Gaming Ubuntu\n" +
+             "✅ Boots WITHOUT installation (GNOME)\n" +
+             "• Steam, Lutris, PlayOnLinux pre-installed\n" +
              "• Web: https://ualinux.com/"],
 
             // ── WinPE ─────────────────────────────────────────────────────
@@ -410,13 +511,17 @@ namespace ULM.Core.Services
              "🪟 Hiren's BootCD PE — Windows-Rettungssystem\n" +
              "✅ Win10 PE x64 — Bootet vollständig im RAM\n" +
              "• Über 100 Diagnose-, Recovery- und Dateitools\n" +
+             "• Web: https://www.hirensbootcd.org/",
+             "🪟 Hiren's BootCD PE — Windows recovery system\n" +
+             "✅ Win10 PE x64 — boots entirely in RAM\n" +
+             "• Over 100 diagnostic, recovery, and file tools\n" +
              "• Web: https://www.hirensbootcd.org/"],
         };
 
         private static void ApplyRow(IsoEntry e, string[] row)
         {
-            // Format: [Name, Cat, Url, Filename, M1, M2, M3, M4, M5, GitHubRepo, GitHubAsset, Tip]
-            // Indizes: [0]   [1]  [2]  [3]       [4] [5] [6] [7] [8] [9]         [10]          [11]
+            // Format: [Name, Cat, Url, Filename, M1, M2, M3, M4, M5, GitHubRepo, GitHubAsset, Tip, TipEn]
+            // Indizes: [0]   [1]  [2]  [3]       [4] [5] [6] [7] [8] [9]         [10]          [11] [12]
             e.Name        = row.ElementAtOrDefault(0)  ?? string.Empty;
             e.Category    = row.ElementAtOrDefault(1)  ?? "Einsteiger";
             e.Url         = row.ElementAtOrDefault(2)  ?? string.Empty;
@@ -429,6 +534,7 @@ namespace ULM.Core.Services
             e.GithubRepo  = row.ElementAtOrDefault(9)  ?? string.Empty;
             e.GithubAsset = row.ElementAtOrDefault(10) ?? string.Empty;
             e.Tip         = (row.ElementAtOrDefault(11) ?? string.Empty).Replace("\\n", "\n");
+            e.TipEn       = (row.ElementAtOrDefault(12) ?? string.Empty).Replace("\\n", "\n");
         }
     }
 }

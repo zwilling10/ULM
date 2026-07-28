@@ -1031,6 +1031,9 @@ namespace ULM.Infrastructure
             // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded-Nachrichtentexte ──
             [Str.QuickConfirm_IntegrityCheckDone] = "Integritätsprüfung {0} abgeschlossen: {1} geprüft, {2} Abweichung(en).",
             [Str.QuickConfirm_UpdateCheckDone]    = "Update-Check abgeschlossen: {0}",
+
+            // ── IsoEditDialog/ManualSourceSearchDialog: zweites Beschreibungsfeld (TipEn) ──
+            [Str.Db_Field_DescriptionEn] = "Beschreibung (Englisch, optional)",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -2018,6 +2021,9 @@ namespace ULM.Infrastructure
             // ── ViewModels/MainViewModel.cs: QuickCheckSucceeded message texts ──
             [Str.QuickConfirm_IntegrityCheckDone] = "Integrity check {0} completed: {1} checked, {2} mismatch(es).",
             [Str.QuickConfirm_UpdateCheckDone]    = "Update check completed: {0}",
+
+            // ── IsoEditDialog/ManualSourceSearchDialog: second description field (TipEn) ──
+            [Str.Db_Field_DescriptionEn] = "Description (English, optional)",
         };
     }
 }

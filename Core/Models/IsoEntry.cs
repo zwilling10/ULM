@@ -43,6 +43,9 @@ namespace ULM.Core.Models
         public string GithubRepo  { get; set; } = string.Empty;
         public string GithubAsset { get; set; } = string.Empty;
         public string Tip         { get; set; } = string.Empty;
+        // Englische Variante von Tip — optional; TipTooltip (IsoViewModels.cs) fällt auf Tip
+        // zurück, wenn leer (z.B. bei älteren/manuell angelegten Einträgen ohne Übersetzung).
+        public string TipEn       { get; set; } = string.Empty;
 
         // ── Laufzeit-Felder ─────────────────────────────────────────────
         public UsbStatus UsbStatus         { get; set; } = UsbStatus.Unknown;

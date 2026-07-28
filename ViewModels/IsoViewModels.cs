@@ -63,10 +63,15 @@ namespace ULM.ViewModels
                 bool hasSymbols = sb.Length > 0;
 
                 // ── Distro-Beschreibung (falls vorhanden) ──────────────────
-                if (!string.IsNullOrWhiteSpace(_entry.Tip))
+                // Englische Variante bevorzugt im Englisch-Modus, mit Fallback auf Tip (Deutsch),
+                // falls TipEn für diesen Eintrag (noch) nicht gepflegt ist (z.B. manuell angelegt).
+                string description = LocalizationService.Current == AppLanguage.English && !string.IsNullOrWhiteSpace(_entry.TipEn)
+                    ? _entry.TipEn
+                    : _entry.Tip;
+                if (!string.IsNullOrWhiteSpace(description))
                 {
                     if (hasSymbols) sb.AppendLine("─────────────────────────");
-                    sb.Append(_entry.Tip);
+                    sb.Append(description);
                 }
 
                 string result = sb.ToString().Trim();

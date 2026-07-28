@@ -170,7 +170,7 @@ namespace ULM.Views.Dialogs
         private readonly IsoEntry _entry;
         private readonly TextBox  _tbName, _tbUrl, _tbFilename,
                                   _tbMirror1, _tbMirror2, _tbMirror3,
-                                  _tbGhRepo, _tbGhAsset, _tbTip;
+                                  _tbGhRepo, _tbGhAsset, _tbTip, _tbTipEn;
         private readonly ComboBox _cbCat;
 
         public IsoEditDialog(IsoEntry entry, bool isNew)
@@ -200,6 +200,7 @@ namespace ULM.Views.Dialogs
             _tbGhRepo  = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubRepo),  entry.GithubRepo);
             _tbGhAsset = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubAsset), entry.GithubAsset);
             _tbTip     = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Description), entry.Tip, multiLine: true);
+            _tbTipEn   = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_DescriptionEn), entry.TipEn, multiLine: true);
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
             var ok = new Button { Content = LocalizationService.T(Str.Db_Btn_Save), Style = (Style)Application.Current.Resources["BtnPrimary"], Width = 110 };
@@ -236,7 +237,7 @@ namespace ULM.Views.Dialogs
             _entry.Url = _tbUrl.Text.Trim(); _entry.Filename = _tbFilename.Text.Trim();
             _entry.Mirror1 = _tbMirror1.Text.Trim(); _entry.Mirror2 = _tbMirror2.Text.Trim(); _entry.Mirror3 = _tbMirror3.Text.Trim();
             _entry.GithubRepo = _tbGhRepo.Text.Trim(); _entry.GithubAsset = _tbGhAsset.Text.Trim();
-            _entry.Tip = _tbTip.Text.Trim(); DialogResult = true;
+            _entry.Tip = _tbTip.Text.Trim(); _entry.TipEn = _tbTipEn.Text.Trim(); DialogResult = true;
         }
     }
 

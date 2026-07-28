@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using ULM.Core.Models;
 using ULM.Core.Services;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -24,7 +25,7 @@ namespace ULM.Views.Dialogs
         private readonly IsoEntry _entry;
         private readonly TextBox  _tbName, _tbUrl, _tbFilename,
                                   _tbMirror1, _tbMirror2, _tbMirror3,
-                                  _tbGhRepo, _tbGhAsset, _tbTip, _tbSearch;
+                                  _tbGhRepo, _tbGhAsset, _tbTip, _tbTipEn, _tbSearch;
         private readonly ComboBox _cbCat;
         private readonly StackPanel _resultsPanel;
         private readonly TextBlock  _searchStatus;
@@ -53,6 +54,7 @@ namespace ULM.Views.Dialogs
             _tbGhRepo  = AppRes.AddField(root, "GitHub Repo",     entry.GithubRepo);
             _tbGhAsset = AppRes.AddField(root, "GitHub Asset",    entry.GithubAsset);
             _tbTip     = AppRes.AddField(root, "Beschreibung",    entry.Tip, multiLine: true);
+            _tbTipEn   = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_DescriptionEn), entry.TipEn, multiLine: true);
 
             root.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 6, 0, 14), Background = AppRes.Brush("BrushBorder") });
             root.Children.Add(new TextBlock { Text = "Manuelle Suche", FontWeight = FontWeights.Bold, FontSize = 13.5, Foreground = AppRes.Brush("BrushHeader"), Margin = new Thickness(0, 0, 0, 8) });
@@ -145,7 +147,7 @@ namespace ULM.Views.Dialogs
             _entry.Url = _tbUrl.Text.Trim(); _entry.Filename = _tbFilename.Text.Trim();
             _entry.Mirror1 = _tbMirror1.Text.Trim(); _entry.Mirror2 = _tbMirror2.Text.Trim(); _entry.Mirror3 = _tbMirror3.Text.Trim();
             _entry.GithubRepo = _tbGhRepo.Text.Trim(); _entry.GithubAsset = _tbGhAsset.Text.Trim();
-            _entry.Tip = _tbTip.Text.Trim();
+            _entry.Tip = _tbTip.Text.Trim(); _entry.TipEn = _tbTipEn.Text.Trim();
             DialogResult = true;
         }
     }
