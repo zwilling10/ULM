@@ -18,6 +18,14 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.40.0", new[]
+            {
+                "Neu: ULM ist jetzt zweisprachig (Deutsch/Englisch) — umschaltbar über \"⚙ Einstellungen\". Betrifft das komplette Programm: Hauptfenster, alle Dialoge, Fehlermeldungen, Protokoll- und Statusanzeigen.",
+                "Neu: ISO-Beschreibungen in der Datenbank können jetzt zusätzlich auf Englisch hinterlegt werden und werden im Englisch-Modus automatisch angezeigt.",
+                "Neu: Die Projektseite (Download-Seite) hat jetzt ebenfalls einen Sprachumschalter (Deutsch/Englisch).",
+                "Fehlerbehebung: Die Kategorie-Auswahl in den Datenbank-Dialogen zeigte bisher immer die internen deutschen Bezeichnungen statt der übersetzten Kategorie.",
+                "Sicherheit: Release-Builds betten ab sofort keine lokalen Datei-Pfade mehr als Debug-Metadaten in die EXE ein.",
+            }),
             ("2.39.1", new[]
             {
                 "Fehlerbehebung: Nach einem automatischen Selbst-Update (installierte Variante) startete ULM manchmal nicht von selbst neu, obwohl die Installation erfolgreich war — man musste es manuell über das Icon erneut öffnen. ULM verlässt sich für den Neustart jetzt nicht mehr auf Windows' eingebauten Mechanismus dafür, sondern startet sich zuverlässig selbst neu.",
