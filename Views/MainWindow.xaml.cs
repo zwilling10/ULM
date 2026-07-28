@@ -65,18 +65,25 @@ namespace ULM.Views
             {
                 var fresh = matches.Where(m => _vm.MarkNewerVersionOffered(drive, m.StickIso.Filename)).ToList();
                 if (fresh.Count == 0) return;
-                AppendLog($"📥 {fresh.Count} ISO(s) auf {drive} neuer als DB-Eintrag.");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_NewerVersionsFound), fresh.Count, drive));
                 var dlg = new NewerVersionOnStickDialog(fresh) { Owner = this };
-                if (dlg.ShowDialog() != true) { AppendLog("   ℹ Keine Änderung."); return; }
+                if (dlg.ShowDialog() != true) { AppendLog(LocalizationService.T(Str.Log_NoChangeSimple)); return; }
                 int replaced = 0, added = 0;
                 foreach (var (dbEntry, stickIso, choice) in dlg.Results)
                     switch (choice)
                     {
                         case NewerVersionChoice.Replace: _vm.ReplaceEntryVersion(dbEntry, stickIso.Filename); replaced++; break;
                         case NewerVersionChoice.Add:     _vm.AddEntryFromStickVersion(dbEntry, stickIso); added++; break;
-                        case NewerVersionChoice.Skip:    AppendLog($"   ⏭ {dbEntry.Name}"); break;
+                        case NewerVersionChoice.Skip:    AppendLog(string.Format(LocalizationService.T(Str.Log_SkippedItem), dbEntry.Name)); break;
                     }
-                if (replaced > 0 || added > 0) { _vm.RebuildTree(); AppendLog($"✅ DB: {(replaced > 0 ? $"{replaced} ersetzt" : "")}{(replaced > 0 && added > 0 ? ", " : "")}{(added > 0 ? $"{added} hinzugefügt" : "")}."); }
+                if (replaced > 0 || added > 0)
+                {
+                    _vm.RebuildTree();
+                    string replacedPart = replaced > 0 ? string.Format(LocalizationService.T(Str.Log_ReplacedCount), replaced) : "";
+                    string addedPart    = added > 0    ? string.Format(LocalizationService.T(Str.Log_AddedCount), added) : "";
+                    string separator    = (replaced > 0 && added > 0) ? ", " : "";
+                    AppendLog(string.Format(LocalizationService.T(Str.Log_DbUpdateSummary), replacedPart, separator, addedPart));
+                }
                 // Gesundheitscheck NUR wenn tatsächlich neue, unverifizierte Einträge entstanden
                 // sind ("Hinzufügen" legt einen neuen Eintrag ohne geprüfte Url an) — "Ersetzen"
                 // aktualisiert nur den Dateinamen eines bereits bekannten Eintrags, dafür braucht es
@@ -88,9 +95,9 @@ namespace ULM.Views
             {
                 var fresh = unknowns.Where(u => _vm.MarkUnknownStickIsoOffered(drive, u.Filename)).ToList();
                 if (fresh.Count == 0) return;
-                AppendLog($"❓ {fresh.Count} unbekannte ISO(s) auf {drive}.");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_UnknownIsosFound), fresh.Count, drive));
                 var dlg = new ImportStickIsosDialog(fresh) { Owner = this };
-                if (dlg.ShowDialog() != true || dlg.ImportedEntries.Count == 0) { AppendLog("   ℹ Import übersprungen."); return; }
+                if (dlg.ShowDialog() != true || dlg.ImportedEntries.Count == 0) { AppendLog(LocalizationService.T(Str.Log_ImportSkipped)); return; }
 
                 int movedFailed = 0;
                 foreach (var (entry, sourcePath) in dlg.ImportedEntries)
@@ -98,7 +105,7 @@ namespace ULM.Views
                     string finalPath = sourcePath;
                     if (UsbService.MoveToCategoryFolder(sourcePath, drive, entry.NormalizedCategory, entry.Filename, AppendLog))
                     {
-                        AppendLog($"   📂 {entry.Filename} → {entry.NormalizedCategory}\\");
+                        AppendLog(string.Format(LocalizationService.T(Str.Log_FileMovedToCategory), entry.Filename, entry.NormalizedCategory));
                         finalPath = Path.Combine(drive, entry.NormalizedCategory, entry.Filename);
                     }
                     else movedFailed++;
@@ -109,7 +116,8 @@ namespace ULM.Views
                     _vm.AddImportedEntry(entry);
                 }
                 IsoDatabaseService.Instance.Save(); _vm.RebuildTree();
-                AppendLog($"✅ {dlg.ImportedEntries.Count} ISO(s) zur Datenbank hinzugefügt" + (movedFailed > 0 ? $", {movedFailed} konnte(n) nicht in den Kategorie-Ordner verschoben werden" : "") + ".");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_IsosAddedToDb), dlg.ImportedEntries.Count)
+                    + (movedFailed > 0 ? string.Format(LocalizationService.T(Str.Log_MoveFailedSuffix), movedFailed) : "") + ".");
                 _vm.TriggerVentoyMenuUpdate(drive);
                 _vm.TriggerUsbScan();
                 _vm.RunHealthCheck();
@@ -119,7 +127,7 @@ namespace ULM.Views
             {
                 var fresh = incomplete.Where(i => _vm.MarkIncompleteStickIsoOffered(drive, i.Filename)).ToList();
                 if (fresh.Count == 0) return;
-                AppendLog($"🗑 {fresh.Count} unvollständige ISO(s) auf {drive} erkannt (Online-Größenprüfung).");
+                AppendLog(string.Format(LocalizationService.T(Str.Log_IncompleteIsosFound), fresh.Count, drive));
                 var files = fresh.Select(i => (i.FullPath, i.Size)).ToList();
                 var dlg = new OrphanedDownloadsDialog(files,
                     LocalizationService.T(Str.Msg_OrphanedIncomplete_Title),
@@ -128,10 +136,11 @@ namespace ULM.Views
                 {
                     int deleted = 0, failed = 0;
                     foreach (string path in dlg.ToDelete)
-                    { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog($"   🗑 Gelöscht: {Path.GetFileName(path)}"); } else failed++; }
-                    AppendLog($"🗑 {deleted} Datei(en) auf {drive} gelöscht" + (failed > 0 ? $", {failed} fehlgeschlagen" : "") + ".");
+                    { if (IsoEntry.TryDelete(path, AppendLog)) { deleted++; AppendLog(string.Format(LocalizationService.T(Str.Log_Deleted), Path.GetFileName(path))); } else failed++; }
+                    AppendLog(string.Format(LocalizationService.T(Str.Log_FilesDeletedStatus), deleted, drive)
+                        + (failed > 0 ? string.Format(LocalizationService.T(Str.Log_FailedSuffix), failed) : "") + ".");
                 }
-                else AppendLog($"ℹ Stick-Wartung übersprungen ({fresh.Count} Datei(en) behalten).");
+                else AppendLog(string.Format(LocalizationService.T(Str.Log_StickMaintenanceSkipped), fresh.Count));
             };
 
             _vm.DownloadItemProgress   += (name, pct, status, canFaster, noUrlFound) => _downloadProgressDialog?.UpdateDownload(name, pct, status, canFaster, noUrlFound);

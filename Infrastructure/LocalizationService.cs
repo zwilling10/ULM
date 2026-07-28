@@ -753,6 +753,22 @@ namespace ULM.Infrastructure
             [Str.Log_GenericError]                 = "❌ {0}",
             [Str.Log_CancelRequested]              = "⛔ Abbruch.",
             [Str.Log_AppClosing]                   = "▶ Anwendung wird beendet.",
+
+            // ── Log-Meldungen: Import + Datenmuell-Erkennung (Stick) ──
+            [Str.Log_NewerVersionsFound]      = "📥 {0} ISO(s) auf {1} neuer als DB-Eintrag.",
+            [Str.Log_NoChangeSimple]          = "   ℹ Keine Änderung.",
+            [Str.Log_SkippedItem]             = "   ⏭ {0}",
+            [Str.Log_ReplacedCount]           = "{0} ersetzt",
+            [Str.Log_AddedCount]              = "{0} hinzugefügt",
+            [Str.Log_DbUpdateSummary]         = "✅ DB: {0}{1}{2}.",
+            [Str.Log_UnknownIsosFound]        = "❓ {0} unbekannte ISO(s) auf {1}.",
+            [Str.Log_ImportSkipped]           = "   ℹ Import übersprungen.",
+            [Str.Log_FileMovedToCategory]     = "   📂 {0} → {1}\\",
+            [Str.Log_IsosAddedToDb]           = "✅ {0} ISO(s) zur Datenbank hinzugefügt",
+            [Str.Log_MoveFailedSuffix]        = ", {0} konnte(n) nicht in den Kategorie-Ordner verschoben werden",
+            [Str.Log_IncompleteIsosFound]     = "🗑 {0} unvollständige ISO(s) auf {1} erkannt (Online-Größenprüfung).",
+            [Str.Log_FilesDeletedStatus]      = "🗑 {0} Datei(en) auf {1} gelöscht",
+            [Str.Log_StickMaintenanceSkipped] = "ℹ Stick-Wartung übersprungen ({0} Datei(en) behalten).",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1462,6 +1478,22 @@ namespace ULM.Infrastructure
             [Str.Log_GenericError]                 = "❌ {0}",
             [Str.Log_CancelRequested]              = "⛔ Cancelled.",
             [Str.Log_AppClosing]                   = "▶ Application is closing.",
+
+            // ── Log messages: Import + junk detection (stick) ──
+            [Str.Log_NewerVersionsFound]      = "📥 {0} ISO(s) on {1} newer than DB entry.",
+            [Str.Log_NoChangeSimple]          = "   ℹ No change.",
+            [Str.Log_SkippedItem]             = "   ⏭ {0}",
+            [Str.Log_ReplacedCount]           = "{0} replaced",
+            [Str.Log_AddedCount]              = "{0} added",
+            [Str.Log_DbUpdateSummary]         = "✅ DB: {0}{1}{2}.",
+            [Str.Log_UnknownIsosFound]        = "❓ {0} unknown ISO(s) on {1}.",
+            [Str.Log_ImportSkipped]           = "   ℹ Import skipped.",
+            [Str.Log_FileMovedToCategory]     = "   📂 {0} → {1}\\",
+            [Str.Log_IsosAddedToDb]           = "✅ {0} ISO(s) added to database",
+            [Str.Log_MoveFailedSuffix]        = ", {0} could not be moved to the category folder",
+            [Str.Log_IncompleteIsosFound]     = "🗑 {0} incomplete ISO(s) detected on {1} (online size check).",
+            [Str.Log_FilesDeletedStatus]      = "🗑 {0} file(s) on {1} deleted",
+            [Str.Log_StickMaintenanceSkipped] = "ℹ Stick maintenance skipped ({0} file(s) kept).",
         };
     }
 }

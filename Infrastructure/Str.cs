@@ -384,5 +384,11 @@ namespace ULM.Infrastructure
         Log_AdminProcessRunning, Log_VentoyInstallRunning, Log_VentoyUpdatedStatus,
         Log_VentoyInstalledStatus, Log_VentoyFailedStatus, Log_VentoyExitCode, Log_UacDenied,
         Log_UacAbortedStatus, Log_GenericError, Log_CancelRequested, Log_AppClosing,
+
+        // ── Log-Meldungen: Import + Datenmuell-Erkennung (Stick) ──
+        Log_NewerVersionsFound, Log_NoChangeSimple, Log_SkippedItem, Log_ReplacedCount,
+        Log_AddedCount, Log_DbUpdateSummary, Log_UnknownIsosFound, Log_ImportSkipped,
+        Log_FileMovedToCategory, Log_IsosAddedToDb, Log_MoveFailedSuffix, Log_IncompleteIsosFound,
+        Log_FilesDeletedStatus, Log_StickMaintenanceSkipped,
     }
 }
