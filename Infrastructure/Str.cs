@@ -372,5 +372,17 @@ namespace ULM.Infrastructure
         Log_CopyError, Log_CopyDoneItem, Log_LocallyDeletedSuffix, Log_CopyStarted,
         Log_DeleteAfterSuffix, Log_CopyQueueItem, Log_CopyCancelled, Log_CopyDone,
         Log_CopiedToStickStatus, Log_NothingToCopyStatus, Log_Deleted, Log_LocalFilesDeleted,
+
+        // ── Log-Meldungen: Update-Check/URL-Check/DB-Health/Ventoy-Install/Abbruch ──
+        Log_CheckingForUpdates, Log_ManualUpdateCheckStarted, Log_ManualCheckUnreachable,
+        Log_ManualCheckCurrent, Log_UpdatesFoundStatus, Log_AllCurrentSimpleStatus,
+        Log_NoLocalIsosStatus, Log_ManualUpdateCheckSummary, Log_CheckingUrls, Log_UrlCheckStarted,
+        Log_UrlCheckItem, Log_UrlCheckSummaryStatus, Log_UrlCheckLogSummary, Log_DbHealthCheckStarted,
+        Log_DbHealthAllReachableStatus, Log_DbHealthSomeUnreachableStatus, Log_DbHealthLogSummary,
+        Log_VentoyActionStarted, Log_VentoyActionWordUpdate, Log_VentoyActionWordInstall,
+        Log_StartingAsAdmin, Log_WaitingForUac, Log_ExePathNotFound, Log_AdminProcessFailed,
+        Log_AdminProcessRunning, Log_VentoyInstallRunning, Log_VentoyUpdatedStatus,
+        Log_VentoyInstalledStatus, Log_VentoyFailedStatus, Log_VentoyExitCode, Log_UacDenied,
+        Log_UacAbortedStatus, Log_GenericError, Log_CancelRequested, Log_AppClosing,
     }
 }

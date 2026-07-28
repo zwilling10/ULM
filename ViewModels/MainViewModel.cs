@@ -1227,7 +1227,7 @@ namespace ULM.ViewModels
 
         private void OnCheckUpdates()
         {
-            SetBusy(true); StatusText = "Prüfe auf Updates …"; ProgressPercent = 0; Log("🔄 Manueller Update-Check …");
+            SetBusy(true); StatusText = LocalizationService.T(Str.Log_CheckingForUpdates); ProgressPercent = 0; Log(LocalizationService.T(Str.Log_ManualUpdateCheckStarted));
             var worker = new UpdateScanWorker(_db.Entries, _paths.DownloadDir); _activeWorker = worker;
             worker.EntryChecked += result => _ui.Invoke(() =>
             {
@@ -1236,10 +1236,10 @@ namespace ULM.ViewModels
                 // Verfügbarkeit gar nicht erst versucht" (siehe UpdateScanWorker.hasKnownSource-Fix).
                 // Jetzt analog zu RunHealthCheck auch das Scheitern sichtbar loggen.
                 Log(!result.Resolved
-                    ? $"   ❌ {result.Name}: nicht erreichbar."
+                    ? string.Format(LocalizationService.T(Str.Log_ManualCheckUnreachable), result.Name)
                     : result.HasUpdate
-                        ? $"   🆕 {result.Name}: v{result.LocalVersion} → v{result.RemoteVersion}"
-                        : $"   ✓ {result.Name}: v{result.RemoteVersion}");
+                        ? string.Format(LocalizationService.T(Str.Log_UpdateFound), result.Name, result.LocalVersion, result.RemoteVersion)
+                        : string.Format(LocalizationService.T(Str.Log_ManualCheckCurrent), result.Name, result.RemoteVersion));
                 if (!result.Resolved) return;
                 int idx = _db.Entries.ToList().FindIndex(e => e.Name == result.Name);
                 if (idx >= 0) RefreshEntry(idx);
@@ -1250,9 +1250,9 @@ namespace ULM.ViewModels
                 // BUGFIX: siehe TriggerAutoVersionCheck — auch ohne echtes Update speichern, wenn
                 // eine zuvor fehlende Download-Quelle neu gefunden wurde.
                 SetBusy(false); if (updates.Count > 0 || worker.AnyUrlDiscovered || worker.AnyStreakChanged) _db.Save(); RefreshAllEntries();
-                StatusText = updates.Count > 0 ? $"🆕 {updates.Count} Update(s)."
-                           : resolved > 0      ? "Alles aktuell." : "Keine lokalen ISOs.";
-                ProgressPercent = 100; Log($"🔄 {StatusText}");
+                StatusText = updates.Count > 0 ? string.Format(LocalizationService.T(Str.Log_UpdatesFoundStatus), updates.Count)
+                           : resolved > 0      ? LocalizationService.T(Str.Log_AllCurrentSimpleStatus) : LocalizationService.T(Str.Log_NoLocalIsosStatus);
+                ProgressPercent = 100; Log(string.Format(LocalizationService.T(Str.Log_ManualUpdateCheckSummary), StatusText));
                 QuickCheckSucceeded?.Invoke($"Update-Check abgeschlossen: {StatusText}");
             });
             _ = worker.RunAsync();
@@ -1260,12 +1260,12 @@ namespace ULM.ViewModels
 
         private void OnCheckUrls()
         {
-            SetBusy(true); StatusText = "Prüfe URLs …"; ProgressPercent = 0; Log("🌐 URL-Check …");
+            SetBusy(true); StatusText = LocalizationService.T(Str.Log_CheckingUrls); ProgressPercent = 0; Log(LocalizationService.T(Str.Log_UrlCheckStarted));
             var worker = new UrlCheckWorker(_db.Entries); _activeWorker = worker;
             worker.EntryChecked += (i, ok) => _ui.Invoke(() =>
             {
                 if (i >= 0 && i < _db.Entries.Count)
-                    Log($"   {(ok ? "✓" : "✗")} {_db.Entries[i].Name}");
+                    Log(string.Format(LocalizationService.T(Str.Log_UrlCheckItem), ok ? "✓" : "✗", _db.Entries[i].Name));
                 RefreshEntry(i);
             });
             worker.Completed += (wasCompleted, _) => _ui.Invoke(() =>
@@ -1274,12 +1274,12 @@ namespace ULM.ViewModels
                 // BUGFIX: neu entdeckte Quellen (siehe UrlCheckWorker.AnyUrlDiscovered) gingen bisher
                 // ohne Save beim nächsten Start wieder verloren — der teure Auflösungsweg
                 // (DistroWatch-Suche/Websuche) hätte bei jedem künftigen Check neu durchlaufen müssen.
-                if (worker.AnyUrlDiscovered || worker.AnyStreakChanged) { _db.Save(); Log("💾 Datenbank: neu gefundene Download-Quelle(n) gespeichert."); }
+                if (worker.AnyUrlDiscovered || worker.AnyStreakChanged) { _db.Save(); Log(LocalizationService.T(Str.Log_DbNewSourcesSaved)); }
                 SetBusy(false); RefreshAllEntries();
                 int ok  = _db.Entries.Count(e => e.UrlOk);
                 int nok = _db.Entries.Count(e => e.UrlChecked && !e.UrlOk);
-                StatusText = $"URL-Check fertig — ✓ {ok} erreichbar, ✗ {nok} nicht erreichbar.";
-                ProgressPercent = 100; Log($"🌐 {StatusText}");
+                StatusText = string.Format(LocalizationService.T(Str.Log_UrlCheckSummaryStatus), ok, nok);
+                ProgressPercent = 100; Log(string.Format(LocalizationService.T(Str.Log_UrlCheckLogSummary), StatusText));
                 if (wasCompleted) QuickCheckSucceeded?.Invoke(StatusText);
             });
             _ = worker.RunAsync();
@@ -1303,22 +1303,26 @@ namespace ULM.ViewModels
             if (IsBusy || HealthCheckActive) return;
             DeduplicateEntries();
             HealthCheckActive = true; HealthCheckPercent = 0;
-            Log($"🩺 DB-Gesundheitscheck gestartet — {_db.Count} Distros …");
+            Log(string.Format(LocalizationService.T(Str.Log_DbHealthCheckStarted), _db.Count));
             var results = new List<VersionCheckEntryResult>();
             var worker  = new UpdateScanWorker(_db.Entries, _paths.DownloadDir, checkAllEntries: true);
             worker.Progress     += (c, t) => _ui.Invoke(() => HealthCheckPercent = t > 0 ? (c * 100) / t : 0);
             worker.EntryChecked += result => _ui.Invoke(() =>
             {
                 results.Add(result);
-                Log(result.Resolved ? $"   ✓ {result.Name}: v{result.RemoteVersion}" : $"   ❌ {result.Name}: nicht erreichbar.");
+                Log(result.Resolved
+                    ? string.Format(LocalizationService.T(Str.Log_ManualCheckCurrent), result.Name, result.RemoteVersion)
+                    : string.Format(LocalizationService.T(Str.Log_ManualCheckUnreachable), result.Name));
             });
             worker.Completed += (resolved, updates) => _ui.Invoke(() =>
             {
                 ReportHardCases(worker.NewHardCases);
                 int failed = results.Count(r => !r.Resolved);
                 HealthCheckActive = false; HealthCheckPercent = 100;
-                StatusText = failed == 0 ? $"🩺 Alle {results.Count} Distros online erreichbar." : $"🩺 {failed}/{results.Count} nicht erreichbar.";
-                Log($"🩺 {StatusText}");
+                StatusText = failed == 0
+                    ? string.Format(LocalizationService.T(Str.Log_DbHealthAllReachableStatus), results.Count)
+                    : string.Format(LocalizationService.T(Str.Log_DbHealthSomeUnreachableStatus), failed, results.Count);
+                Log(string.Format(LocalizationService.T(Str.Log_DbHealthLogSummary), StatusText));
                 // BUGFIX: HealthCheckCompleted (öffnet DbHealthCheckDialog MODAL) muss VOR
                 // ApplyResolvedUpdatesAndOfferStickUpdate feuern — die Methode stößt einen
                 // Hintergrund-Stick-Rescan an, dessen "Jetzt aktualisieren?"-Meldung sonst während
@@ -1346,32 +1350,37 @@ namespace ULM.ViewModels
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
             SetBusy(true); string letter = SelectedDriveLetter;
-            Log($"⚡ Ventoy-{(updateMode ? "Aktualisierung" : "Installation")} auf {letter}");
-            Log("   Startet als Administrator — bitte UAC bestätigen."); StatusText = "Warte auf UAC-Bestätigung …";
+            string action = updateMode
+                ? LocalizationService.T(Str.Log_VentoyActionWordUpdate)
+                : LocalizationService.T(Str.Log_VentoyActionWordInstall);
+            Log(string.Format(LocalizationService.T(Str.Log_VentoyActionStarted), action, letter));
+            Log(LocalizationService.T(Str.Log_StartingAsAdmin)); StatusText = LocalizationService.T(Str.Log_WaitingForUac);
             string exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
-            if (string.IsNullOrEmpty(exePath)) { Log("❌ EXE-Pfad nicht ermittelbar."); _ui.Invoke(() => { SetBusy(false); StatusText = "Fehler."; }); return; }
+            if (string.IsNullOrEmpty(exePath)) { Log(LocalizationService.T(Str.Log_ExePathNotFound)); _ui.Invoke(() => { SetBusy(false); StatusText = LocalizationService.T(Str.Log_ErrorStatus); }); return; }
             string args = $"--ventoy-install {letter} {updateMode.ToString().ToLowerInvariant()} {SecureBoot.ToString().ToLowerInvariant()}";
             var psi = new ProcessStartInfo(exePath, args) { UseShellExecute = true, Verb = "runas" };
             try
             {
                 Process? proc = Process.Start(psi);
-                if (proc is null) { Log("❌ Admin-Prozess konnte nicht gestartet werden."); _ui.Invoke(() => { SetBusy(false); StatusText = "Fehler."; }); return; }
-                Log("   Admin-Prozess läuft …"); StatusText = "Ventoy-Installation läuft …"; ProgressPercent = 50;
+                if (proc is null) { Log(LocalizationService.T(Str.Log_AdminProcessFailed)); _ui.Invoke(() => { SetBusy(false); StatusText = LocalizationService.T(Str.Log_ErrorStatus); }); return; }
+                Log(LocalizationService.T(Str.Log_AdminProcessRunning)); StatusText = LocalizationService.T(Str.Log_VentoyInstallRunning); ProgressPercent = 50;
                 await Task.Run(() => proc.WaitForExit()).ConfigureAwait(false);
                 bool success = proc.ExitCode == 0;
                 _ui.Invoke(() =>
                 {
                     SetBusy(false); ProgressPercent = success ? 100 : 0; OnPropertyChanged(nameof(DriveInfoText));
-                    StatusText = success ? $"✅ Ventoy {(updateMode ? "aktualisiert" : "installiert")}." : "❌ Ventoy fehlgeschlagen.";
-                    Log($"⚡ {StatusText}  (ExitCode: {proc.ExitCode})");
+                    StatusText = success
+                        ? (updateMode ? LocalizationService.T(Str.Log_VentoyUpdatedStatus) : LocalizationService.T(Str.Log_VentoyInstalledStatus))
+                        : LocalizationService.T(Str.Log_VentoyFailedStatus);
+                    Log(string.Format(LocalizationService.T(Str.Log_VentoyExitCode), StatusText, proc.ExitCode));
                     if (success) TriggerUsbScan();
                     else ShowMessageBox?.Invoke("Ventoy-Installation fehlgeschlagen.\nDetails im Ventoy-Installationsfenster.", true);
                 });
             }
             catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
-            { _ui.Invoke(() => { SetBusy(false); Log("⚠ UAC abgelehnt — abgebrochen."); StatusText = "Abgebrochen."; }); }
+            { _ui.Invoke(() => { SetBusy(false); Log(LocalizationService.T(Str.Log_UacDenied)); StatusText = LocalizationService.T(Str.Log_UacAbortedStatus); }); }
             catch (Exception ex)
-            { _ui.Invoke(() => { SetBusy(false); Log($"❌ {ex.Message}"); StatusText = "Fehler."; ShowMessageBox?.Invoke($"Fehler: {ex.Message}", true); }); }
+            { _ui.Invoke(() => { SetBusy(false); Log(string.Format(LocalizationService.T(Str.Log_GenericError), ex.Message)); StatusText = LocalizationService.T(Str.Log_ErrorStatus); ShowMessageBox?.Invoke($"Fehler: {ex.Message}", true); }); }
         }
 
         private void OnCancel()
@@ -1381,7 +1390,7 @@ namespace ULM.ViewModels
             if (_activeWorker is CopyToUsbWorker  cw) cw.Cancel();
             if (_activeWorker is UrlCheckWorker   uw) uw.Cancel();
             if (_activeWorker is UpdateScanWorker us) us.Cancel();
-            Log("⛔ Abbruch."); StatusText = "Abbruch …"; ProgressPercent = 0;
+            Log(LocalizationService.T(Str.Log_CancelRequested)); StatusText = LocalizationService.T(Str.Log_CancellingStatus); ProgressPercent = 0;
         }
 
         // Reicht den Klick auf "(schneller)" im Fortschrittsfenster an den gerade aktiven
@@ -1430,7 +1439,7 @@ namespace ULM.ViewModels
 
         public void SaveAndClose()
         {
-            Log("▶ Anwendung wird beendet.");
+            Log(LocalizationService.T(Str.Log_AppClosing));
             IniService.Write(_paths.SettingsIni, "App", "ExpertMode", _expertMode ? "1" : "0");
             IniService.Write(_paths.SettingsIni, "App", "SecureBoot", _secureBoot ? "1" : "0");
             _db.SaveFilenames();
