@@ -102,7 +102,31 @@ namespace ULM.Core.Services
                 });
             }
 
+            BackfillMissingTipEn();
             if (_entries.Count == 0) LoadDefaults();
+        }
+
+        // BUGFIX: Nutzer, die von einer Version ohne TipEn aktualisieren, haben eine bestehende
+        // ulm_isos.ini ohne diese Spalte — ohne Nachtrag bliebe der Tooltip im Englisch-Modus für
+        // ALLE unveränderten Standard-Distros deutsch, obwohl DefaultDatabase längst eine
+        // englische Beschreibung dafür hätte. Ergänzt NUR TipEn (und NUR wenn aktuell leer) für
+        // Einträge, deren Name exakt einem Standard-Distro-Namen entspricht — alle anderen Felder
+        // (inkl. manuell editiertem deutschen Tip-Text) bleiben unangetastet. Speichert nur, wenn
+        // tatsächlich etwas ergänzt wurde, damit ein Nutzer ohne Standard-Einträge keinen
+        // unnötigen Schreibzugriff auslöst.
+        private void BackfillMissingTipEn()
+        {
+            bool changed = false;
+            foreach (var e in _entries)
+            {
+                if (!string.IsNullOrWhiteSpace(e.TipEn)) continue;
+                foreach (var row in DefaultDatabase)
+                {
+                    if (row.Length > 12 && row[0] == e.Name && !string.IsNullOrWhiteSpace(row[12]))
+                    { e.TipEn = row[12]; changed = true; break; }
+                }
+            }
+            if (changed) Save();
         }
 
         public void LoadDefaults()
