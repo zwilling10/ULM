@@ -41,10 +41,13 @@ namespace ULM.Views.Dialogs
             // der Fußzeile unsichtbar wurde (ResizeMode=NoResize verhinderte jede Abhilfe durch den
             // Nutzer). Breite und maximale Höhe orientieren sich jetzt am tatsächlich verfügbaren
             // Arbeitsbereich (SystemParameters.WorkArea) des Bildschirms, auf dem ULM läuft.
+            // Breiter als früher (war 560–760): die "Über ULM"-Karte ist jetzt in einem eigenen
+            // WelcomeDialog ausgelagert (siehe Views/Dialogs/WelcomeDialog.cs), wodurch dieses
+            // Fenster kürzer geworden ist — bewusst breiter statt quadratisch-gedrungen gehalten.
             double maxW = SystemParameters.WorkArea.Width  - 40;
             double maxH = SystemParameters.WorkArea.Height - 40;
-            Width     = Math.Max(560, Math.Min(760, maxW));
-            MinWidth  = Math.Min(700, Width);
+            Width     = Math.Max(680, Math.Min(880, maxW));
+            MinWidth  = Math.Min(800, Width);
             MaxHeight = Math.Max(360, maxH);
             // SizeToContent wächst bis zur oben gesetzten MaxHeight — reicht der Platz nicht für
             // den gesamten Inhalt (Erststart mit allen Abschnitten), übernimmt der Sternchen-Zeile
@@ -184,18 +187,6 @@ namespace ULM.Views.Dialogs
                 UpdatePreview(DefaultBase);
             }
 
-            if (showWelcome)
-            {
-                var section = new StackPanel();
-                section.Children.Add(new TextBlock
-                {
-                    Text = LocalizationService.T(Str.Setup_WelcomeBody),
-                    TextWrapping = TextWrapping.Wrap, FontSize = 12, LineHeight = 17,
-                    Foreground = ThemeColors.Mid,
-                });
-                body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_AboutUlm), section));
-            }
-
             var modeSection = new StackPanel();
             var chkExpert = new CheckBox
             {
@@ -210,7 +201,7 @@ namespace ULM.Views.Dialogs
                 Text = LocalizationService.T(Str.Setup_Hint_Mode),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Mode), modeSection));
+            var cardMode = MakeCard(LocalizationService.T(Str.Setup_Card_Mode), modeSection);
 
             // ── Autostart ────────────────────────────────────────────
             var autostartSection = new StackPanel();
@@ -227,7 +218,7 @@ namespace ULM.Views.Dialogs
                 Text = LocalizationService.T(Str.Setup_Hint_Autostart),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Autostart), autostartSection));
+            var cardAutostart = MakeCard(LocalizationService.T(Str.Setup_Card_Autostart), autostartSection);
 
             // ── Design (System / Hell / Dunkel) ─────────────────────────
             var themeSection = new StackPanel();
@@ -260,7 +251,7 @@ namespace ULM.Views.Dialogs
                 Text = LocalizationService.T(Str.Setup_Hint_Theme),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Design), themeSection));
+            var cardDesign = MakeCard(LocalizationService.T(Str.Setup_Card_Design), themeSection);
 
             // ── Sprache (Deutsch / English) ─────────────────────────────
             var langSection = new StackPanel();
@@ -292,7 +283,35 @@ namespace ULM.Views.Dialogs
                 Text = LocalizationService.T(Str.Setup_Hint_Language),
                 TextWrapping = TextWrapping.Wrap, Foreground = ThemeColors.Dim, FontSize = 11, LineHeight = 16,
             });
-            body.Children.Add(MakeCard(LocalizationService.T(Str.Setup_Card_Language), langSection));
+            var cardLanguage = MakeCard(LocalizationService.T(Str.Setup_Card_Language), langSection);
+
+            // BUGFIX: Modus/Autostart/Design/Sprache standen bisher einzeln untereinander — auf
+            // einem normalen 1080p-Bildschirm reichte das nicht mehr in die verfügbare Höhe
+            // (MaxHeight ist bereits an SystemParameters.WorkArea.Height gekoppelt), Sprache war
+            // abgeschnitten und nur per Scrollen erreichbar (Nutzer-Screenshot). Als 2x2-Raster
+            // statt einer einzelnen Spalte nutzen diese vier eher kompakten Karten die vorhandene
+            // Breite besser aus und brauchen zusammen etwa halb so viel Höhe.
+            var quadGrid = new Grid();
+            quadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            quadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            quadGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            quadGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            cardMode.Margin      = new Thickness(0, 0, 8, 16);
+            cardAutostart.Margin = new Thickness(8, 0, 0, 16);
+            cardDesign.Margin    = new Thickness(0, 0, 8, 16);
+            cardLanguage.Margin  = new Thickness(8, 0, 0, 16);
+
+            Grid.SetRow(cardMode, 0);      Grid.SetColumn(cardMode, 0);
+            Grid.SetRow(cardAutostart, 0); Grid.SetColumn(cardAutostart, 1);
+            Grid.SetRow(cardDesign, 1);    Grid.SetColumn(cardDesign, 0);
+            Grid.SetRow(cardLanguage, 1);  Grid.SetColumn(cardLanguage, 1);
+
+            quadGrid.Children.Add(cardMode);
+            quadGrid.Children.Add(cardAutostart);
+            quadGrid.Children.Add(cardDesign);
+            quadGrid.Children.Add(cardLanguage);
+            body.Children.Add(quadGrid);
 
             scroll.Content = body;
             Grid.SetRow(scroll, 1);
@@ -360,7 +379,13 @@ namespace ULM.Views.Dialogs
         }
 
         // ── UI-Hilfsmethoden ────────────────────────────────────────────
-        private static UIElement MakeCard(string title, UIElement content)
+        // internal statt private: WelcomeDialog (Views/Dialogs/WelcomeDialog.cs) nutzt dieselbe
+        // Karten-/Button-Optik für einen einheitlichen Auftritt, statt sie zu duplizieren.
+        // Border statt UIElement als Rückgabetyp: SetupDialog braucht Zugriff auf .Margin, um die
+        // vier kleineren Karten (Modus/Autostart/Design/Sprache) in ein 2x2-Raster einzusortieren
+        // (siehe dort) — Border ist weiterhin ein UIElement, alle bestehenden Aufrufstellen
+        // (StackPanel.Children.Add(...)) bleiben unverändert gültig.
+        internal static Border MakeCard(string title, UIElement content)
         {
             var card = new Border
             {
@@ -393,7 +418,7 @@ namespace ULM.Views.Dialogs
             grid.Children.Add(valueBlock);
         }
 
-        private static Button MakeButton(string label, Brush bg, Brush fg, double width, double height)
+        internal static Button MakeButton(string label, Brush bg, Brush fg, double width, double height)
         {
             return new Button
             {

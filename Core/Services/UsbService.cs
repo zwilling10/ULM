@@ -18,6 +18,8 @@ namespace ULM.Core.Services
     {
         List<UsbDrive> ListRemovableDrives();
         Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries);
+        List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter();
+        bool PrepareRawUsbDisk(int diskIndex, char letter);
     }
 
     public sealed class UsbService : IUsbService
@@ -51,8 +53,15 @@ namespace ULM.Core.Services
                 return result;
             }
 
+            // DriveType 2 = Wechseldatenträger (leer formatierte/Ventoy-Sticks). DriveType 5 =
+            // CD-ROM — Windows stuft mit Rufus im ISO/DD-Image-Modus beschriebene Sticks (üblich
+            // für die meisten Linux-Live-ISOs) oft als optisches Medium ein, obwohl es physisch
+            // ein USB-Stick ist, weil das Image ein hybrides ISO ist. Ohne DriveType 5 wurden
+            // solche Sticks nie erkannt — kein "neuer Stick"-Dialog, kein Ventoy-Angebot (Nutzer-
+            // Testfeedback). Der bestehende ≥2GB-Größenfilter unten schließt echte, leere optische
+            // Laufwerke (kein Medium → Size=0) weiterhin zuverlässig aus.
             const string script = @"
-$vols = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -eq 2 }
+$vols = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -eq 2 -or $_.DriveType -eq 5 }
 foreach ($v in $vols) {
   $id=$v.DeviceID; $label=$v.VolumeName; $size=[int64]($v.Size); $fs=$v.FileSystem
   if ($id -and $size -ge 2000000000 -and $label -notmatch '^(VTOYEFI|EFI|ESP)$') {
@@ -82,6 +91,156 @@ foreach ($v in $vols) {
 
         public static string ListSignature(IEnumerable<UsbDrive> drives) =>
             string.Join(";", drives.Select(d => d.Letter.ToUpperInvariant()));
+
+        // ── Rohe (buchstabenlose) USB-Datenträger: Erkennung ───────────────
+        // Ermittelt den Win32_DiskDrive.Index des Datenträgers, der die Windows-Systempartition
+        // (%SystemDrive%, i.d.R. C:) enthält — Grundlage für die Systemdatenträger-Sperre in
+        // IsSafeToPrepare. Gibt null zurück, wenn die Ermittlung fehlschlägt (WMI-Fehler o.ä.) —
+        // Aufrufer MÜSSEN das als "unsicher" behandeln (siehe IsSafeToPrepare-Kommentar).
+        private static int? GetSystemDiskIndex()
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return null;
+            // BUGFIX: Ursprünglich per -Filter "DeviceID='$($env:SystemDrive)'" — RunPowerShell()
+            // escaped ALLE doppelten Anführungszeichen im gesamten Skript blind (für die äußere
+            // cmd/PowerShell-Argumentweitergabe), was dieses eingebettete Filter-Anführungszeichen
+            // zerstörte und die Ausführung mit einem ParameterBindingException-Fehler abbrechen
+            // ließ (empirisch reproduziert). GetSystemDiskIndex() gab dadurch IMMER null zurück —
+            // ListRawUsbDisksWithoutLetter() bricht bei null bewusst fail-closed mit einer leeren
+            // Liste ab (siehe dort), wodurch die gesamte Erkennung nie anschlug, auch nicht beim
+            // Nutzer-Testlauf. Where-Object statt -Filter braucht keine eingebetteten
+            // Anführungszeichen und ist von diesem Escaping-Problem nicht betroffen.
+            const string script = @"
+$sys = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DeviceID -eq $env:SystemDrive }
+if ($sys) {
+  $sysPart = Get-CimAssociatedInstance -InputObject $sys -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue
+  if ($sysPart) {
+    $sysDisk = Get-CimAssociatedInstance -InputObject $sysPart -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue
+    if ($sysDisk) { Write-Output $sysDisk.Index }
+  }
+}";
+            string output = RunPowerShell(script, 8).Trim();
+            return int.TryParse(output, out int idx) ? idx : null;
+        }
+
+        /// <summary>
+        /// Erkennt physische USB-Datenträger, denen Windows (noch) keinen Laufwerksbuchstaben
+        /// zugewiesen hat — z.B. mit Rufus im ISO/DD-Modus beschriebene Sticks, die in
+        /// ListRemovableDrives() (basiert auf Win32_LogicalDisk, listet nur Datenträger MIT
+        /// Buchstabe) nie auftauchen. Win32_DiskDrive arbeitet auf physischer Ebene, unabhängig
+        /// von Laufwerksbuchstaben — die WMI-Entsprechung dessen, was Rufus selbst über
+        /// SetupDiGetClassDevs/IOCTL_STORAGE_QUERY_PROPERTY auf niedrigerer Ebene macht.
+        /// Schlägt die Systemdatenträger-Ermittlung fehl, wird eine leere Liste zurückgegeben
+        /// (fail-closed) statt ungeprüft alle USB-Datenträger anzubieten.
+        /// </summary>
+        public List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter()
+        {
+            var result = new List<RawUsbDiskCandidate>();
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return result;
+
+            int? systemDiskIndex = GetSystemDiskIndex();
+            if (systemDiskIndex is null) return result;
+
+            const string script = @"
+$disks = Get-CimInstance Win32_DiskDrive | Where-Object { $_.InterfaceType -eq 'USB' }
+foreach ($d in $disks) {
+  $hasLetter = $false
+  $parts = Get-CimAssociatedInstance -InputObject $d -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue
+  foreach ($p in $parts) {
+    $lds = Get-CimAssociatedInstance -InputObject $p -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue
+    if ($lds) { $hasLetter = $true }
+  }
+  if (-not $hasLetter) {
+    Write-Output ($d.Index.ToString() + '|' + [int64]$d.Size)
+  }
+}";
+            string output = RunPowerShell(script, 10);
+            foreach (string line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                string[] parts = line.Split('|');
+                if (parts.Length < 2) continue;
+                if (!int.TryParse(parts[0], out int idx)) continue;
+                if (!long.TryParse(parts[1], out long size)) continue;
+                if (size < 2_000_000_000) continue;
+                if (!IsSafeToPrepare(idx, systemDiskIndex)) continue;
+                result.Add(new RawUsbDiskCandidate(idx, size));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Bereitet einen rohen (buchstabenlosen) USB-Datenträger für die normale Erkennung vor:
+        /// komplett neu partitionieren und formatieren, damit Windows ihm einen Laufwerksbuchstaben
+        /// zuweist. fs=fat32 (nicht exfat) ist bewusst gewählt — dieser Schritt dient NUR dazu,
+        /// Windows zur Buchstaben-Zuweisung zu bewegen; Ventoy2Disk formatiert den Stick bei der
+        /// eigentlichen Einrichtung ohnehin komplett neu (siehe VentoyInstallWorker).
+        ///
+        /// SICHERHEIT: Zweite, unabhängige Systemdatenträger-Prüfung unmittelbar vor dem
+        /// destruktiven diskpart-Aufruf — zusätzlich zur bereits in ListRawUsbDisksWithoutLetter()
+        /// erfolgten Prüfung. Verhindert, dass sich zwischen Anzeige/Erkennung und tatsächlicher
+        /// Ausführung etwas an den Datenträger-Indizes geändert hat (z.B. durch ein zwischenzeitlich
+        /// weiteres eingestecktes Laufwerk).
+        /// </summary>
+        /// <summary>
+        /// BUGFIX: diskpart braucht für destruktive Datenträger-Operationen (clean/create
+        /// partition/format) immer erhöhte Rechte — genau wie z.B. Rufus selbst beim Start per UAC
+        /// danach fragt, bevor es überhaupt auf einen Datenträger zugreift. Die normale ULM-Instanz
+        /// läuft bewusst NICHT elevated (asInvoker, siehe UniversalLinuxManager.csproj-Kommentar).
+        /// UseShellExecute=true + Verb="runas" löst die UAC-Abfrage NUR für diesen einen
+        /// diskpart-Aufruf aus (kein Neustart der ganzen ULM-App nötig, anders als beim bestehenden
+        /// --ventoy-install-Mechanismus). Nachteil: UseShellExecute=true erlaubt kein
+        /// Ein-/Ausgabe-Umleiten (RedirectStandardOutput/CreateNoWindow) — nicht weiter schlimm, da
+        /// der Rückgabewert ohnehin nur über den ExitCode ausgewertet wird; ein diskpart-
+        /// Konsolenfenster blitzt dabei kurz sichtbar auf.
+        ///
+        /// Lehnt der Nutzer die UAC-Abfrage ab (Win32Exception 1223) oder ist Windows aus einem
+        /// anderen Grund am Starten von diskpart gehindert (z.B. 740 = fehlende Rechte, falls die
+        /// UAC-Infrastruktur selbst deaktiviert ist), MUSS das als gescheiterte Vorbereitung gelten
+        /// (false zurückgeben, loggen) statt die App abstürzen zu lassen — genau der Fehler, der im
+        /// ersten echten Testlauf aufgetreten ist (Process.Start warf eine unbehandelte
+        /// Win32Exception, die bis zum globalen DispatcherUnhandledException-Handler durchschlug).
+        /// </summary>
+        public bool PrepareRawUsbDisk(int diskIndex, char letter)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return false;
+
+            int? systemDiskIndex = GetSystemDiskIndex();
+            if (!IsSafeToPrepare(diskIndex, systemDiskIndex)) return false;
+
+            // BUGFIX: fs=fat32 schlug bei einem echten 114-GB-Teststick fehl — Windows' format-
+            // Tools (auch über diskpart) verweigern FAT32 grundsätzlich ab 32 GB (feste
+            // Microsoft-Beschränkung, unabhängig von der eigentlichen FAT32-Spezifikation). Die
+            // Partition wurde dabei bereits erstellt und bekam automatisch einen Buchstaben
+            // zugewiesen, bevor der format-Schritt scheiterte und das Skript abbrach — diskpart
+            // meldete dadurch trotzdem einen Fehler (Exit-Code ≠ 0). ntfs quick hat keine
+            // Größenbegrenzung und ist genauso schnell; die Wahl des Dateisystems ist hier ohnehin
+            // nur ein Übergangszustand, Ventoy2Disk formatiert bei der eigentlichen Einrichtung
+            // alles komplett neu.
+            string script =
+                $"select disk {diskIndex}\nclean\ncreate partition primary\n" +
+                $"format fs=ntfs quick label=ULMPREP\nassign letter={letter}\nexit\n";
+            string tempFile = Path.Combine(Path.GetTempPath(), "ulm_diskpart_raw.txt");
+            File.WriteAllText(tempFile, script, Encoding.ASCII);
+            try
+            {
+                // WindowStyle=Hidden funktioniert (anders als CreateNoWindow) auch zusammen mit
+                // UseShellExecute=true/Verb="runas" — unterdrückt das kurz aufblitzende
+                // diskpart-Konsolenfenster, ohne die UAC-Erhöhung zu beeinträchtigen.
+                var psi = new System.Diagnostics.ProcessStartInfo("diskpart", $"/s \"{tempFile}\"")
+                { UseShellExecute = true, Verb = "runas", WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc is null) return false;
+                proc.WaitForExit(60_000);
+                return proc.ExitCode == 0;
+            }
+            catch (System.ComponentModel.Win32Exception)
+            {
+                // Nutzer hat die UAC-Abfrage abgelehnt, oder Windows konnte diskpart aus einem
+                // anderen Grund nicht erhöht starten — kein ULM-Fehler, einfach als gescheiterte
+                // Vorbereitung werten.
+                return false;
+            }
+            finally { try { File.Delete(tempFile); } catch { } }
+        }
 
         public static string DriveRoot(string letter)
         {
@@ -412,6 +571,28 @@ foreach ($v in $vols) {
             if (proc is null) return string.Empty;
             proc.WaitForExit(timeoutSeconds * 1_000);
             return proc.StandardOutput.ReadToEnd();
+        }
+
+        // ── Rohe (buchstabenlose) USB-Datenträger: reine Logik-Helfer ──────
+        // systemDiskIndex ist bewusst nullable: konnte der Systemdatenträger-Index nicht ermittelt
+        // werden (z.B. WMI-Fehler), MUSS das als "unsicher" gelten (fail-closed) — sonst würde ein
+        // WMI-Ausfall versehentlich JEDEN Datenträger als sicher durchwinken (fail-open), bei einer
+        // destruktiven Aktion (diskpart clean) inakzeptabel.
+        internal static bool IsSafeToPrepare(int diskIndex, int? systemDiskIndex) =>
+            systemDiskIndex.HasValue && diskIndex != systemDiskIndex.Value;
+
+        internal static List<int> FindNewRawDiskIndices(IReadOnlyList<int> previousIndices, IReadOnlyList<int> currentIndices) =>
+            currentIndices.Except(previousIndices).ToList();
+
+        // A/B (historisch Diskette) und C (i.d.R. System) werden übersprungen — nicht aus
+        // Sicherheitsgründen (IsSafeToPrepare deckt das bereits ab), sondern weil ein frisch
+        // zugewiesener Buchstabe dort ohnehin von Windows selbst verweigert würde.
+        internal static char? FindFreeDriveLetter(IEnumerable<char> usedLetters)
+        {
+            var used = new HashSet<char>(usedLetters);
+            for (char c = 'D'; c <= 'Z'; c++)
+                if (!used.Contains(c)) return c;
+            return null;
         }
     }
 }

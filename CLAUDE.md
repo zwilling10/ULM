@@ -19,6 +19,123 @@ Rules:
 
 ## Aktueller Arbeitsstand (Handoff)
 
+- **Branch `feature/linux-gui-phase1`** (abgezweigt von `master`/`v2.40.0`). Neues, eigenständiges
+  Linux-GUI-Projekt unter `Linux/` (Avalonia, `net8.0`, self-contained `linux-x64`-Single-File-
+  Publish) — Kernidee: `Core/`/`Infrastructure`-Dateien werden per `<Compile Include>` unverändert
+  zweitverwendet (kein `ProjectReference` möglich, da das Hauptprojekt `net8.0-windows`/WPF ist),
+  Views/ViewModels sind komplett neu (`LinuxMainViewModel`, `LinuxIsoRow`, eigenes `RelayCommand`
+  ohne WPF-`CommandManager`), Datenablage folgt XDG (`~/.config/ulm/`, `~/.local/share/ulm/`) statt
+  dem Windows-Portable-Muster. Ablauf: Brainstorm → Spec
+  (`docs/superpowers/specs/2026-07-28-linux-gui-design.md`) → Plan
+  (`docs/superpowers/plans/2026-07-28-linux-gui-phase1.md`, 11 Tasks) → Inline-Ausführung (bewusst
+  kein Subagent-pro-Task, Nutzerwunsch: Token-Ersparnis).
+  - **Phase 1 = Katalog + Download + Zweisprachigkeit** (USB-Erkennung + Ventoy sind bewusst
+    Phase 2, noch nicht begonnen — brauchen `lsblk`/`udev` statt WMI bzw. `pkexec` statt
+    `Verb="runas"`).
+  - Alle 11 Tasks fertig umgesetzt, 209 Windows- + 22 Linux-Tests grün, Windows-App komplett
+    unangetastet. Zwei echte Bugs während der Ausführung gefunden und behoben (im Plan-Dokument
+    dokumentiert): (1) impliziter Compile-Glob von `UniversalLinuxManager.csproj` sammelte den
+    neuen `Linux\`-Ordner versehentlich mit ein und brach kurzzeitig den Windows-Build — per
+    `<Compile Remove="Linux\**">`-Eintrag behoben. (2) Zwei Download-Tests griffen wegen
+    alphabetischer Row-Sortierung zunächst den falschen Katalog-Eintrag.
+  - **Nutzer hat auf echtem Linux Mint getestet.** Erster Testlauf fand einen dritten, in der Spec
+    nicht antizipierten Bug: `DownloadSelectedAsync()` nutzte nur bereits vorab in der Datenbank
+    gesetzte `Url`/`Mirror*`-Felder — die meisten Katalog-Einträge lösen ihre Download-URL aber erst
+    zur Laufzeit über `HttpService.ResolveLatestAsync(entry)` auf (GitHub-Releases,
+    versionsabhängige Seiten, siehe `Core/Services/HttpService.DistroResolvers.cs`), analog zum
+    bestehenden `DownloadWorker` in `Workers.cs`. Ergebnis: "Keine Download-URL hinterlegt" bei
+    praktisch jeder Distro. Behoben durch einen neuen, injizierbaren `ResolveFunc`-Delegate
+    (default: `HttpService.Instance.ResolveLatestAsync`), der vor dem eigentlichen Download läuft —
+    hält die bestehenden Tests weiterhin frei von echten Netzwerkaufrufen. **Mit der Hiren's-Boot-
+    CD-ISO erfolgreich erneut getestet — Download funktioniert jetzt.** Lehre für künftige Linux-
+    Phasen: die Spec/der Plan kennt nur den STATISCHEN Code-Pfad; dynamische Auflösungsschritte wie
+    `ResolveLatestAsync` fallen bei reiner Code-Lektüre leicht durch, wenn man nicht gezielt nach
+    "wo wird die tatsächliche Download-URL herkommen" fragt — ein echter Gerätetest deckt das aber
+    zuverlässig auf.
+  - **Nachtrag (2026-07-29, weiterer Nutzerfund):** Sprachumschalter EN/DE ließ das Fenster
+    schließen, ohne sich neu zu öffnen — Absturz, kein gewolltes Verhalten. Ursache:
+    `LinuxMainViewModel.ApplyFilter()` griff ungeschützt auf `SelectedCategory.Key` zu; beim
+    Leeren der `Categories`-Collection in `RebuildCategories()` setzt Avalonias
+    `ListBox.SelectedItem`-Zweiwege-Binding `SelectedCategory` transient auf `null` →
+    unbehandelte `NullReferenceException` auf dem UI-Thread beendete den Prozess lautlos (kein
+    Fehlerdialog, kein Neustart, da kein globaler Exception-Handler installiert ist). Behoben:
+    `SelectedCategory` ist jetzt nullable mit Guard in `ApplyFilter()`; `RebuildCategories()`
+    zusätzlich vereinheitlicht (aktualisiert `_selectedCategory` jetzt auch korrekt bei
+    ausgewähltem "Alle"/"All", vorher blieb es dort auf einem verwaisten Objekt hängen). **Mit
+    diesem Fix erneut getestet — funktioniert.** Kategorie-Filter (Liste zeigt "Alle" +
+    Kategorien) und Suche vom Nutzer als funktionierend bestätigt; ob ein Klick auf eine
+    einzelne Kategorie die rechte Liste tatsächlich einschränkt, wurde nicht explizit
+    einzeln bestätigt (Nutzer ist direkt zu Phase 2 weiter), aber die zugrunde liegende
+    `ApplyFilter()`-Logik ist dieselbe wie beim bereits bestätigten Suchfeld.
+  - **Wichtige Lehre aus dem Absturz-Fund:** Bei jeder ItemsControl-Collection, die per
+    `Clear()` geleert und neu befüllt wird (hier: Sprachwechsel), IMMER prüfen, ob das gebundene
+    `SelectedItem` transient auf `null` fallen kann, und den entsprechenden ViewModel-Zugriff
+    dagegen absichern — Avalonia/WPF-Zweiwege-Bindings können das jederzeit auslösen, auch ohne
+    dass der ViewModel-Code selbst `null` zuweist.
+
+- **Phase 2 (USB-Erkennung + Ventoy) fertig implementiert, wartet auf Hardware-Test.** Ablauf:
+  Brainstorm → Spec (`docs/superpowers/specs/2026-07-29-linux-usb-ventoy-design.md`) → Plan
+  (`docs/superpowers/plans/2026-07-29-linux-usb-ventoy-phase2.md`, 9 Tasks) → Inline-Ausführung,
+  alle 9 Tasks committet auf demselben Branch `feature/linux-gui-phase1` (kein neuer Branch für
+  Phase 2 — direkte Fortsetzung). Neue Komponenten: `Linux/LinuxUsbService.cs` (`lsblk -J`-
+  basierte Geräte-Enumeration statt der alten `/media`-Suche, findet auch unformatierte/nicht
+  eingehängte Sticks), `Linux/VentoyInstallService.cs` (Ventoy-Linux-Release von GitHub laden,
+  `.tar.gz` via `System.Formats.Tar` entpacken, `pkexec bash Ventoy2Disk.sh -i/-u [-s] /dev/sdX`
+  aufrufen). Bestehender `Core/Services/UsbService.cs`-Code (`IsVentoyInstalled`,
+  `UpdateVentoyMenu`, `DriveFreeMb`) unverändert wiederverwendet für "ISOs auf bestehenden
+  Ventoy-Stick kopieren". Inline-Bestätigungsleiste im Hauptfenster (kein eigenes Dialog-
+  Fenster) vor jeder destruktiven Aktion, zeigt immer Gerätepfad + Größe.
+  - **Drei Planungslücken beim Bauen entdeckt und sofort behoben** (Muster wiederholt sich aus
+    Phase 1 — Plan kennt nur den statischen Code-Pfad, echte Compile-Fehler decken fehlende
+    Dateien zuverlässig auf): `Core/Models/UsbDrive.cs` fehlte in der Compile-Include-Liste
+    (von `UsbService.cs` referenziert), ebenso eine `using ULM.Core.Services;`-Direktive in
+    `LinuxUsbService.cs`.
+  - Build, self-contained `linux-x64`-Publish sowie beide Testsuiten (209 Windows, 42 Linux)
+    grün.
+  - **NEUE FÄHIGKEIT (2026-07-29): Echte Linux-Ausführung über WSL2 (Ubuntu 26.04) jetzt
+    möglich**, auf Nutzerwunsch eingerichtet — vorher konnte Claude nur cross-kompilieren, nie
+    tatsächlich laufen lassen. Aufbau: `wsl.exe -- bash -c "..."` aus dem Windows-Host,
+    `xdotool` für simulierte Maus-/Tastatureingaben (`sudo apt install xdotool`), `imagemagick`
+    (`import -window <id>`) für Screenshots, WSLg zeigt das echte Avalonia-X11-Fenster als
+    normales Windows-Fenster an. **Wichtige Erkenntnis zur Klick-Simulation:** `xdotool click`
+    (kombinierter Press+Release) wird von Avalonia durch die WSLg/XWayland-Übersetzungsschicht
+    NICHT zuverlässig als vollständiger Klick erkannt — nur `ListBox`-Hover-Effekte reagierten,
+    keine echten `SelectedItem`-Änderungen oder `Button.Command`-Auslösungen. Fix: explizit
+    getrennt `mousedown` → `sleep 0.15` → `mouseup` statt `click` — damit funktionierte jede
+    Interaktion zuverlässig. Für künftige Sitzungen wichtig, um keine Phantom-Bugs zu jagen.
+  - **Mit dieser Fähigkeit zwei echte, produktionsrelevante Bugs gefunden und behoben, BEVOR der
+    Nutzer sie auf echter Hardware treffen musste:** (1) Self-contained Binary crashte beim
+    Start ohne `libicu` auf dem Zielsystem — `InvariantGlobalization=true` in
+    `Linux/ULM.Linux.csproj` behebt das ohne Systemvoraussetzung zu verlangen (bewusster
+    Trade-off: Erststart erkennt die Linux-Systemsprache dadurch nicht mehr automatisch, fällt
+    auf Englisch zurück statt Deutsch — Sprache bleibt aber jederzeit per Umschalter änderbar).
+    (2) `lsblk` meldet Swap-Partitionen als `mountpoint="[SWAP]"` (in echter WSL-Ausgabe
+    beobachtet, nicht im ursprünglichen Fixture-JSON aus Task 1 enthalten) — ohne Filter hätte
+    ein Wechseldatenträger mit Swap-Partition fälschlich als dort gemountet gegolten.
+  - **Danach am echten laufenden Prozess vollständig End-to-End verifiziert** (nicht nur
+    Unit-Tests): App startet fehlerfrei, kompletter 27-Distro-Katalog lädt korrekt, Kategorie-
+    Filter filtert korrekt (Klick auf "Gaming" → exakt 3 passende Einträge), Sprachumschalter
+    wechselt live und vollständig zu Deutsch OHNE Absturz (der zuvor vom Nutzer gefundene und
+    gefixte Crash tritt nachweislich nicht mehr auf), ein echter Download (CachyOS,
+    reale HTTPS-Verbindungen beobachtet) läuft und legt die Datei korrekt unter
+    `~/.local/share/ulm/ISOs/` ab — kompletter Beweis, dass URL-Auflösung + Download-Pfad
+    funktionieren. Download nach ~375 MB bewusst abgebrochen (Nutzer-Bandbreite geschont, Beweis
+    war bereits erbracht).
+  - **Kleiner, nicht behobener Fund:** mehrere Phase-2-Button-Texte in `MainWindow.axaml`
+    ("Download", "Auf Stick kopieren", "Ventoy einrichten", "Ventoy aktualisieren",
+    "Secure Boot", "Ja, fortfahren", "Abbrechen") sind hartkodiert statt über `Str`/
+    `LocalizationService.T(...)` gebunden — reagieren nicht auf Sprachumschalter. Für eine
+    spätere Politur-Runde vormerken, kein funktionaler Blocker.
+  - **Weiterhin NICHT verifizierbar über WSL:** Ventoy-Neuinstallation auf echtem USB-Stick
+    (WSL2 hat ohne `usbipd-win`-Passthrough keinen Zugriff auf rohe Blockgeräte) und `pkexec`
+    (in der minimalen WSL-Ubuntu-Umgebung nicht vorinstalliert, im Unterschied zu Linux Mint).
+    Größte verbleibende Unsicherheit laut Spec/Plan: exakte Fortschritts-Textform von
+    `Ventoy2Disk.sh`s Ausgabe, Mount-Timing der neuen Ventoy-Partition nach der Installation
+    (dafür bewusst noch kein `EnsureVentoyTheme`-Aufruf nach Install eingebaut). Dieser Teil
+    braucht weiterhin einen Test durch den Nutzer auf echtem Linux Mint mit echtem Stick.
+  - **Branch bleibt eigenständig liegen** (wie alle anderen Phasen-Branches) — kein Merge ohne
+    ausdrückliche Nutzer-Freigabe.
+
 - **Branch `feature/database-dialogs-localization`** (abgezweigt von `feature/log-history-localization`
   Tip `063880b`, NICHT von Phase 4 selbst — Phase 4 bleibt dadurch unangetastet/sauber). Entstanden,
   weil der Nutzer beim manuellen Testen von Phase 4 (Log/Status-Tab) nebenbei entdeckt hat, dass

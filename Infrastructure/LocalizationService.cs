@@ -15,6 +15,12 @@ namespace ULM.Infrastructure
 
         public static void Initialize() => Current = LoadFromIni(AppPaths.Instance.SettingsIni);
 
+        // Für Aufrufer außerhalb des Windows-Portable-Pfadmodells (z.B. das Linux-GUI-Projekt,
+        // das seine Einstellungsdatei über XDG-Verzeichnisse statt AppPaths.Instance.SettingsIni
+        // auflöst). AppPaths.SettingsIni ist bewusst nicht umleitbar (siehe AppPaths.cs) — dieser
+        // Overload umgeht das für Aufrufer, die ihren eigenen Pfad kennen.
+        internal static void Initialize(string settingsIniPath) => Current = LoadFromIni(settingsIniPath);
+
         // Testbar ohne Application.Current/UI-Zugriff — nur Datei-IO über IniService.
         internal static AppLanguage LoadFromIni(string settingsIniPath)
         {
@@ -84,6 +90,9 @@ namespace ULM.Infrastructure
                 "• Automatisierte URL-Prüfung & Versions-Check\n" +
                 "• Integrierte Ventoy-Installation & Secure-Boot-Support\n" +
                 "• Parallele Downloads für maximale Performance",
+
+            [Str.Welcome_Title]                  = "Universal Linux Manager — Willkommen",
+            [Str.Welcome_Btn_Continue]           = "Weiter →",
 
             [Str.Setup_Card_Mode]                = "👤 Modus",
             [Str.Setup_Chk_ExpertMode]           = "Experten-Modus aktivieren (alle Funktionen sichtbar)",
@@ -210,6 +219,12 @@ namespace ULM.Infrastructure
                 "Neuer USB-Stick: {0}\nLabel: {1}   Größe: {2:F0} GB\n\n" +
                 "Automatisch als Ventoy-Stick einrichten?\n\n⚠ ALLE DATEN AUF DIESEM STICK WERDEN GELÖSCHT!",
             [Str.Msg_NewDriveDetected_Title]     = "USB-Stick erkannt — Datenverlust!",
+            [Str.Msg_RawUsbDiskDetected_Body]    =
+                "Ein nicht eingerichteter USB-Stick wurde erkannt (Größe ca. {0:F0} GB, kein " +
+                "lesbares Dateisystem — z.B. mit Rufus im ISO-Modus beschrieben).\n\n" +
+                "Jetzt vorbereiten, um ihn nutzbar zu machen? Windows fragt danach einmalig per " +
+                "Sicherheitsabfrage (UAC) nach.\n\n⚠ ALLE DATEN AUF DIESEM STICK WERDEN GELÖSCHT!",
+            [Str.Msg_RawUsbDiskDetected_Title]   = "Nicht eingerichteter USB-Stick erkannt",
             [Str.Msg_NoLabel]                    = "Kein Name",
             [Str.Msg_MultipleDrivesHeader]       = "Es sind {0} USB-Sticks angeschlossen. Mit welchem möchtest du arbeiten?",
             [Str.Msg_VentoyUpdate_Body]          = "Ventoy auf\n\n   {0}  {1}  ({2} GB)\n\naktualisieren?\n\n✅ Bestehende ISO-Dateien bleiben erhalten.",
@@ -805,6 +820,10 @@ namespace ULM.Infrastructure
             [Str.Log_StaleDuplicatesDeletedStatus]  = "🗑 {0} veraltete Duplikat(e) auf {1} gelöscht",
             [Str.Log_DuplicateCleanupSkipped]       = "ℹ Duplikat-Bereinigung übersprungen ({0} Datei(en) behalten).",
             [Str.Log_UsbDrivesDetected]             = "🔌 {0} USB-Laufwerke erkannt: {1}",
+            [Str.Log_RawUsbDiskDetected]      = "🔌 Nicht gemounteter USB-Datenträger erkannt (Datenträger {0}) — bereite Laufwerksbuchstabe vor …",
+            [Str.Log_RawUsbDiskPrepared]      = "✅ Datenträger {0} als {1}: eingerichtet.",
+            [Str.Log_RawUsbDiskPrepareFailed] = "⚠ Vorbereitung von Datenträger {0} fehlgeschlagen — konnte keinen Laufwerksbuchstaben zuweisen.",
+            [Str.Log_RawUsbDiskNoFreeLetter]  = "⚠ Kein freier Laufwerksbuchstabe verfügbar — Datenträger {0} übersprungen.",
             [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy-Installation auf {0} wird gestartet …",
             [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy-{0} auf {1} …",
             [Str.Log_CheckingRequiredSpace]         = "🔍 Prüfe benötigten Speicherplatz …",
@@ -1034,6 +1053,16 @@ namespace ULM.Infrastructure
 
             // ── IsoEditDialog/ManualSourceSearchDialog: zweites Beschreibungsfeld (TipEn) ──
             [Str.Db_Field_DescriptionEn] = "Beschreibung (Englisch, optional)",
+
+            // ── Linux-GUI (Phase 1) ──
+            [Str.Linux_Category_All]              = "Alle",
+            [Str.Linux_Toolbar_SearchPlaceholder] = "Distro suchen…",
+            [Str.Linux_Toolbar_Refresh]           = "Aktualisieren",
+            [Str.Linux_Download_NoUrl]            = "Keine Download-URL hinterlegt.",
+            [Str.Linux_Download_Failed]           = "Download fehlgeschlagen.",
+            [Str.Linux_Copy_NoDrive]               = "Kein USB-Stick ausgewählt.",
+            [Str.Linux_Copy_Done]                  = "Kopiert.",
+            [Str.Linux_Copy_Failed]                = "Kopieren fehlgeschlagen.",
         };
 
         private static readonly Dictionary<Str, string> En = new()
@@ -1074,6 +1103,9 @@ namespace ULM.Infrastructure
                 "• Automated URL checking & version detection\n" +
                 "• Integrated Ventoy installation & Secure Boot support\n" +
                 "• Parallel downloads for maximum performance",
+
+            [Str.Welcome_Title]                  = "Universal Linux Manager — Welcome",
+            [Str.Welcome_Btn_Continue]           = "Continue →",
 
             [Str.Setup_Card_Mode]                = "👤 Mode",
             [Str.Setup_Chk_ExpertMode]           = "Enable expert mode (all features visible)",
@@ -1200,6 +1232,12 @@ namespace ULM.Infrastructure
                 "New USB stick: {0}\nLabel: {1}   Size: {2:F0} GB\n\n" +
                 "Set up automatically as a Ventoy stick?\n\n⚠ ALL DATA ON THIS STICK WILL BE ERASED!",
             [Str.Msg_NewDriveDetected_Title]     = "USB Stick Detected — Data Loss!",
+            [Str.Msg_RawUsbDiskDetected_Body]    =
+                "An unformatted USB stick was detected (size approx. {0:F0} GB, no readable " +
+                "file system — e.g. written with Rufus in ISO mode).\n\n" +
+                "Prepare it now to make it usable? Windows will then show a one-time security " +
+                "prompt (UAC).\n\n⚠ ALL DATA ON THIS STICK WILL BE ERASED!",
+            [Str.Msg_RawUsbDiskDetected_Title]   = "Unformatted USB Stick Detected",
             [Str.Msg_NoLabel]                    = "No Name",
             [Str.Msg_MultipleDrivesHeader]       = "{0} USB sticks are connected. Which one would you like to work with?",
             [Str.Msg_VentoyUpdate_Body]          = "Update Ventoy on\n\n   {0}  {1}  ({2} GB)?\n\n✅ Existing ISO files will be kept.",
@@ -1795,6 +1833,10 @@ namespace ULM.Infrastructure
             [Str.Log_StaleDuplicatesDeletedStatus]  = "🗑 {0} stale duplicate(s) on {1} deleted",
             [Str.Log_DuplicateCleanupSkipped]       = "ℹ Duplicate cleanup skipped ({0} file(s) kept).",
             [Str.Log_UsbDrivesDetected]             = "🔌 {0} USB drive(s) detected: {1}",
+            [Str.Log_RawUsbDiskDetected]      = "🔌 Unmounted USB disk detected (disk {0}) — preparing drive letter …",
+            [Str.Log_RawUsbDiskPrepared]      = "✅ Disk {0} set up as {1}:",
+            [Str.Log_RawUsbDiskPrepareFailed] = "⚠ Failed to prepare disk {0} — could not assign a drive letter.",
+            [Str.Log_RawUsbDiskNoFreeLetter]  = "⚠ No free drive letter available — skipping disk {0}.",
             [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy installation starting on {0} …",
             [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy {0} on {1} …",
             [Str.Log_CheckingRequiredSpace]         = "🔍 Checking required disk space …",
@@ -2024,6 +2066,16 @@ namespace ULM.Infrastructure
 
             // ── IsoEditDialog/ManualSourceSearchDialog: second description field (TipEn) ──
             [Str.Db_Field_DescriptionEn] = "Description (English, optional)",
+
+            // ── Linux GUI (Phase 1) ──
+            [Str.Linux_Category_All]              = "All",
+            [Str.Linux_Toolbar_SearchPlaceholder] = "Search distro…",
+            [Str.Linux_Toolbar_Refresh]           = "Refresh",
+            [Str.Linux_Download_NoUrl]            = "No download URL configured.",
+            [Str.Linux_Download_Failed]           = "Download failed.",
+            [Str.Linux_Copy_NoDrive]               = "No USB stick selected.",
+            [Str.Linux_Copy_Done]                  = "Copied.",
+            [Str.Linux_Copy_Failed]                = "Copy failed.",
         };
     }
 }

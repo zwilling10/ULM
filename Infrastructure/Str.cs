@@ -42,6 +42,10 @@ namespace ULM.Infrastructure
         Setup_Card_AboutUlm,
         Setup_WelcomeBody,
 
+        // WelcomeDialog: eigenständiges Begrüßungsfenster VOR dem SetupDialog (nur Erststart)
+        Welcome_Title,
+        Welcome_Btn_Continue,
+
         // SetupDialog: Modus-Karte
         Setup_Card_Mode,
         Setup_Chk_ExpertMode,
@@ -162,6 +166,8 @@ namespace ULM.Infrastructure
         Msg_NoLocalIsos,
         Msg_NewDriveDetected_Body,
         Msg_NewDriveDetected_Title,
+        Msg_RawUsbDiskDetected_Body,
+        Msg_RawUsbDiskDetected_Title,
         Msg_NoLabel,
         Msg_MultipleDrivesHeader,
         Msg_VentoyUpdate_Body,
@@ -409,6 +415,10 @@ namespace ULM.Infrastructure
         Log_GitHubTokenRemoved, Log_GitHubTokenSaved, Log_CancellingOperation, Log_DeleteFailed,
         Log_OperationSucceededLogPrefix,
 
+        // ── Log-Meldungen: Rohe (buchstabenlose) USB-Datenträger ──────────
+        Log_RawUsbDiskDetected, Log_RawUsbDiskPrepared, Log_RawUsbDiskPrepareFailed,
+        Log_RawUsbDiskNoFreeLetter,
+
         // ── Log-Meldungen: Download-Worker (Core/Workers/Workers.cs) ──
         Log_NoDownloadUrlFound, Log_Unreachable, Log_MirrorTest, Log_TryingUrl,
         Log_AndTryNextSource, Log_PermanentlySlow, Log_UserRequestsFasterMirror, Log_MirrorFailed,
@@ -499,5 +509,15 @@ namespace ULM.Infrastructure
 
         // ── IsoEditDialog/ManualSourceSearchDialog: zweites Beschreibungsfeld (TipEn) ──
         Db_Field_DescriptionEn,
+
+        // ── Linux-GUI (Phase 1) ─────────────────────────────────────────
+        Linux_Category_All,
+        Linux_Toolbar_SearchPlaceholder,
+        Linux_Toolbar_Refresh,
+        Linux_Download_NoUrl,
+        Linux_Download_Failed,
+        Linux_Copy_NoDrive,
+        Linux_Copy_Done,
+        Linux_Copy_Failed,
     }
 }

@@ -116,6 +116,16 @@ namespace ULM
             bool skipSetupDialog = !isFirstRun && IniService.Read(paths.SettingsIni, "App", "SkipSetupDialog", "0") == "1";
             bool lastExpert      = IniService.Read(paths.SettingsIni, "App", "ExpertMode", "0") == "1";
 
+            // Eigenständiges Begrüßungsfenster NUR beim allerersten Start, VOR dem SetupDialog —
+            // zeigt den "Über ULM"-Text, der früher als Karte im SetupDialog selbst stand (siehe
+            // WelcomeDialog-Kommentar). Abbrechen (Fenster-X) beendet den Start genau wie beim
+            // SetupDialog.
+            if (isFirstRun)
+            {
+                if (new WelcomeDialog { WindowStartupLocation = WindowStartupLocation.CenterScreen }.ShowDialog() != true)
+                { Shutdown(); return; }
+            }
+
             if (!skipSetupDialog)
             {
                 var setupDlg = new SetupDialog(showDirectory: isFirstRun, showWelcome: isFirstRun, currentExpertMode: lastExpert,

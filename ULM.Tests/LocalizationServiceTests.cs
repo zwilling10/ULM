@@ -131,6 +131,23 @@ public class LocalizationServiceLoadFromIniTests
     }
 }
 
+[Collection("LocalizationCurrent")]
+public class LocalizationServiceInitializeWithPathTests
+{
+    [Fact]
+    public void Initialize_WithCustomPath_SetsCurrentFromThatFile()
+    {
+        string tempFile = Path.Combine(Path.GetTempPath(), $"ulm-loc-init-{Guid.NewGuid():N}.ini");
+        try
+        {
+            IniService.Write(tempFile, "App", "Language", "en");
+            LocalizationService.Initialize(tempFile);
+            Assert.Equal(AppLanguage.English, LocalizationService.Current);
+        }
+        finally { File.Delete(tempFile); }
+    }
+}
+
 // Serialisiert Tests, die den globalen, statischen LocalizationService.Current-Zustand
 // lesen/schreiben (xUnit führt verschiedene Test-Klassen sonst parallel aus — ohne dieses
 // Collection-Attribut könnte SetLanguage_WritesToIniAndUpdatesCurrent mitten in einem Test einer
@@ -169,5 +186,48 @@ public class LocalizationServiceCompletenessTests
             Assert.False(string.IsNullOrWhiteSpace(de), $"Fehlende deutsche Übersetzung für {key}");
             Assert.False(string.IsNullOrWhiteSpace(en), $"Fehlende englische Übersetzung für {key}");
         }
+    }
+}
+
+public class LocalizationServiceLinuxStringsTests
+{
+    [Theory]
+    [InlineData(AppLanguage.German, "Alle")]
+    [InlineData(AppLanguage.English, "All")]
+    public void T_Linux_Category_All_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Linux_Category_All, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Distro suchen…")]
+    [InlineData(AppLanguage.English, "Search distro…")]
+    public void T_Linux_Toolbar_SearchPlaceholder_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Linux_Toolbar_SearchPlaceholder, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Aktualisieren")]
+    [InlineData(AppLanguage.English, "Refresh")]
+    public void T_Linux_Toolbar_Refresh_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Linux_Toolbar_Refresh, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Keine Download-URL hinterlegt.")]
+    [InlineData(AppLanguage.English, "No download URL configured.")]
+    public void T_Linux_Download_NoUrl_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Linux_Download_NoUrl, language));
+    }
+
+    [Theory]
+    [InlineData(AppLanguage.German, "Download fehlgeschlagen.")]
+    [InlineData(AppLanguage.English, "Download failed.")]
+    public void T_Linux_Download_Failed_ReturnsCorrectTextForLanguage(AppLanguage language, string expected)
+    {
+        Assert.Equal(expected, LocalizationService.T(Str.Linux_Download_Failed, language));
     }
 }

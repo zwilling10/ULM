@@ -14,7 +14,17 @@ internal sealed class FakeHttpService : IHttpService
 internal sealed class FakeUsbService : IUsbService
 {
     public List<UsbDrive> DrivesToReturn { get; set; } = new();
+    public List<RawUsbDiskCandidate> RawDisksToReturn { get; set; } = new();
+    public List<(int DiskIndex, char Letter)> PrepareCalls { get; } = new();
+    public bool PrepareShouldSucceed { get; set; } = true;
+
     public List<UsbDrive> ListRemovableDrives() => DrivesToReturn;
+    public List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter() => RawDisksToReturn;
+    public bool PrepareRawUsbDisk(int diskIndex, char letter)
+    {
+        PrepareCalls.Add((diskIndex, letter));
+        return PrepareShouldSucceed;
+    }
     public Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries)
         => Task.FromResult((new List<UsbService.StickIso>(), new List<UsbService.StickIso>()));
 }

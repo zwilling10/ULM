@@ -31,6 +31,7 @@ namespace ULM.ViewModels
         private CancellationTokenSource _workerCts = new();
         private object?  _activeWorker;
         private string   _lastDriveSignature = string.Empty;
+        private List<int> _lastRawDiskIndices = new();
         // Startphase: unterdrückt den SOFORTIGEN Stick-Scan beim Programmstart (der sonst über den
         // SelectedDrive-Setter → TriggerUsbScan noch VOR dem Online-Versionscheck liefe). Gewünschte
         // Reihenfolge: erst der Online-Versionscheck, danach der Stick-Scan — Letzteren stößt der
@@ -484,6 +485,56 @@ namespace ULM.ViewModels
             SelectedDrive = Drives.FirstOrDefault(d => d.Letter == pl) ?? (Drives.Count > 0 ? Drives[0] : null);
             OnPropertyChanged(nameof(DriveInfoText));
             if (Drives.Count > 0) Log(string.Format(LocalizationService.T(Str.Log_DrivesDetected), string.Join(", ", Drives.Select(d => $"{d.Letter} ({d.Label})"))));
+        }
+
+        /// <summary>
+        /// Erkennt physische USB-Datenträger ohne Laufwerksbuchstaben (siehe
+        /// IUsbService.ListRawUsbDisksWithoutLetter) und bereitet neu aufgetauchte Kandidaten
+        /// automatisch vor (Buchstabe zuweisen). Läuft im selben Timer-Tick wie RefreshDrives(),
+        /// bewusst VOR ihr aufgerufen (siehe Views/MainWindow.xaml.cs CheckDriveChanges) — dadurch
+        /// sieht der direkt darauffolgende RefreshDrives()-Aufruf den frisch vorbereiteten Stick im
+        /// selben Tick bereits mit Buchstabe und behandelt ihn über die bestehende,
+        /// unveränderte OnNewDriveInserted()-Kette ganz normal wie jeden anderen neuen Stick.
+        /// </summary>
+        // BUGFIX: Meldet neu gefundene rohe Datenträger jetzt nur noch — bereitet sie NICHT mehr
+        // automatisch vor. Vorher rief CheckRawUsbDisks() PrepareRawUsbDisk() (diskpart clean,
+        // löscht die komplette Partitionstabelle) sofort und ungefragt auf, BEVOR überhaupt eine
+        // Bestätigung erschien — anders als beim bestehenden Ablauf für normale, bereits
+        // formatierte Sticks, wo IMMER erst gefragt wird, bevor irgendetwas gelöscht wird. Der
+        // Aufrufer (Views/MainWindow.xaml.cs) zeigt jetzt zuerst denselben Bestätigungsdialog wie
+        // bei jedem anderen neuen Stick und ruft erst danach PrepareRawUsbDisk(candidate, letter)
+        // unten auf.
+        public event Action<RawUsbDiskCandidate>? RawUsbDiskDetected;
+
+        public void CheckRawUsbDisks()
+        {
+            var candidates = _usb.ListRawUsbDisksWithoutLetter();
+            var currentIndices = candidates.Select(c => c.DiskIndex).ToList();
+            var newIndices = UsbService.FindNewRawDiskIndices(_lastRawDiskIndices, currentIndices);
+            _lastRawDiskIndices = currentIndices;
+
+            foreach (int idx in newIndices)
+            {
+                var candidate = candidates.First(c => c.DiskIndex == idx);
+                Log(string.Format(LocalizationService.T(Str.Log_RawUsbDiskDetected), idx));
+                RawUsbDiskDetected?.Invoke(candidate);
+            }
+        }
+
+        /// <summary>
+        /// Bereitet einen zuvor per RawUsbDiskDetected gemeldeten, vom Nutzer bereits bestätigten
+        /// Datenträger vor (Buchstabe zuweisen — löst dabei eine einmalige UAC-Abfrage für
+        /// diskpart aus, siehe UsbService.PrepareRawUsbDisk). Bei Erfolg holt der nächste
+        /// RefreshDrives()-Aufruf im selben Timer-Tick den Stick ganz normal über den neuen
+        /// Buchstaben ab.
+        /// </summary>
+        public bool PrepareRawUsbDisk(RawUsbDiskCandidate candidate, char letter)
+        {
+            bool ok = _usb.PrepareRawUsbDisk(candidate.DiskIndex, letter);
+            Log(ok
+                ? string.Format(LocalizationService.T(Str.Log_RawUsbDiskPrepared), candidate.DiskIndex, letter)
+                : string.Format(LocalizationService.T(Str.Log_RawUsbDiskPrepareFailed), candidate.DiskIndex));
+            return ok;
         }
 
         // BUGFIX: Ohne Re-Entrancy-Sperre konnte ein zweiter TriggerUsbScan-Aufruf (z.B. durch eine

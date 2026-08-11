@@ -10,6 +10,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
+using ULM.Assistant.Models;
 using ULM.Core.Models;
 using ULM.Core.Services;
 using ULM.Infrastructure;
@@ -49,6 +50,9 @@ namespace ULM.Views
             ApplyLocalizedText();
             _vm = new MainViewModel(Dispatcher);
             DataContext = _vm;
+            UliButton.GetLanguage = () => LocalizationService.Current == AppLanguage.German
+                ? AssistantLanguage.German
+                : AssistantLanguage.English;
             ThemeService.ThemeChanged += () =>
             {
                 _vm.RefreshAllEntries();
@@ -59,6 +63,7 @@ namespace ULM.Views
                 string.Format(LocalizationService.T(Str.Msg_SlowDownload_Body), name, host),
                 LocalizationService.T(Str.Msg_SlowDownload_Title), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
+            _vm.RawUsbDiskDetected += OnRawUsbDiskDetected;
             _vm.StaleDuplicatesOnStickDetected += OnStaleDuplicatesOnStick;
 
             _vm.NewerVersionsOnStickDetected += (matches, drive) =>
@@ -684,9 +689,41 @@ namespace ULM.Views
         private void CheckDriveChanges()
         {
             if (_vm.IsBusy) return;
+            // Läuft bewusst VOR RefreshDrives(): wird hier ein roher (buchstabenloser) USB-
+            // Datenträger vorbereitet (Buchstabe zugewiesen), sieht der direkt folgende
+            // RefreshDrives()-Aufruf ihn im selben Tick bereits als normalen, gemounteten Stick —
+            // die bestehende OnNewDriveInserted()-Kette darunter bleibt dadurch unverändert.
+            _vm.CheckRawUsbDisks();
             string prev = _lastDriveSignatureUi; _vm.RefreshDrives();
             string curr = string.Join(";", _vm.Drives.Select(d => d.Letter)); _lastDriveSignatureUi = curr;
             if (curr != prev && curr.Length > prev.Length) OnNewDriveInserted();
+        }
+
+        /// <summary>
+        /// Zeigt VOR jeder Vorbereitung eines rohen (buchstabenlosen) USB-Datenträgers dieselbe
+        /// Art Bestätigungsdialog wie bei einem normalen, bereits formatierten Stick — kein
+        /// ungefragtes Löschen mehr (siehe BUGFIX-Kommentar in MainViewModel.CheckRawUsbDisks).
+        /// Bestätigt der Nutzer, löst PrepareRawUsbDisk eine einmalige UAC-Abfrage aus; bei Erfolg
+        /// holt der nächste CheckDriveChanges()-Tick den Stick über den neuen Buchstaben ganz
+        /// normal ab und OnNewDriveInserted() übernimmt von dort unverändert.
+        /// </summary>
+        private void OnRawUsbDiskDetected(RawUsbDiskCandidate candidate)
+        {
+            double gb = candidate.SizeBytes / 1_073_741_824.0;
+            if (MessageBox.Show(
+                string.Format(LocalizationService.T(Str.Msg_RawUsbDiskDetected_Body), gb),
+                LocalizationService.T(Str.Msg_RawUsbDiskDetected_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
+            var usedLetters = System.IO.DriveInfo.GetDrives().Select(d => d.Name[0]);
+            char? letter = UsbService.FindFreeDriveLetter(usedLetters);
+            if (letter is null)
+            {
+                AppendLog(string.Format(LocalizationService.T(Str.Log_RawUsbDiskNoFreeLetter), candidate.DiskIndex));
+                return;
+            }
+
+            _vm.PrepareRawUsbDisk(candidate, letter.Value);
         }
 
         private void OnNewDriveInserted()
