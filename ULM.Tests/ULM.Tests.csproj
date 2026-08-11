@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\UniversalLinuxManager.csproj" />
+    <ProjectReference Include="..\ULM.Assistant\ULM.Assistant.csproj" />
   </ItemGroup>
 
 </Project>

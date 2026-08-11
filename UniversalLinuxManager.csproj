@@ -73,6 +73,10 @@
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="ULM.Assistant\ULM.Assistant.csproj" />
+  </ItemGroup>
+
   <!-- Erlaubt ULM.Tests Zugriff auf 'internal' Klassen/Methoden (reine Logikfunktionen wie
        Versions-Parsing/Distro-Namensabgleich, die aus gutem Grund nicht Teil der öffentlichen
        API sind, aber trotzdem gezielt getestet werden sollen). -->
@@ -103,6 +107,21 @@
     <None    Remove="ULM.Tests\**" />
     <Content Remove="ULM.Tests\**" />
     <EmbeddedResource Remove="ULM.Tests\**" />
+    <!-- ULM.Assistant/ enthaelt das eigenstaendige ULM.Assistant-Projekt (eigenes .csproj,
+         eigene .xaml/.cs-Dateien) — ohne diesen Ausschluss kompiliert der implizite Compile-
+         Glob dieses Hauptprojekts sie versehentlich mit (x:Class-/Typ-Duplikate, siehe
+         docs/superpowers/plans/2026-08-10-avatar-assistant.md, Task 7). -->
+    <Compile Remove="ULM.Assistant\**" />
+    <None    Remove="ULM.Assistant\**" />
+    <Content Remove="ULM.Assistant\**" />
+    <EmbeddedResource Remove="ULM.Assistant\**" />
+    <!-- WPF-SDK-Projekte (UseWPF=true) globben .xaml-Dateien zusätzlich über den eigenen
+         'Page'-Item-Typ (MarkupCompilePass1/2) — separat von Compile/None/Content. Ohne diesen
+         Eintrag kompiliert dieses Hauptprojekt AvatarButton.xaml/ChatWindow.xaml zusätzlich
+         selbst und erzeugt eigene .g.cs-Partialklassen ohne den passenden Code-Behind (der ja
+         korrekt via Compile Remove oben ausgeschlossen ist) — Folge: CS1061 auf die Event-
+         Handler. Beim Linux-Projekt trat das nie auf, weil Avalonia .axaml statt .xaml nutzt. -->
+    <Page Remove="ULM.Assistant\**" />
   </ItemGroup>
 
 </Project>

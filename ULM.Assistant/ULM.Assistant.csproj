@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ULM.Assistant</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Erlaubt ULM.Tests Zugriff auf 'internal' Klassen/Methoden (Test-Hooks für
+       FaqCatalogService, analog zum Muster in UniversalLinuxManager.csproj). -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>ULM.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+</Project>
