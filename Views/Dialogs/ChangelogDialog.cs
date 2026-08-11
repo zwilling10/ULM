@@ -18,6 +18,13 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.41.0", new[]
+            {
+                "Neu: Uli, der kleine Assistent unten rechts im Hauptfenster, beantwortet häufige Fragen zu Suche, Download, Kopieren auf den Stick, Ventoy-Einrichtung und mehr — komplett lokal, ohne Internetverbindung oder Cloud-KI.",
+                "Neu: USB-Sticks, die z.B. mit Rufus im ISO/DD-Modus beschrieben wurden und deshalb keinen Laufwerksbuchstaben mehr bekommen, werden jetzt ebenfalls erkannt und können nach Bestätigung für Ventoy vorbereitet werden.",
+                "Neu: Ein Willkommens-Fenster beim allerersten Start erklärt kurz die wichtigsten Funktionen, bevor die Arbeitsordner-Auswahl folgt.",
+                "Fehlerbehebung: USB-Sticks, die von Rufus als CD-ROM statt als Wechseldatenträger erkannt wurden, tauchten bisher nicht in der Laufwerksliste auf.",
+            }),
             ("2.40.0", new[]
             {
                 "Neu: ULM ist jetzt zweisprachig (Deutsch/Englisch) — umschaltbar über \"⚙ Einstellungen\". Betrifft das komplette Programm: Hauptfenster, alle Dialoge, Fehlermeldungen, Protokoll- und Statusanzeigen.",
