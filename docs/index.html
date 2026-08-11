@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Universal Linux Manager — Multiboot USB Stick Manager</title>
 <meta name="description" content="Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz." id="metaDescription">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Universal Linux Manager — Multiboot USB Stick Manager" id="ogTitle">
+<meta property="og:description" content="ULM hält deine Ventoy-Multiboot-USB-Sticks automatisch mit den neuesten Linux-Live-ISOs aktuell. Portabel, Open Source, für Windows." id="ogDescription">
+<meta property="og:image" content="https://zwilling10.github.io/ULM/assets/og-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://zwilling10.github.io/ULM/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Universal Linux Manager — Multiboot USB Stick Manager" id="twitterTitle">
+<meta name="twitter:description" content="ULM hält deine Ventoy-Multiboot-USB-Sticks automatisch mit den neuesten Linux-Live-ISOs aktuell." id="twitterDescription">
+<meta name="twitter:image" content="https://zwilling10.github.io/ULM/assets/og-preview.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230075BE'/%3E%3Ctext x='50' y='68' font-size='52' font-family='Segoe UI, Arial' font-weight='bold' fill='white' text-anchor='middle'%3EUL%3C/text%3E%3C/svg%3E">
 <style>
   :root{
@@ -95,6 +106,8 @@
   }
   .meta-row span{display:flex;align-items:center;gap:6px}
   .dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+  .hero-shot{margin-top:54px;max-width:900px;margin-left:auto;margin-right:auto}
+  .hero-shot img{width:100%;display:block;border-radius:var(--radius);border:1px solid var(--card-border);box-shadow:0 30px 80px rgba(0,0,0,.45)}
 
   /* ── Sections ────────────────────────────────────────────────── */
   section{padding:70px 0}
@@ -127,6 +140,7 @@
     font-size:12.5px;padding:8px 14px;border-radius:999px;
     background:rgba(255,255,255,.04);border:1px solid var(--card-border);color:var(--text-dim);
   }
+  .distro-examples{text-align:center;margin-top:22px;font-size:13px;color:var(--text-mute)}
 
   /* ── Tech ─────────────────────────────────────────────────────── */
   .tech-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
@@ -172,6 +186,7 @@
     <div class="links">
       <a href="#features" data-i18n="nav.features">Funktionen</a>
       <a href="#distros" data-i18n="nav.distros">Distros</a>
+      <a href="#faq" data-i18n="nav.faq">FAQ</a>
       <a href="#download" data-i18n="nav.download">Download</a>
     </div>
     <div class="nav-actions">
@@ -190,7 +205,7 @@
     <h1 data-i18n="hero.h1">Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten</h1>
     <p class="tagline" data-i18n="hero.tagline">ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/zwilling10/ULM/releases/latest" target="_blank" rel="noopener" data-i18n="hero.cta.download">⬇ Download für Windows</a>
+      <a class="btn btn-primary" href="#download" data-i18n="hero.cta.download">⬇ Download für Windows</a>
       <a class="btn btn-ghost" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener" data-i18n="hero.cta.source">Quellcode auf GitHub</a>
     </div>
     <div class="meta-row">
@@ -198,6 +213,9 @@
       <span data-i18n="hero.meta.noinstall">Keine Installation nötig</span>
       <span data-i18n="hero.meta.nonet">Keine .NET-Runtime nötig</span>
       <span data-i18n="hero.meta.mit">MIT-lizenziert</span>
+    </div>
+    <div class="hero-shot">
+      <img src="assets/screenshot-hero.png" alt="Universal Linux Manager – Hauptfenster mit ISO-Katalog, Kategorien und Ventoy-Ziellaufwerk (Dark Mode)" loading="eager" width="1160" height="750">
     </div>
   </div>
 </header>
@@ -276,6 +294,7 @@
       <span class="chip">🛡 Antivirus</span>
       <span class="chip">🪟 WinPE</span>
     </div>
+    <p class="distro-examples" data-i18n="distros.examples">z.B. Ubuntu · Linux Mint · Fedora · Zorin OS · Kali Linux · Tails · Clonezilla · CachyOS — und rund 20 weitere, alle vorkonfiguriert.</p>
   </div>
 </section>
 
@@ -321,6 +340,33 @@
   </div>
 </section>
 
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="kicker" data-i18n="faq.kicker">FAQ</div>
+      <h2 data-i18n="faq.h2">Häufige Fragen</h2>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <h3 data-i18n="faq.q1.h">Muss Ventoy bereits auf dem USB-Stick installiert sein?</h3>
+        <p data-i18n="faq.q1.p">Nein. Steckst du einen leeren oder unformatierten Stick an, erkennt ULM das automatisch und bietet an, Ventoy direkt einzurichten — inklusive Sticks, die z.B. mit Rufus im ISO-Modus beschrieben wurden.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="faq.q2.h">Warum erscheint die SmartScreen-Warnung in Windows?</h3>
+        <p data-i18n="faq.q2.p">ULM nutzt kein kostenpflichtiges Code-Signing-Zertifikat. Windows SmartScreen zeigt deshalb beim ersten Start „Unbekannter Herausgeber" — über „Weitere Informationen” → „Trotzdem ausführen” startet ULM ganz normal.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="faq.q3.h">Kann ich eigene ISOs/Quellen hinzufügen?</h3>
+        <p data-i18n="faq.q3.p">Ja. Über die Datenbank-Verwaltung lassen sich eigene Einträge mit Name, Kategorie und Download-URL anlegen. Findet ULM für eine Distro keine automatische Quelle, hilft die manuelle Quellen-Suche direkt in der Liste weiter.</p>
+      </div>
+      <div class="card">
+        <h3 data-i18n="faq.q4.h">Benötige ich Administratorrechte?</h3>
+        <p data-i18n="faq.q4.p">Für die normale Nutzung nein. Nur beim Einrichten oder Aktualisieren von Ventoy auf einem Stick fragt Windows einmalig per UAC nach — der Rest von ULM läuft mit normalen Benutzerrechten.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     <p>© 2025 ULM Project. Open Source.</p>
@@ -339,6 +385,7 @@
   var translations = {
     "nav.features": { de: "Funktionen", en: "Features" },
     "nav.distros": { de: "Distros", en: "Distros" },
+    "nav.faq": { de: "FAQ", en: "FAQ" },
     "nav.download": { de: "Download", en: "Download" },
     "hero.eyebrow": { de: "v2.40.0 · Open Source · Portabel oder installierbar", en: "v2.40.0 · Open Source · Portable or installable" },
     "hero.h1": { de: "Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten", en: "Keep multiboot USB&nbsp;sticks up to&nbsp;date in seconds" },
@@ -410,6 +457,10 @@
     "distros.cat3": { de: "🪶 Leichtgewicht", en: "🪶 Lightweight" },
     "distros.cat5": { de: "🔒 Sicherheit", en: "🔒 Security" },
     "distros.cat6": { de: "🛠 Rettung", en: "🛠 Rescue" },
+    "distros.examples": {
+      de: "z.B. Ubuntu · Linux Mint · Fedora · Zorin OS · Kali Linux · Tails · Clonezilla · CachyOS — und rund 20 weitere, alle vorkonfiguriert.",
+      en: "e.g. Ubuntu · Linux Mint · Fedora · Zorin OS · Kali Linux · Tails · Clonezilla · CachyOS — and around 20 more, all pre-configured."
+    },
 
     "tech.kicker": { de: "Technik", en: "Tech Stack" },
     "tech.h2": { de: "Gebaut mit", en: "Built with" },
@@ -425,17 +476,42 @@
       de: "Klassischer Installer mit Startmenü-Eintrag und Deinstaller. Windows SmartScreen zeigt beim ersten Start eine „Unbekannter Herausgeber“-Warnung (kein kostenpflichtiges Code-Signing-Zertifikat) — über „Weitere Informationen“ → „Trotzdem ausführen“ starten.",
       en: "Classic installer with a Start Menu entry and uninstaller. Windows SmartScreen shows an “Unknown publisher” warning on first run (no paid code-signing certificate) — start via “More info” → “Run anyway”."
     },
-    "dl.req3": { de: "✔ Kein Administrator nötig (außer für Ventoy-Setup)", en: "✔ No administrator required (except for Ventoy setup)" }
+    "dl.req3": { de: "✔ Kein Administrator nötig (außer für Ventoy-Setup)", en: "✔ No administrator required (except for Ventoy setup)" },
+
+    "faq.kicker": { de: "FAQ", en: "FAQ" },
+    "faq.h2": { de: "Häufige Fragen", en: "Frequently asked questions" },
+    "faq.q1.h": { de: "Muss Ventoy bereits auf dem USB-Stick installiert sein?", en: "Does Ventoy need to be installed on the USB stick already?" },
+    "faq.q1.p": {
+      de: "Nein. Steckst du einen leeren oder unformatierten Stick an, erkennt ULM das automatisch und bietet an, Ventoy direkt einzurichten — inklusive Sticks, die z.B. mit Rufus im ISO-Modus beschrieben wurden.",
+      en: "No. If you plug in an empty or unformatted stick, ULM detects it automatically and offers to set up Ventoy right away — including sticks written with tools like Rufus in ISO mode."
+    },
+    "faq.q2.h": { de: "Warum erscheint die SmartScreen-Warnung in Windows?", en: "Why does Windows SmartScreen show a warning?" },
+    "faq.q2.p": {
+      de: "ULM nutzt kein kostenpflichtiges Code-Signing-Zertifikat. Windows SmartScreen zeigt deshalb beim ersten Start „Unbekannter Herausgeber\" — über „Weitere Informationen” → „Trotzdem ausführen” startet ULM ganz normal.",
+      en: "ULM doesn't use a paid code-signing certificate. Windows SmartScreen therefore shows an \"Unknown publisher\" warning on first run — click \"More info\" → \"Run anyway\" to start ULM normally."
+    },
+    "faq.q3.h": { de: "Kann ich eigene ISOs/Quellen hinzufügen?", en: "Can I add my own ISOs/sources?" },
+    "faq.q3.p": {
+      de: "Ja. Über die Datenbank-Verwaltung lassen sich eigene Einträge mit Name, Kategorie und Download-URL anlegen. Findet ULM für eine Distro keine automatische Quelle, hilft die manuelle Quellen-Suche direkt in der Liste weiter.",
+      en: "Yes. The database manager lets you add your own entries with name, category, and download URL. If ULM can't find an automatic source for a distro, manual source search right in the list helps out."
+    },
+    "faq.q4.h": { de: "Benötige ich Administratorrechte?", en: "Do I need administrator rights?" },
+    "faq.q4.p": {
+      de: "Für die normale Nutzung nein. Nur beim Einrichten oder Aktualisieren von Ventoy auf einem Stick fragt Windows einmalig per UAC nach — der Rest von ULM läuft mit normalen Benutzerrechten.",
+      en: "Not for normal use. Windows only asks once via UAC when setting up or updating Ventoy on a stick — the rest of ULM runs with regular user rights."
+    }
   };
 
   var pageMeta = {
     de: {
       title: "Universal Linux Manager — Multiboot USB Stick Manager",
-      description: "Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz."
+      description: "Universal Linux Manager (ULM) — portabler Windows-Manager für Ventoy-Multiboot-USB-Sticks mit Linux-ISOs. Automatische Downloads, Versionschecks und Datenmüll-Schutz.",
+      ogDescription: "ULM hält deine Ventoy-Multiboot-USB-Sticks automatisch mit den neuesten Linux-Live-ISOs aktuell. Portabel, Open Source, für Windows."
     },
     en: {
       title: "Universal Linux Manager — Multiboot USB Stick Manager",
-      description: "Universal Linux Manager (ULM) — portable Windows manager for Ventoy multiboot USB sticks with Linux ISOs. Automatic downloads, version checks, and junk-file protection."
+      description: "Universal Linux Manager (ULM) — portable Windows manager for Ventoy multiboot USB sticks with Linux ISOs. Automatic downloads, version checks, and junk-file protection.",
+      ogDescription: "ULM automatically keeps your Ventoy multiboot USB sticks up to date with the latest Linux live ISOs. Portable, open source, for Windows."
     }
   };
 
@@ -451,6 +527,14 @@
     document.title = pageMeta[lang].title;
     var metaDesc = document.getElementById("metaDescription");
     if (metaDesc) metaDesc.setAttribute("content", pageMeta[lang].description);
+    var ogTitle = document.getElementById("ogTitle");
+    if (ogTitle) ogTitle.setAttribute("content", pageMeta[lang].title);
+    var ogDesc = document.getElementById("ogDescription");
+    if (ogDesc) ogDesc.setAttribute("content", pageMeta[lang].ogDescription);
+    var twTitle = document.getElementById("twitterTitle");
+    if (twTitle) twTitle.setAttribute("content", pageMeta[lang].title);
+    var twDesc = document.getElementById("twitterDescription");
+    if (twDesc) twDesc.setAttribute("content", pageMeta[lang].ogDescription);
 
     var nodes = document.querySelectorAll("[data-i18n]");
     for (var i = 0; i < nodes.length; i++) {

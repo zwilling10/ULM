@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal Linux Manager: Mockup (nicht veröffentlicht)</title>
+<style>
+  :root{
+    --bg:#0a1420; --bg-deep:#060d16; --card:#101f31; --card-border:#1c3350; --card-border-hi:#2a4d78;
+    --ink:#f1f6fb; --ink-dim:#a7bdd4; --ink-mute:#6f88a3;
+    --blue:#2ea1ea; --blue-deep:#0075be; --green:#3ac07c; --amber:#e8963a; --teal:#22c3a6;
+    --radius:16px;
+    --ease: cubic-bezier(.16,1,.3,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+    background:
+      radial-gradient(1000px 520px at 15% -8%, #123a63 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 10%, #0e2e3a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink-dim);
+    line-height:1.65;
+    overflow-x:hidden;
+  }
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+  h1,h2,h3,.brand,.status-line,.bootmenu .titlebar,.bootmenu li .tag{
+    font-family:"Cascadia Code","JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  h1,h2,h3{color:var(--ink);text-wrap:balance;font-weight:700;letter-spacing:-.01em}
+
+  .banner{
+    background:#3a2a0f;color:#f0c98a;border-bottom:1px solid #5a4420;
+    text-align:center;font-size:13px;padding:8px 12px;
+  }
+  .banner b{color:#ffdca0}
+
+  /* ── Nav ─────────────────────────────────────────────────────── */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(10,20,32,.78);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--card-border);
+  }
+  nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;color:var(--ink)}
+  .brand .logo{
+    width:34px;height:34px;border-radius:9px;background:var(--blue-deep);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
+  }
+  nav .links{display:flex;gap:26px;font-size:13.5px}
+  nav .links a{color:var(--ink-dim)}
+  nav .links a:hover{color:var(--ink);text-decoration:none}
+  .btn-gh-nav{
+    display:flex;align-items:center;gap:7px;color:var(--ink)!important;
+    border:1px solid var(--card-border);padding:7px 14px;border-radius:9px;font-size:13px;
+  }
+  .btn-gh-nav:hover{border-color:var(--blue);text-decoration:none}
+
+  /* ── Hero ────────────────────────────────────────────────────── */
+  header.hero{position:relative;padding:96px 0 84px}
+  .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
+  .status-line{
+    display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-mute);
+    margin-bottom:20px;font-variant-numeric:tabular-nums;
+  }
+  .status-line .dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+  h1{
+    font-size:clamp(32px,4.6vw,52px);font-weight:800;letter-spacing:-.02em;line-height:1.08;
+  }
+  h1 em{color:var(--blue);font-style:normal}
+  .tagline{margin-top:20px;font-size:clamp(15.5px,1.6vw,17.5px);color:var(--ink-dim);max-width:52ch}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:36px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    padding:14px 24px;border-radius:11px;font-weight:700;font-size:14.5px;
+    transition:transform .35s var(--ease), box-shadow .35s var(--ease), border-color .35s var(--ease);
+  }
+  .btn:hover{transform:translateY(-2px);text-decoration:none}
+  .btn-primary{background:var(--blue-deep);color:#fff;box-shadow:0 10px 26px rgba(0,117,190,.32)}
+  .btn-primary:hover{box-shadow:0 16px 34px rgba(0,117,190,.45);background:#0083d4}
+  .btn-ghost{background:rgba(255,255,255,.04);border:1px solid var(--card-border);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--card-border-hi)}
+  .req-inline{display:flex;gap:18px;flex-wrap:wrap;margin-top:30px;font-size:12.5px;color:var(--ink-mute)}
+  .req-inline span{display:flex;align-items:center;gap:6px}
+
+  /* ── Bootmenu visual (hero right side) ─────────────────────────── */
+  .bootmenu{
+    background:var(--bg-deep);border:1px solid var(--card-border-hi);border-radius:var(--radius);
+    overflow:hidden;box-shadow:0 30px 70px -20px rgba(0,0,0,.6);
+  }
+  .bootmenu .titlebar{
+    display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--card-border);
+    font-size:11.5px;color:var(--ink-mute);
+  }
+  .bootmenu .titlebar .tdot{width:9px;height:9px;border-radius:50%}
+  .bootmenu ul{list-style:none;padding:10px}
+  .bootmenu li{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;border-radius:9px;font-size:13.5px;color:var(--ink-dim);
+  }
+  .bootmenu li.active{background:rgba(46,161,234,.14);color:var(--ink);border:1px solid rgba(46,161,234,.35)}
+  .bootmenu li .tag{font-size:11px;color:var(--ink-mute);font-variant-numeric:tabular-nums}
+  .bootmenu li.active .tag{color:var(--blue)}
+
+  /* ── Sections ────────────────────────────────────────────────── */
+  section{padding:96px 0}
+  .section-head{max-width:640px;margin-bottom:56px}
+  .section-head h2{font-size:clamp(24px,3.2vw,32px);letter-spacing:-.015em}
+  .section-head p{color:var(--ink-dim);margin-top:14px;font-size:15px;max-width:60ch}
+
+  /* Feature highlights: asymmetric, alternating — not identical cards */
+  .feature-hl{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;margin-bottom:64px}
+  .feature-hl:nth-child(even) .feature-copy{order:2}
+  .feature-hl .feature-visual{
+    background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+    padding:28px;min-height:200px;display:flex;flex-direction:column;justify-content:center;gap:10px;
+  }
+  .feature-hl h3{font-size:21px;margin-bottom:12px;letter-spacing:-.01em}
+  .feature-hl p{font-size:14.5px;color:var(--ink-dim);max-width:46ch}
+  .race-row{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .race-row .src{width:84px;color:var(--ink-mute)}
+  .race-bar{flex:1;height:7px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
+  .race-bar > i{display:block;height:100%;border-radius:99px;background:var(--card-border-hi)}
+  .race-row.win .src{color:var(--green)}
+  .race-row.win .race-bar > i{background:var(--green)}
+  .sync-icon{font-size:34px}
+  .learn-chain{display:flex;flex-wrap:wrap;gap:8px;font-size:12px}
+  .learn-chain span{padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--card-border);color:var(--ink-dim)}
+  .learn-chain span.hit{border-color:rgba(58,192,124,.5);color:var(--green);background:rgba(58,192,124,.08)}
+
+  /* Dense capability list — different rhythm from the highlight blocks */
+  .cap-list{
+    display:grid;grid-template-columns:repeat(2,1fr);gap:1px;
+    background:var(--card-border);border:1px solid var(--card-border);border-radius:var(--radius);overflow:hidden;
+  }
+  .cap-item{background:var(--card);padding:20px 22px;display:flex;gap:14px;align-items:flex-start}
+  .cap-item .ic{font-size:18px;line-height:1;margin-top:2px}
+  .cap-item h4{font-size:14.5px;color:var(--ink);margin-bottom:4px}
+  .cap-item p{font-size:13px;color:var(--ink-dim)}
+
+  /* Distro categories */
+  .cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .cat-card{
+    background:var(--card);border:1px solid var(--card-border);border-radius:12px;
+    padding:20px;transition:border-color .3s var(--ease), transform .3s var(--ease);
+  }
+  .cat-card:hover{border-color:var(--card-border-hi);transform:translateY(-2px)}
+  .cat-card .ic{font-size:22px;margin-bottom:10px}
+  .cat-card h4{font-size:14px;color:var(--ink)}
+  .cat-card p{font-size:12.5px;color:var(--ink-mute);margin-top:4px}
+
+  /* Tech */
+  .tech-row{display:flex;gap:12px;flex-wrap:wrap}
+  .tech-badge{
+    display:flex;align-items:center;gap:9px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:10px;
+    padding:12px 18px;font-size:13px;font-weight:600;color:var(--ink);
+  }
+  .tech-badge .dot2{width:8px;height:8px;border-radius:50%}
+
+  /* Download */
+  .dl-panel{
+    background:linear-gradient(135deg, rgba(0,117,190,.16), rgba(34,195,166,.07));
+    border:1px solid rgba(0,117,190,.35);border-radius:20px;
+    padding:52px 44px;
+  }
+  .dl-panel h2{font-size:27px;margin-bottom:12px}
+  .dl-panel > p{color:var(--ink-dim);font-size:14.5px;max-width:60ch;margin-bottom:30px}
+  .dl-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .dl-card{
+    background:rgba(6,13,22,.5);border:1px solid var(--card-border);border-radius:13px;padding:22px 24px;
+  }
+  .dl-card h3{font-size:15.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .dl-card p{font-size:13px;color:var(--ink-dim)}
+  .req-list{display:flex;gap:22px;flex-wrap:wrap;margin-top:28px;font-size:12.5px;color:var(--ink-mute)}
+  .req-list span{display:flex;align-items:center;gap:7px}
+
+  footer{border-top:1px solid var(--card-border);padding:36px 0;margin-top:20px}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+  footer p{font-size:12.5px;color:var(--ink-mute)}
+  footer .flinks{display:flex;gap:18px;font-size:12.5px}
+
+  /* ── Reveal-on-scroll: enhances an already-visible default ─────── */
+  .reveal{opacity:.001;transform:translateY(18px);transition:opacity .7s var(--ease), transform .7s var(--ease)}
+  .reveal.in-view{opacity:1;transform:none}
+  @media (prefers-reduced-motion: reduce){
+    .reveal{transition:none;opacity:1;transform:none}
+  }
+
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr}
+    .feature-hl{grid-template-columns:1fr}
+    .feature-hl:nth-child(even) .feature-copy{order:0}
+    .cap-list{grid-template-columns:1fr}
+    .dl-grid{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    nav .links{display:none}
+    .dl-panel{padding:36px 24px}
+  }
+</style>
+</head>
+<body>
+
+<div class="banner">🎨 <b>Nur Mockup:</b> lokale Design-Vorschau, nichts hiervon ist veröffentlicht oder ersetzt die echte docs/index.html</div>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="logo">UL</span> Universal Linux Manager</div>
+    <div class="links">
+      <a href="#features">Funktionen</a>
+      <a href="#distros">Distros</a>
+      <a href="#download">Download</a>
+    </div>
+    <a class="btn-gh-nav" href="#" onclick="return false">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="status-line"><span class="dot"></span> v2.38.1 · läuft gerade auf 1.204 Sticks aktuell</div>
+      <h1>Dein Multiboot-Stick bleibt <em>von selbst</em> aktuell</h1>
+      <p class="tagline">ULM findet für jede Distro auf deinem Ventoy-Stick automatisch die neueste ISO bei der offiziellen Quelle, lädt sie über den schnellsten verfügbaren Mirror und räumt kaputte oder doppelte Downloads gleich mit auf.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#" onclick="return false">⬇ Download für Windows</a>
+        <a class="btn btn-ghost" href="#" onclick="return false">Quellcode auf GitHub</a>
+      </div>
+      <div class="req-inline">
+        <span>Windows 10 / 11 (x64)</span>
+        <span>Keine Installation nötig</span>
+        <span>MIT-lizenziert</span>
+      </div>
+    </div>
+    <div class="bootmenu reveal">
+      <div class="titlebar"><span class="tdot" style="background:#e2685c"></span><span class="tdot" style="background:#e6b955"></span><span class="tdot" style="background:#3ac07c"></span> Ventoy Boot Menu</div>
+      <ul>
+        <li class="active"><span>Ubuntu 24.04 LTS</span><span class="tag">aktuell</span></li>
+        <li><span>Kali Linux 2026.1</span><span class="tag">↓ Update verfügbar</span></li>
+        <li><span>Tails 6.x</span><span class="tag">aktuell</span></li>
+        <li><span>Rescuezilla</span><span class="tag">aktuell</span></li>
+        <li><span>Hiren's BootCD PE</span><span class="tag">aktuell</span></li>
+      </ul>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Alles, was ein Multiboot-Stick braucht</h2>
+      <p>Drei Kernaufgaben tragen den ganzen Workflow, vom Auffinden der richtigen Quelle bis zum sauberen Bootmenü.</p>
+    </div>
+
+    <div class="feature-hl reveal">
+      <div class="feature-copy">
+        <h3>⬇ Mirror-Race statt fester Links</h3>
+        <p>Über 20 dedizierte Erkennungsroutinen lösen für jede Distro die aktuelle URL direkt beim Anbieter auf. Vor dem Download testet ULM alle konfigurierten Mirrors parallel und nimmt automatisch den schnellsten.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="race-row win"><span class="src">TU Berlin</span><div class="race-bar"><i style="width:92%"></i></div></div>
+        <div class="race-row"><span class="src">OSU (US)</span><div class="race-bar"><i style="width:61%"></i></div></div>
+        <div class="race-row"><span class="src">SourceForge</span><div class="race-bar"><i style="width:38%"></i></div></div>
+      </div>
+    </div>
+
+    <div class="feature-hl reveal">
+      <div class="feature-copy">
+        <h3>💾 Ein Stick, kein Neu-Flashen</h3>
+        <p>ULM kopiert jeden Download direkt auf den Ventoy-Stick und aktualisiert das Bootmenü automatisch: dutzende ISOs nebeneinander, jederzeit erweiterbar.</p>
+      </div>
+      <div class="feature-visual" style="align-items:center">
+        <div class="sync-icon">💾 → 🥾</div>
+        <p style="font-size:12.5px;color:var(--ink-mute)">Download-Ordner → Ventoy-Partition, automatisch synchron</p>
+      </div>
+    </div>
+
+    <div class="feature-hl reveal">
+      <div class="feature-copy">
+        <h3>📥 Selbstlernende Erkennung</h3>
+        <p>Manuell hinzugefügte oder vom Stick importierte Distros ordnet ULM automatisch der passenden Quelle zu (einmal gefunden, für immer gemerkt). Bleibt eine Distro hartnäckig, gibt's eine manuelle Suche direkt in der Liste.</p>
+      </div>
+      <div class="feature-visual">
+        <div class="learn-chain">
+          <span class="hit">Dedizierter Erkenner ✓</span>
+          <span>DistroWatch-Suche</span>
+          <span>SourceForge</span>
+          <span>Websuche</span>
+          <span>Manuell</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cap-list reveal">
+      <div class="cap-item"><div class="ic">🩺</div><div><h4>Gesundheitscheck &amp; Duplikat-Schutz</h4><p>Läuft automatisch nach jedem Download oder Scan.</p></div></div>
+      <div class="cap-item"><div class="ic">🧹</div><div><h4>Datenmüll-Schutz</h4><p>Online-Größenprüfung erkennt unvollständige Downloads.</p></div></div>
+      <div class="cap-item"><div class="ic">🔄</div><div><h4>Automatisches Selbst-Update</h4><p>Lädt neue ULM-Versionen im Hintergrund, ein Klick installiert &amp; startet neu.</p></div></div>
+      <div class="cap-item"><div class="ic">🌓</div><div><h4>Dark Mode</h4><p>System/Hell/Dunkel, schaltet live um, folgt bei "System" Windows.</p></div></div>
+      <div class="cap-item"><div class="ic">📦</div><div><h4>Portabel oder installiert</h4><p>Self-contained .exe oder klassischer Setup mit Deinstaller.</p></div></div>
+      <div class="cap-item"><div class="ic">📈</div><div><h4>Fortschritt mit ETA</h4><p>Geschwindigkeit, Restzeit und übertragene Menge in Echtzeit.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="distros">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Für jeden Einsatzzweck die richtige Distro</h2>
+      <p>Vorkonfiguriert und kategorisiert, von Einsteiger-Desktops bis Pen-Testing.</p>
+    </div>
+    <div class="cat-grid reveal">
+      <div class="cat-card"><div class="ic">🖥</div><h4>Einsteiger</h4><p>Ubuntu, Mint, Zorin</p></div>
+      <div class="cat-card"><div class="ic">⚙</div><h4>Fortgeschrittene</h4><p>Arch, Debian, Fedora</p></div>
+      <div class="cat-card"><div class="ic">🪶</div><h4>Leichtgewicht</h4><p>Puppy, antiX, Tiny Core</p></div>
+      <div class="cat-card"><div class="ic">🎮</div><h4>Gaming</h4><p>Nobara, Bazzite</p></div>
+      <div class="cat-card"><div class="ic">🔒</div><h4>Sicherheit</h4><p>Kali, Parrot, Tails</p></div>
+      <div class="cat-card"><div class="ic">🛠</div><h4>Rettung</h4><p>Rescuezilla, SystemRescue</p></div>
+      <div class="cat-card"><div class="ic">🛡</div><h4>Antivirus</h4><p>Kaspersky Rescue, ESET</p></div>
+      <div class="cat-card"><div class="ic">🪟</div><h4>WinPE</h4><p>Hiren's BootCD PE</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <h2>Gebaut mit</h2>
+    </div>
+    <div class="tech-row reveal">
+      <div class="tech-badge"><span class="dot2" style="background:#0075be"></span> .NET 8</div>
+      <div class="tech-badge"><span class="dot2" style="background:#3ac07c"></span> C# / WPF</div>
+      <div class="tech-badge"><span class="dot2" style="background:#e8963a"></span> MVVM</div>
+      <div class="tech-badge"><span class="dot2" style="background:#22c3a6"></span> Ventoy</div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap">
+    <div class="dl-panel reveal">
+      <h2>Jetzt herunterladen</h2>
+      <p>Neueste Version von GitHub Releases, zwei Varianten zur Wahl.</p>
+      <a class="btn btn-primary" href="#" onclick="return false" style="margin-bottom:32px">⬇ Neueste Version herunterladen</a>
+      <div class="dl-grid">
+        <div class="dl-card"><h3>📦 Portable EXE</h3><p>Eine einzige Datei, kein Installer, keine Adminrechte nötig (auch vom Stick startbar).</p></div>
+        <div class="dl-card"><h3>🛠 Setup.exe</h3><p>Klassischer Installer mit Startmenü-Eintrag und Deinstaller. SmartScreen zeigt beim ersten Start „Unbekannter Herausgeber": über „Weitere Informationen" → „Trotzdem ausführen".</p></div>
+      </div>
+      <div class="req-list">
+        <span>✔ Windows 10 / 11 (x64)</span>
+        <span>✔ ~70&nbsp;MB</span>
+        <span>✔ Kein Administrator nötig (außer für Ventoy-Setup)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>© 2026 ULM Project. Open Source.</p>
+    <div class="flinks">
+      <a href="#" onclick="return false">GitHub</a>
+      <a href="#" onclick="return false">Releases</a>
+      <a href="#" onclick="return false">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  var revealEls = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting) { e.target.classList.add('in-view'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.15 });
+    revealEls.forEach(function(el){ io.observe(el); });
+  } else {
+    revealEls.forEach(function(el){ el.classList.add('in-view'); });
+  }
+</script>
+
+</body>
+</html>
