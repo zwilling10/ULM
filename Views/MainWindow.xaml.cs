@@ -739,7 +739,11 @@ namespace ULM.Views
                 OfferDriveChoiceIfMultiple();
                 return;
             }
-            if (UsbService.IsVentoyInstalled(nd.Letter)) { StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return; }
+            // IsVentoyInstalledWithRetry statt IsVentoyInstalled: hier entscheidet das Ergebnis, ob
+            // der destruktive "alle Daten löschen"-Dialog unten erscheint — ein falsches "false"
+            // kurz nach dem Einstecken (Mount-Timing) darf nicht zu einem unnötigen Lösch-Angebot
+            // auf einem bereits fertigen Ventoy-Stick führen (live gefunden, siehe UsbService.cs).
+            if (UsbService.IsVentoyInstalledWithRetry(nd.Letter)) { StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return; }
             if (MessageBox.Show(
                 string.Format(LocalizationService.T(Str.Msg_NewDriveDetected_Body),
                     nd.Letter, string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label, nd.SizeBytes / 1_073_741_824.0),

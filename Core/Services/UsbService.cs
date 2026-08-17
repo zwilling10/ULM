@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using ULM.Core.Models;
 using ULM.Infrastructure;
@@ -299,6 +300,34 @@ foreach ($d in $disks) {
 
         public static bool IsVentoyInstalled(string letter)
         { try { return Directory.Exists(Path.Combine(DriveRoot(letter), "ventoy")); } catch { return false; } }
+
+        /// <summary>
+        /// Wie IsVentoyInstalled, aber mit kurzer Wiederholungsprüfung, bevor "nicht installiert"
+        /// als endgültig gilt — nur für die eine sicherheitskritische Stelle gedacht, an der ein
+        /// falsches "false" zu einem destruktiven "alle Daten löschen"-Angebot führt
+        /// (Views/MainWindow.xaml.cs OnNewDriveInserted). Nicht für die häufig ausgewertete
+        /// DriveInfoText-Anzeige verwendet — dort würde eine wiederholte Verzögerung bei jeder
+        /// Eigenschafts-Auswertung unnötig stören.
+        ///
+        /// BUGFIX (vermutet, live gefunden 2026-08-17): Ein bereits vollständig eingerichteter
+        /// Ventoy-Stick (Ventoy-Partition + VTOYEFI, in der Datenträgerverwaltung bestätigt) löste
+        /// trotzdem den destruktiven "ALLE DATEN WERDEN GELÖSCHT"-Dialog aus. Vermutete Ursache:
+        /// unmittelbar nach dem Einstecken kann Directory.Exists() auf den frisch gemounteten
+        /// Stick kurz VOR dem tatsächlichen Mount-Abschluss laufen und fälschlich "false" liefern,
+        /// obwohl der Ordner tatsächlich existiert.
+        /// </summary>
+        public static bool IsVentoyInstalledWithRetry(string letter, int attempts = 3, int delayMs = 300) =>
+            RetryUntilTrue(() => IsVentoyInstalled(letter), attempts, _ => Thread.Sleep(delayMs));
+
+        internal static bool RetryUntilTrue(Func<bool> check, int attempts, Action<int> delay)
+        {
+            for (int i = 0; i < attempts; i++)
+            {
+                if (check()) return true;
+                if (i < attempts - 1) delay(i);
+            }
+            return false;
+        }
 
         /// <summary>
         /// Verschiebt eine ISO auf dem Stick in den Kategorie-Ordner (Stick-Wurzel\Kategorie\Dateiname),
