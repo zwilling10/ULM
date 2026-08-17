@@ -441,6 +441,11 @@ namespace ULM.Infrastructure
         Db_FromCache, Db_FreshlyLoaded, Db_DiscoveryStatusSuffix, Db_NameAlreadyInDb,
         Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
 
+        Preview_DialogTitle, Preview_OpenTooltip, Preview_LoadError, Preview_Label_BasedOn,
+        Preview_Label_Origin, Preview_Label_Architecture, Preview_Label_Desktop,
+        Preview_Label_Status, Preview_Status_Active, Preview_Status_Inactive,
+        Preview_Label_Popularity, Preview_PopularityValue, Preview_OpenInBrowser,
+
         Db_ImportDialog_Title, Db_ImportDialog_Info, Db_ColHeader_NameEdit, Db_ColHeader_Category,
         Db_FileSizeLine, Db_SourceUrlLabel, Db_Btn_SelectAll, Db_Btn_DeselectAll, Db_Btn_Skip,
         Db_Btn_Import, Db_ImportError_NoName, Db_ImportIncomplete_Body, Db_ImportIncomplete_Title,
