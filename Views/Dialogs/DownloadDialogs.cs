@@ -434,6 +434,19 @@ namespace ULM.Views.Dialogs
             _overallBar.Value = pct;
             _overallBar.Foreground = ProgressColor(pct);
             _overallText.Text = string.Format(LocalizationService.T(Str.Dl_OverallStatus), pct, done, _total);
+
+            // BUGFIX (live gefunden 2026-08-17): SetOverallComplete() setzt die Kopfzeile nur beim
+            // Abschluss EINES Batches — startet danach ein Retry für einen zuvor fehlgeschlagenen
+            // Eintrag (z.B. über "🔧 Quelle manuell suchen"), lief das als eigener, neuer Batch mit
+            // eigenem Completed-Aufruf, der erst am ENDE des Retries erneut SetOverallComplete
+            // aufruft. Bis dahin blieb die Kopfzeile auf der alten "X erfolgreich, Y fehlgeschlagen"-
+            // Bilanz des ERSTEN Versuchs stehen, obwohl die Zeile darunter (UpdateDownload/UpdateCopy,
+            // ruft beide RecomputeOverall auf) bereits sichtbar echten Live-Fortschritt zeigte.
+            // Solange noch nicht alle Einträge fertig sind, zeigt die Kopfzeile deshalb wieder den
+            // neutralen "läuft"-Text — SetOverallComplete() überschreibt ihn danach wie gewohnt mit
+            // der finalen Bilanz.
+            if (done < _total)
+                _summaryText.Text = LocalizationService.T(_total == 1 ? Str.Dl_DownloadRunningSingle : Str.Dl_DownloadRunningMultiple);
         }
 
         // BUGFIX: Gesamt-Balken/-Text wurden hier bisher hart auf 100%/"{_total}/{_total} fertig"
