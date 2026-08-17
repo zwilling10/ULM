@@ -1485,16 +1485,21 @@ namespace ULM.ViewModels
                     // tatsächlichen aktuellen Zustand (inkl. Buchstaben-Wechsel), statt bis zum
                     // nächsten Timer-Tick zu warten, und ruft OnPropertyChanged(DriveInfoText)
                     // bereits selbst mit auf.
+                    //
+                    // BUGFIX (Reihenfolge, live gefunden 2026-08-17): _lastVentoyInstallCooldown
+                    // MUSS bereits VOR RefreshDrives() gesetzt sein — RefreshDrives() liest
+                    // DriveInfoText synchron sofort mit aus (über den SelectedDrive-Setter), und
+                    // DriveInfoText prüft genau diesen Cooldown als Fallback. War der Cooldown
+                    // hier noch leer, konnte der Fallback im entscheidenden Moment nicht greifen —
+                    // die Statusanzeige blieb dadurch trotz vorherigem Fix weiterhin auf "Kein
+                    // Ventoy" hängen (live reproduziert, ExitCode war nachweislich 0).
+                    if (success) _lastVentoyInstallCooldown = (installedDriveSizeBytes, DateTime.UtcNow);
                     RefreshDrives();
                     StatusText = success
                         ? (updateMode ? LocalizationService.T(Str.Log_VentoyUpdatedStatus) : LocalizationService.T(Str.Log_VentoyInstalledStatus))
                         : LocalizationService.T(Str.Log_VentoyFailedStatus);
                     Log(string.Format(LocalizationService.T(Str.Log_VentoyExitCode), StatusText, proc.ExitCode));
-                    if (success)
-                    {
-                        _lastVentoyInstallCooldown = (installedDriveSizeBytes, DateTime.UtcNow);
-                        TriggerUsbScan();
-                    }
+                    if (success) TriggerUsbScan();
                     else ShowMessageBox?.Invoke("Ventoy-Installation fehlgeschlagen.\nDetails im Ventoy-Installationsfenster.", true);
                 });
             }
