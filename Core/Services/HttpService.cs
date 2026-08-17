@@ -207,6 +207,17 @@ namespace ULM.Core.Services
             catch (Exception ex) { Debug.WriteLine($"[GetString] {url}: {ex.Message}"); return null; }
         }
 
+        public async Task<byte[]?> GetBytesAsync(string url, int timeoutSeconds = 10)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+                return await _client.GetByteArrayAsync(url, cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex) { Debug.WriteLine($"[GetBytes] {url}: {ex.Message}"); return null; }
+        }
+
         public async Task<double> MeasureDownloadSpeedMbpsAsync(CancellationToken ct, long testBytes = 4_000_000)
         {
             try
