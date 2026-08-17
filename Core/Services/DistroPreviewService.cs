@@ -64,10 +64,18 @@ namespace ULM.Core.Services
             foreach (var m in new[] { basedOnMatch, originMatch, architectureMatch, desktopMatch, statusMatch, popMatch })
                 if (m.Success) anchor = Math.Max(anchor, m.Index + m.Length);
 
+            // Trennt die eigentliche Beschreibung vom nachfolgenden Popularitäts-/Visitor-Rating-
+            // Block. WICHTIG: DistroWatch nutzt hier <br /> (self-closing, mit Leerzeichen vor dem
+            // Slash), NICHT bare <br> — ein Muster ohne Toleranz dafür (<br><br> wörtlich) trifft
+            // dann gar nicht an dieser Stelle und läuft irgendwann auf ein zufälliges späteres
+            // <br><br> weiter unten auf der Seite, wobei die Popularitäts-Tabelle + "Visitor
+            // rating"-Zeile als Teil der "Beschreibung" mit reinrutschen (live an ThorOS
+            // beobachtet). <br\s*/?> deckt <br>, <br/> und <br /> gleichermaßen ab.
+            const string BrPattern = @"<br\s*/?>";
             string description = string.Empty;
             if (anchor > 0 && anchor < html.Length)
             {
-                var descMatch = Regex.Match(html[anchor..], @"</ul>\s*(.*?)\s*<br><br>", RegexOptions.Singleline);
+                var descMatch = Regex.Match(html[anchor..], $@"</ul>\s*(.*?)\s*{BrPattern}\s*{BrPattern}", RegexOptions.Singleline);
                 if (descMatch.Success)
                     description = System.Net.WebUtility.HtmlDecode(descMatch.Groups[1].Value).Trim();
             }

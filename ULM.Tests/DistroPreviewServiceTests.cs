@@ -22,8 +22,9 @@ namespace ULM.Tests
             <br></li><li><b>Architektur:</b> <a href="search.php?architecture=x86_64#simple">x86_64</a><br></li><li><b>Desktop:</b> <a href="search.php?desktop=GNOME#simple">GNOME</a><br></li><li><b>Kategorie:</b> <a href="search.php?category=Desktop#simple">Desktop</a>, <a href="search.php?category=Large+Language+Model#simple">Large Language Model</a>, <a href="search.php?category=Live+Medium#simple">Live Medium</a><br></li><li><b>Status:</b> <font color="green">Aktiv</font><br></li><li><b>Popularität:</b> <a href="dwres.php?resource=popularity">488 (18 Treffer pro Tag)</a>
             </li></ul>
             ThorOS is a Debian-based desktop Linux distribution featuring the GNOME desktop. Its principal feature is "voice control".
-                <br><br>
-            <b><a href="dwres.php?resource=popularity">Popularität</a></b>
+                <br /><br />
+            <b><a href="dwres.php?resource=popularity">Popularität (Treffer pro Tag)</a>:</b> 12 Monate: <b>490</b> (9)
+            <br /><br /><b>Visitor rating</b>: No visitor rating given yet. <a href="dwres.php?resource=ratings&distro=thoros">Rate this project</a>.
             """;
 
         [Fact]
@@ -40,7 +41,15 @@ namespace ULM.Tests
             Assert.Equal(488, result.PopularityRank);
             Assert.Equal(18, result.PopularityHitsPerDay);
             Assert.StartsWith("ThorOS is a Debian-based desktop Linux distribution", result.Description);
+            Assert.EndsWith("voice control\".", result.Description);
             Assert.DoesNotContain("<br", result.Description);
+            // Regressionstest für einen live gefundenen Bug (2026-08-17, ThorOS): DistroWatch
+            // trennt Beschreibung und nachfolgenden Popularitäts-/Visitor-Rating-Block mit
+            // self-closing <br /> (Leerzeichen vor dem Slash) statt bare <br> — ein Muster ohne
+            // Toleranz dafür lief daran vorbei und schluckte diesen Block als Teil der
+            // "Beschreibung" mit rein (live im Popup beobachtet).
+            Assert.DoesNotContain("Popularität (Treffer pro Tag)", result.Description);
+            Assert.DoesNotContain("Visitor rating", result.Description);
         }
 
         [Fact]
