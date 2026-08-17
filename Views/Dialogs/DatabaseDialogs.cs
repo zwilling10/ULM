@@ -370,6 +370,7 @@ namespace ULM.Views.Dialogs
                     var row = new Grid { Margin = new Thickness(0, 2, 0, 2) };
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     ApplyRowHighlight(row, d);
@@ -386,12 +387,22 @@ namespace ULM.Views.Dialogs
                     };
                     Grid.SetColumn(nameTb, 1); row.Children.Add(nameTb);
 
+                    var previewBtn = new Button
+                    {
+                        Content = "🔍", Width = 26, Height = 24, Padding = new Thickness(0),
+                        Style = (Style)Application.Current.Resources["BtnGhost"],
+                        FontSize = 11, Margin = new Thickness(0, 2, 6, 2),
+                        ToolTip = LocalizationService.T(Str.Preview_OpenTooltip),
+                    };
+                    previewBtn.Click += (_, _) => new DistroPreviewDialog(d.Name, d.Slug, d.Tags) { Owner = this }.ShowDialog();
+                    Grid.SetColumn(previewBtn, 2); row.Children.Add(previewBtn);
+
                     var catCb = new ComboBox { Margin = new Thickness(6, 2, 6, 2), IsEnabled = !d.AlreadyInDb };
                     AppRes.FillCategoryCombo(catCb, d.SuggestedCategory);
-                    Grid.SetColumn(catCb, 2); row.Children.Add(catCb);
+                    Grid.SetColumn(catCb, 3); row.Children.Add(catCb);
 
                     var infoTb = new TextBlock { Text = d.Info, FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 4, 4), Foreground = (Brush)Application.Current.Resources["BrushDim"] };
-                    Grid.SetColumn(infoTb, 3); row.Children.Add(infoTb);
+                    Grid.SetColumn(infoTb, 4); row.Children.Add(infoTb);
 
                     tab.RowsPanel.Children.Add(row);
                     tab.Rows.Add(new DiscoveryRow { Row = row, Chk = chk, CatCb = catCb, NameTb = nameTb, Distro = d });
