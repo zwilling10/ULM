@@ -33,37 +33,53 @@ namespace ULM.Core.Services
 
         internal static DistroPreview ParseProfileHtml(string name, string slug, string html)
         {
-            string basedOn      = ExtractFirst(html, @"search\.php\?basedon=([^""#]+)#simple") ?? string.Empty;
-            string origin        = ExtractFirst(html, @"search\.php\?origin=([^""#]+)#simple") ?? string.Empty;
-            string architecture  = ExtractFirst(html, @"search\.php\?architecture=([^""#]+)#simple") ?? string.Empty;
-            string desktop       = ExtractFirst(html, @"search\.php\?desktop=([^""#]+)#simple") ?? string.Empty;
+            var basedOnMatch      = Regex.Match(html, @"search\.php\?basedon=([^""#]+)#simple", RegexOptions.IgnoreCase);
+            var originMatch        = Regex.Match(html, @"search\.php\?origin=([^""#]+)#simple", RegexOptions.IgnoreCase);
+            var architectureMatch  = Regex.Match(html, @"search\.php\?architecture=([^""#]+)#simple", RegexOptions.IgnoreCase);
+            var desktopMatch       = Regex.Match(html, @"search\.php\?desktop=([^""#]+)#simple", RegexOptions.IgnoreCase);
+            var statusMatch        = Regex.Match(html, @"<font color=""([^""]+)"">");
+            var popMatch           = Regex.Match(html, @"resource=popularity"">(\d+)\s*\((\d+)");
 
-            bool? isActive = null;
-            var statusMatch = Regex.Match(html, @"<font color=""([^""]+)"">");
-            if (statusMatch.Success)
-                isActive = statusMatch.Groups[1].Value.Equals("green", StringComparison.OrdinalIgnoreCase);
+            bool? isActive = statusMatch.Success
+                ? statusMatch.Groups[1].Value.Equals("green", StringComparison.OrdinalIgnoreCase)
+                : (bool?)null;
 
             int rank = 0, hits = 0;
-            var popMatch = Regex.Match(html, @"resource=popularity"">(\d+)\s*\((\d+)");
             if (popMatch.Success)
             {
                 int.TryParse(popMatch.Groups[1].Value, out rank);
                 int.TryParse(popMatch.Groups[2].Value, out hits);
             }
 
+            // Die Beschreibung steht direkt nach dem </ul>, das die Kurzfakten-Liste abschließt.
+            // Ein naives "erstes </ul> im gesamten Dokument"-Muster trifft stattdessen fälschlich
+            // das schließende </ul> des Seiten-Navigations-Dropdownmenüs (steht im HTML VOR den
+            // Fakten) — live an SkillFishOS beobachtet: landete dann mitten im direkt
+            // anschließenden <script>-Block mit dem Menü-JavaScript der Seite, JS-Quelltext
+            // erschien als "Beschreibung" im Popup. Deshalb startet die Suche erst NACH dem Ende
+            // des am weitesten hinten liegenden, tatsächlich gefundenen Fakten-Treffers
+            // (Popularität steht als letztes Feld in der Liste, ist also normalerweise der
+            // maßgebliche Anker — die Schleife ist trotzdem robust, falls einzelne Felder fehlen).
+            int anchor = 0;
+            foreach (var m in new[] { basedOnMatch, originMatch, architectureMatch, desktopMatch, statusMatch, popMatch })
+                if (m.Success) anchor = Math.Max(anchor, m.Index + m.Length);
+
             string description = string.Empty;
-            var descMatch = Regex.Match(html, @"</ul>\s*(.*?)\s*<br><br>", RegexOptions.Singleline);
-            if (descMatch.Success)
-                description = System.Net.WebUtility.HtmlDecode(descMatch.Groups[1].Value).Trim();
+            if (anchor > 0 && anchor < html.Length)
+            {
+                var descMatch = Regex.Match(html[anchor..], @"</ul>\s*(.*?)\s*<br><br>", RegexOptions.Singleline);
+                if (descMatch.Success)
+                    description = System.Net.WebUtility.HtmlDecode(descMatch.Groups[1].Value).Trim();
+            }
 
             return new DistroPreview
             {
                 Name                 = name,
                 Description          = description,
-                BasedOn              = basedOn,
-                Origin               = origin,
-                Architecture         = architecture,
-                Desktop              = desktop,
+                BasedOn              = DecodeGroup(basedOnMatch),
+                Origin               = DecodeGroup(originMatch),
+                Architecture         = DecodeGroup(architectureMatch),
+                Desktop              = DecodeGroup(desktopMatch),
                 IsActive             = isActive,
                 PopularityRank       = rank,
                 PopularityHitsPerDay = hits,
@@ -71,10 +87,7 @@ namespace ULM.Core.Services
             };
         }
 
-        private static string? ExtractFirst(string html, string pattern)
-        {
-            var m = Regex.Match(html, pattern, RegexOptions.IgnoreCase);
-            return m.Success ? System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim() : null;
-        }
+        private static string DecodeGroup(Match m) =>
+            m.Success ? System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim() : string.Empty;
     }
 }

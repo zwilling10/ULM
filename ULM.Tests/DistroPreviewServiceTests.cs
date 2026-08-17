@@ -66,5 +66,36 @@ namespace ULM.Tests
             var result = DistroPreviewService.ParseProfileHtml("ThorOS", "thoros", html);
             Assert.Equal(string.Empty, result.Origin);
         }
+
+        // Regressionstest für einen live gefundenen Bug (2026-08-17, SkillFishOS): DistroWatch-
+        // Seiten haben VOR der Fakten-Liste ein Navigations-Dropdown-Menü (ebenfalls ein <ul>),
+        // direkt gefolgt von einem <script>-Block mit dessen JavaScript. Ein naives "erstes </ul>
+        // im Dokument"-Muster griff dieses Nav-Menü statt der Fakten-Liste und lieferte den
+        // JavaScript-Quelltext als "Beschreibung" zurück (live im Popup beobachtet).
+        [Fact]
+        public void ParseProfileHtml_IgnoresEarlierNavigationMenuUlBeforeFactsList()
+        {
+            const string navMenuPrefix = """
+                <ul class="dropdown-content">
+                  <li><a href="/">Startseite</a></li>
+                </ul>
+                <script language="JavaScript">
+                <!--
+                function ClearMenus()
+                {
+                    var dropdowns = document.getElementsByClassName("dropdown-content");
+                }
+                //-->
+                </script>
+
+                """;
+            string html = navMenuPrefix + SampleHtml;
+
+            var result = DistroPreviewService.ParseProfileHtml("ThorOS", "thoros", html);
+
+            Assert.StartsWith("ThorOS is a Debian-based desktop Linux distribution", result.Description);
+            Assert.DoesNotContain("ClearMenus", result.Description);
+            Assert.DoesNotContain("<script", result.Description);
+        }
     }
 }
