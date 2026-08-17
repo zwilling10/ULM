@@ -644,6 +644,18 @@ namespace ULM.Core.Services
             var dw = await ResolveViaDistroWatchAsync(entry).ConfigureAwait(false);
             if (dw != Empty) return dw;
 
+            // BUGFIX (live gefunden bei CaramOS, 2026-08-17): ResolveViaDistroWatchAsync findet
+            // SourceForge-Projekte bisher NUR, wenn ein Link dorthin zufällig auf der gecrawlten
+            // Homepage/Download-Unterseite steht (TryFindSourceForgeProjectSlug). Verweist die
+            // offizielle Homepage stattdessen z.B. auf GitHub Releases (oder ihr Download-Link
+            // trägt gar kein englisches/deutsches "download"-Wort, siehe CaramOS: "Tải ISO"
+            // vietnamesisch), bricht der Automatismus dort komplett ab — OBWOHL ein SourceForge-
+            // Projekt mit demselben Namen tatsächlich existiert (bei CaramOS von Hand gefunden:
+            // sourceforge.net/projects/caramos). Eine gezielte Suche schließt genau diese Lücke,
+            // bevor auf die ungenauere, generische Websuche zurückgefallen wird.
+            var sf = await ResolveViaSourceForgeSearchAsync(entry).ConfigureAwait(false);
+            if (sf != Empty) return sf;
+
             // Allerletzter Fallback — nur wenn ALLE oben genannten, schnelleren und präziseren
             // Strategien nichts gefunden haben: eine echte Websuche, wie sie ein Mensch machen
             // würde. Läuft bewusst auch dann, wenn gar keine URL konfiguriert ist (allUrls leer)
@@ -755,6 +767,41 @@ namespace ULM.Core.Services
                 return (ExtractVersion(bestFname), url, bestFname);
             }
             catch (Exception ex) { Debug.WriteLine($"[DistroWatch] {entry.Name}: {ex.Message}"); return Empty; }
+        }
+
+        /// <summary>
+        /// Gezielte Suche nach einem SourceForge-Projekt mit demselben Namen wie die Distro — für
+        /// den Fall, dass die offizielle Homepage (ResolveViaDistroWatchAsync) keinen SourceForge-
+        /// Link enthält, obwohl ein passendes Projekt existiert (z.B. weil dort stattdessen auf
+        /// GitHub Releases verwiesen wird, oder der Download-Link nicht-englisch beschriftet ist).
+        /// Sucht bewusst mit "site:sourceforge.net/projects" statt nur "site:sourceforge.net" —
+        /// filtert Diskussions-/Ticket-/Wiki-Treffer desselben Projekts direkt heraus. Nutzt danach
+        /// dieselbe, bereits bewährte RSS-Feed-Auflösung (TryResolveSourceForgeProjectAsync) wie
+        /// jeder andere SourceForge-Fund in dieser Klasse.
+        /// </summary>
+        private async Task<(string, string, string)> ResolveViaSourceForgeSearchAsync(IsoEntry entry)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Name)) return Empty;
+            try
+            {
+                string query = Uri.EscapeDataString($"{FirstKeyword(entry.Name)} site:sourceforge.net/projects");
+                string? searchHtml = await GetStringAsync($"https://html.duckduckgo.com/html/?q={query}", 15).ConfigureAwait(false);
+                if (searchHtml is null) return Empty;
+
+                var slugs = Regex.Matches(searchHtml, @"class=""result__a""[^>]*href=""([^""]+)""", RegexOptions.IgnoreCase)
+                    .Cast<Match>().Select(m => ResolveDuckDuckGoRedirect(m.Groups[1].Value))
+                    .Select(u => TryFindSourceForgeProjectSlug(u))
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
+
+                foreach (string? slug in slugs)
+                {
+                    var sfResult = await TryResolveSourceForgeProjectAsync(slug!, entry.Filename).ConfigureAwait(false);
+                    if (sfResult != Empty) return sfResult;
+                }
+                return Empty;
+            }
+            catch (Exception ex) { Debug.WriteLine($"[SourceForgeSearch] {entry.Name}: {ex.Message}"); return Empty; }
         }
 
         /// <summary>
