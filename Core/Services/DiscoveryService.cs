@@ -152,16 +152,30 @@ namespace ULM.Core.Services
             return result;
         }
 
+        // Namen sind DistroWatchs offizielle Kategorie-Tags (siehe distrowatch.com/search.php,
+        // <select name="category"> — LIVE gegengeprüft) und NICHT frei erfunden. Die vorherige
+        // Version prüfte teils Tags, die dort gar nicht existieren ("Rescue", "Backup",
+        // "Antivirus", "Minimal", "Lightweight", "Router/Firewall", "Networking") — diese Regeln
+        // konnten dadurch NIE zutreffen, betroffene Distros landeten immer im "Einsteiger"-
+        // Fallback, unabhängig vom tatsächlichen Fokus. Live beobachtet: ThorOS (Tag "Large
+        // Language Model", damals nirgends geprüft) → fälschlich "Einsteiger" statt
+        // "Fortgeschrittene"; JRescue (Tag "Disk Management") → fälschlich "Einsteiger" statt
+        // "Rettung", obwohl Name UND Tag eindeutig sind.
         private static string GuessCategory(IReadOnlyList<string> dwTags)
         {
             bool Has(string t) => dwTags.Any(x => x.Equals(t, StringComparison.OrdinalIgnoreCase));
             if (Has("Gaming"))                                                       return "Gaming";
             if (Has("Security") || Has("Privacy") || Has("Forensics"))                return "Sicherheit";
-            if (Has("Rescue") || Has("Backup"))                                       return "Rettung";
-            if (Has("Antivirus"))                                                     return "Antivirus";
-            if (Has("Minimal") || Has("Old Computers") || Has("Lightweight"))          return "Leichtgewicht";
+            if (Has("Data Rescue") || Has("Disk Management"))                         return "Rettung";
+            if (Has("Old Computers") || Has("Netbooks") || Has("Thin Client") ||
+                Has("Load To RAM"))                                                    return "Leichtgewicht";
             if (Has("Server") || Has("Container") || Has("Kubernetes") ||
-                Has("Immutable") || Has("Router/Firewall") || Has("Networking"))       return "Fortgeschrittene";
+                Has("Immutable") || Has("Firewall") || Has("Clusters") ||
+                Has("High Performance Computing") || Has("NAS") ||
+                Has("Declarative") || Has("Source-based") ||
+                Has("Large Language Model") || Has("Scientific") || Has("Specialist")) return "Fortgeschrittene";
+            // "Antivirus" hat auf DistroWatch kein eigenes Tag (nur manuell in der ULM-Datenbank
+            // vergeben) — bleibt hier absichtlich ohne automatischen Treffer.
             return "Einsteiger";
         }
 
