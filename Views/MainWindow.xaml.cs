@@ -581,15 +581,25 @@ namespace ULM.Views
                     else AppendLog(string.Format(LocalizationService.T(Str.Log_MaintenanceSkipped), candidates.Count));
                 }
 
-                // BUGFIX (live gefunden 2026-08-17): dieser Direktaufruf deckte nur den Fall ab,
-                // dass beim Programmstart bereits ein Stick ausgewählt war — ein Stick, der erst
-                // SPÄTER dazukommt (z.B. nach frischer Ventoy-Einrichtung), löste ihn nie aus.
-                // MissingOnStickDetected ist jetzt (siehe Konstruktor oben) an OnMissingOnStickDetected
-                // gehängt und feuert bei JEDEM Stick-Scan (ProcessStickScanResults, gemeinsame
-                // Methode für Start-Scan UND jeden späteren Scan) — deckt den Start-Fall über den
-                // ohnehin laufenden automatischen Start-Stick-Scan bereits mit ab, dieser
-                // Direktaufruf wäre nur noch redundant (MarkCopyOffered dedupliziert zwar sicher,
-                // aber ohne echten Nutzen mehr).
+                // BUGFIX-Korrektur (live gefunden 2026-08-17): Der Direktaufruf hier wurde
+                // fälschlich als redundant entfernt, nachdem MissingOnStickDetected an
+                // OnMissingOnStickDetected gehängt wurde (siehe Konstruktor oben). Tatsächlich läuft
+                // der automatische Start-Stick-Scan (ApplyResolvedUpdatesAndOfferStickUpdate) als
+                // eigener, NICHT synchronisierter Hintergrund-Task GEGEN diese Methode hier — der
+                // Stick-Scan startet minimal früher und ist reine lokale Dateiaufzählung (schnell),
+                // diese Methode braucht dagegen pro lokaler Datei einen echten Netzwerk-Request
+                // (GetExpectedSizeAsync), um VerifiedComplete zu setzen. Der Stick-Scan gewinnt das
+                // Rennen praktisch immer und wertet "fehlt auf Stick" aus, BEVOR VerifiedComplete für
+                // frisch heruntergeladene ISOs überhaupt gesetzt ist — das Event feuert dann mit einer
+                // leeren Liste. Dieser Direktaufruf hier läuft dagegen GARANTIERT NACH der obigen
+                // Verifikation und ist damit für den Start-Fall weiterhin der einzige verlässliche Weg.
+                // MarkCopyOffered dedupliziert sicher, falls der Event-Pfad in einem Einzelfall doch
+                // zuerst durchkommt — kein doppelter Dialog.
+                if (!string.IsNullOrEmpty(_vm.SelectedDriveLetter))
+                {
+                    var missing = _vm.GetVerifiedCompleteEntriesMissingFromStick();
+                    if (missing.Count > 0) OnMissingOnStickDetected(missing, _vm.SelectedDriveLetter);
+                }
             }
             catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_FileMaintenanceError), ex.Message)); }
         }
