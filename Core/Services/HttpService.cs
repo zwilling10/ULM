@@ -794,20 +794,45 @@ namespace ULM.Core.Services
         ///
         /// Fix für DIESEN Schritt: statt eine Suchmaschine zu fragen, wird der SourceForge-
         /// Projektname direkt aus dem Distro-Namen GERATEN (derselbe Normalisierungs-Helfer wie
-        /// beim Homepage-Link-Matching, NormalizeForMatch(FirstKeyword(...)) — bei CaramOS ergibt
-        /// das exakt "caramos", den echten Projektnamen) und direkt gegen SourceForges RSS-Feed
-        /// geprüft (TryResolveSourceForgeProjectAsync). Kein Suchmaschinen-Umweg mehr nötig: ein
-        /// falscher Rateversuch liefert einfach einen leeren/404-Feed zurück (derselbe gutmütige
-        /// Fehlschlag wie bei jedem der bereits fest verdrahteten SourceForge-Resolver, die ihren
-        /// Projektnamen ebenfalls nie zur Laufzeit nachschlagen, sondern ihn kennen).
+        /// beim Homepage-Link-Matching, NormalizeForMatch(...) — bei CaramOS ergibt das exakt
+        /// "caramos", den echten Projektnamen) und direkt gegen SourceForges RSS-Feed geprüft
+        /// (TryResolveSourceForgeProjectAsync). Kein Suchmaschinen-Umweg mehr nötig: ein falscher
+        /// Rateversuch liefert einfach einen leeren/404-Feed zurück (derselbe gutmütige Fehlschlag
+        /// wie bei jedem der bereits fest verdrahteten SourceForge-Resolver, die ihren
+        /// Projektnamen ebenfalls nie zur Laufzeit nachschlagen, sondern ihn kennen). Zwei
+        /// Kandidaten werden probiert — erst das erste markante Wort ("CaramOS" → "caramos"),
+        /// dann der komplette normalisierte Name ("Ubuntu Cinnamon" → "ubuntucinnamon") — deckt
+        /// beide bei SourceForge verbreiteten Slug-Muster ab, ohne pro Distro Einzelfall-Code zu
+        /// brauchen.
+        ///
+        /// WICHTIG (Namens-Kollisionsschutz): anders als ein von der offiziellen Homepage
+        /// gecrawlter SourceForge-Link (ResolveViaDistroWatchAsync) oder ein fest verdrahteter
+        /// Resolver ist hier NIE bestätigt, dass der geratene Slug wirklich zu dieser Distro
+        /// gehört. Ein völlig unabhängiges SourceForge-Projekt mit zufällig demselben Namen (z.B.
+        /// ein Werkzeug, das ebenfalls .iso-Dateien ausliefert) würde sonst unbemerkt eine falsche
+        /// ISO an den Eintrag hängen — besonders riskant bei frisch über "ISO suchen"
+        /// hinzugefügten Einträgen OHNE bekannten Dateinamen, wo TryResolveSourceForgeProjectAsync
+        /// mangels Vergleichsbasis blind den ERSTEN Feed-Eintrag nimmt. Deshalb: der gefundene
+        /// Dateiname muss das namensgebende Schlüsselwort enthalten, sonst wird das Ergebnis
+        /// verworfen (kein blindes Vertrauen in eine bloß geratene Zuordnung).
         /// </summary>
         private async Task<(string, string, string)> ResolveViaSourceForgeSearchAsync(IsoEntry entry)
         {
             if (string.IsNullOrWhiteSpace(entry.Name)) return Empty;
-            string slug = NormalizeForMatch(FirstKeyword(entry.Name));
-            if (string.IsNullOrWhiteSpace(slug)) return Empty;
-            try { return await TryResolveSourceForgeProjectAsync(slug, entry.Filename).ConfigureAwait(false); }
-            catch (Exception ex) { Debug.WriteLine($"[SourceForgeGuess] {entry.Name}: {ex.Message}"); return Empty; }
+            string keyword = FirstKeyword(entry.Name);
+            var candidates = new[] { NormalizeForMatch(keyword), NormalizeForMatch(entry.Name) }
+                .Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase);
+            foreach (string slug in candidates)
+            {
+                try
+                {
+                    var result = await TryResolveSourceForgeProjectAsync(slug, entry.Filename).ConfigureAwait(false);
+                    if (result != Empty && result.Item3.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                        return result;
+                }
+                catch (Exception ex) { Debug.WriteLine($"[SourceForgeGuess] {entry.Name}/{slug}: {ex.Message}"); }
+            }
+            return Empty;
         }
 
         /// <summary>
