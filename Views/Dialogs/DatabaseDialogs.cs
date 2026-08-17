@@ -2,12 +2,14 @@
 // IsoListDialog, IsoEditDialog, IsoSearchDialog, ImportStickIsosDialog, NewerVersionOnStickDialog
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using ULM.Core.Models;
 using ULM.Core.Services;
 using ULM.Core.Workers;
@@ -436,6 +438,165 @@ namespace ULM.Views.Dialogs
             if (d.Tags.Count > 0) lines.Add(string.Format(LocalizationService.T(Str.Db_DistrowatchTags), string.Join(", ", d.Tags)));
             lines.Add($"distrowatch.com/{d.Slug}");
             return string.Join("\n", lines);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // DistroPreviewDialog — Kurzvorschau (Screenshot, Kurzfakten, Beschreibung) für eine per
+    // IsoSearchDialog gefundene Distro, bevor der Nutzer sie übernimmt/herunterlädt. Lädt
+    // on-demand erst beim Öffnen (kein Vorab-Laden für die ganze Liste) über
+    // DistroPreviewService. Rein informativ — keine Download-/Übernehmen-Aktion hier, das bleibt
+    // bei der Checkbox + "Übernehmen"-Button in der Zeile dahinter.
+    // ═══════════════════════════════════════════════════════════════════
+    public sealed class DistroPreviewDialog : Window
+    {
+        private readonly string _name;
+        private readonly string _slug;
+        private readonly IReadOnlyList<string> _tags;
+        private readonly StackPanel _contentPanel;
+
+        public DistroPreviewDialog(string name, string slug, IReadOnlyList<string> tags)
+        {
+            _name = name; _slug = slug; _tags = tags;
+            Title = string.Format(LocalizationService.T(Str.Preview_DialogTitle), name);
+            Width = 380; SizeToContent = SizeToContent.Height; MaxHeight = 640;
+            ResizeMode = ResizeMode.NoResize;
+            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            Background = (Brush)Application.Current.Resources["BrushBg"];
+
+            var root = new Grid { Margin = new Thickness(16) };
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 560 };
+            _contentPanel = new StackPanel();
+            _contentPanel.Children.Add(new TextBlock
+            {
+                Text = LocalizationService.T(Str.Db_Loading),
+                Foreground = (Brush)Application.Current.Resources["BrushDim"],
+                FontSize = 12, Margin = new Thickness(0, 24, 0, 24), HorizontalAlignment = HorizontalAlignment.Center,
+            });
+            scroll.Content = _contentPanel;
+            Grid.SetRow(scroll, 0);
+
+            var footer = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
+            var closeBtn = new Button { Content = LocalizationService.T(Str.Db_Btn_CloseSimple), Style = (Style)Application.Current.Resources["BtnGhost"], Width = 110 };
+            closeBtn.Click += (_, _) => Close();
+            DockPanel.SetDock(closeBtn, Dock.Right);
+            var openBtn = new Button { Content = LocalizationService.T(Str.Preview_OpenInBrowser), Style = (Style)Application.Current.Resources["BtnGhost"] };
+            openBtn.Click += (_, _) =>
+            {
+                try { Process.Start(new ProcessStartInfo($"https://distrowatch.com/{_slug}") { UseShellExecute = true }); }
+                catch { /* kein Absturz, falls kein Standardbrowser konfiguriert ist */ }
+            };
+            footer.Children.Add(closeBtn);
+            footer.Children.Add(openBtn);
+            Grid.SetRow(footer, 1);
+
+            root.Children.Add(scroll); root.Children.Add(footer);
+            Content = root;
+
+            Loaded += async (_, _) => await LoadAsync();
+        }
+
+        private async Task LoadAsync()
+        {
+            var preview = await DistroPreviewService.Instance.GetPreviewAsync(_name, _slug).ConfigureAwait(true);
+            _contentPanel.Children.Clear();
+
+            if (preview is null)
+            {
+                _contentPanel.Children.Add(new TextBlock
+                {
+                    Text = string.Format(LocalizationService.T(Str.Preview_LoadError), _slug),
+                    Foreground = (Brush)Application.Current.Resources["BrushRed"],
+                    FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 20, 0, 20),
+                });
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(preview.ScreenshotUrl))
+            {
+                byte[]? bytes = await HttpService.Instance.GetBytesAsync(preview.ScreenshotUrl).ConfigureAwait(true);
+                var bmp = bytes is null ? null : LoadImage(bytes);
+                if (bmp != null)
+                    _contentPanel.Children.Add(new Image { Source = bmp, Height = 130, Stretch = Stretch.UniformToFill, Margin = new Thickness(0, 0, 0, 12) });
+            }
+
+            var factsGrid = new Grid();
+            factsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            factsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            int row = 0;
+            void AddFact(string label, string value)
+            {
+                if (string.IsNullOrWhiteSpace(value)) return;
+                factsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var lbl = new TextBlock { Text = label, FontSize = 11.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 2, 12, 2) };
+                var val = new TextBlock { Text = value, FontSize = 11.5, Foreground = (Brush)Application.Current.Resources["BrushHeader"], Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
+                Grid.SetRow(lbl, row); Grid.SetColumn(lbl, 0);
+                Grid.SetRow(val, row); Grid.SetColumn(val, 1);
+                factsGrid.Children.Add(lbl); factsGrid.Children.Add(val);
+                row++;
+            }
+            AddFact(LocalizationService.T(Str.Preview_Label_BasedOn),      preview.BasedOn);
+            AddFact(LocalizationService.T(Str.Preview_Label_Desktop),      preview.Desktop);
+            AddFact(LocalizationService.T(Str.Preview_Label_Origin),       preview.Origin);
+            AddFact(LocalizationService.T(Str.Preview_Label_Architecture), preview.Architecture);
+            if (preview.IsActive.HasValue)
+                AddFact(LocalizationService.T(Str.Preview_Label_Status),
+                    LocalizationService.T(preview.IsActive.Value ? Str.Preview_Status_Active : Str.Preview_Status_Inactive));
+            if (preview.PopularityRank > 0)
+                AddFact(LocalizationService.T(Str.Preview_Label_Popularity),
+                    string.Format(LocalizationService.T(Str.Preview_PopularityValue), preview.PopularityRank, preview.PopularityHitsPerDay));
+            _contentPanel.Children.Add(factsGrid);
+
+            if (!string.IsNullOrWhiteSpace(preview.Description))
+            {
+                _contentPanel.Children.Add(new Border
+                {
+                    Background = (Brush)Application.Current.Resources["BrushCard"],
+                    BorderBrush = (Brush)Application.Current.Resources["BrushBorder"],
+                    BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+                    Margin = new Thickness(0, 12, 0, 12), Padding = new Thickness(10),
+                    Child = new TextBlock
+                    {
+                        Text = preview.Description, FontSize = 11.5, TextWrapping = TextWrapping.Wrap,
+                        Foreground = (Brush)Application.Current.Resources["BrushHeader"],
+                    },
+                });
+            }
+
+            if (_tags.Count > 0)
+            {
+                var tagsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+                foreach (var tag in _tags)
+                {
+                    tagsPanel.Children.Add(new Border
+                    {
+                        Background = (Brush)Application.Current.Resources["BrushLBlue"],
+                        CornerRadius = new CornerRadius(10),
+                        Margin = new Thickness(0, 0, 6, 6), Padding = new Thickness(8, 3, 8, 3),
+                        Child = new TextBlock { Text = tag, FontSize = 10, Foreground = (Brush)Application.Current.Resources["BrushHeader"] },
+                    });
+                }
+                _contentPanel.Children.Add(tagsPanel);
+            }
+        }
+
+        private static BitmapImage? LoadImage(byte[] bytes)
+        {
+            try
+            {
+                using var ms = new MemoryStream(bytes);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.StreamSource = ms;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch { return null; }
         }
     }
 
