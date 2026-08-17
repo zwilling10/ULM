@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.41.1", new[]
+            {
+                "Fehlerbehebung: Im Reiter \"Aktuellste\" von \"🔍 ISO suchen\" wurde fälschlich \"Keine Live-Medium-Distros gefunden\" angezeigt, weil DistroWatch die Linkstruktur seiner Neuzugänge-Liste geändert hatte.",
+            }),
             ("2.41.0", new[]
             {
                 "Neu: Uli, der kleine Assistent unten rechts im Hauptfenster, beantwortet häufige Fragen zu Suche, Download, Kopieren auf den Stick, Ventoy-Einrichtung und mehr — komplett lokal, ohne Internetverbindung oder Cloud-KI.",
