@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.42.0", new[]
+            {
+                "Neu: In \"🔍 ISO suchen\" zeigt ein neues 🔍-Vorschau-Icon pro Zeile eine Karte mit Screenshot, Kurzfakten (Basiert auf, Desktop, Herkunft, Architektur, Status, Popularität), Beschreibung und Tags — bevor man eine Distro herunterlädt, direkt in der App und ohne DistroWatch im Browser aufzurufen.",
+            }),
             ("2.41.2", new[]
             {
                 "Fehlerbehebung: In \"🔍 ISO suchen\" schlug die automatische Kategorie-Zuordnung bei einigen DistroWatch-Neuzugängen fehl (z.B. wurde \"ThorOS\" als \"Einsteiger\" statt \"Fortgeschrittene\" vorgeschlagen) — die Zuordnung nutzte teils Tag-Namen, die es bei DistroWatch gar nicht gibt.",
