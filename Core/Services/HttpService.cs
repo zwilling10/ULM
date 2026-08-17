@@ -651,8 +651,10 @@ namespace ULM.Core.Services
             // trägt gar kein englisches/deutsches "download"-Wort, siehe CaramOS: "Tải ISO"
             // vietnamesisch), bricht der Automatismus dort komplett ab — OBWOHL ein SourceForge-
             // Projekt mit demselben Namen tatsächlich existiert (bei CaramOS von Hand gefunden:
-            // sourceforge.net/projects/caramos). Eine gezielte Suche schließt genau diese Lücke,
-            // bevor auf die ungenauere, generische Websuche zurückgefallen wird.
+            // sourceforge.net/projects/caramos). Ein direkter Rateversuch auf den Projektnamen
+            // schließt genau diese Lücke, bevor auf die ungenauere, generische Websuche
+            // zurückgefallen wird — siehe Doku an ResolveViaSourceForgeSearchAsync für den Grund,
+            // warum das bewusst KEIN Suchmaschinen-Aufruf ist.
             var sf = await ResolveViaSourceForgeSearchAsync(entry).ConfigureAwait(false);
             if (sf != Empty) return sf;
 
@@ -770,38 +772,42 @@ namespace ULM.Core.Services
         }
 
         /// <summary>
-        /// Gezielte Suche nach einem SourceForge-Projekt mit demselben Namen wie die Distro — für
-        /// den Fall, dass die offizielle Homepage (ResolveViaDistroWatchAsync) keinen SourceForge-
-        /// Link enthält, obwohl ein passendes Projekt existiert (z.B. weil dort stattdessen auf
-        /// GitHub Releases verwiesen wird, oder der Download-Link nicht-englisch beschriftet ist).
-        /// Sucht bewusst mit "site:sourceforge.net/projects" statt nur "site:sourceforge.net" —
-        /// filtert Diskussions-/Ticket-/Wiki-Treffer desselben Projekts direkt heraus. Nutzt danach
-        /// dieselbe, bereits bewährte RSS-Feed-Auflösung (TryResolveSourceForgeProjectAsync) wie
-        /// jeder andere SourceForge-Fund in dieser Klasse.
+        /// Sucht ein SourceForge-Projekt mit demselben Namen wie die Distro — für den Fall, dass
+        /// die offizielle Homepage (ResolveViaDistroWatchAsync) keinen SourceForge-Link enthält,
+        /// obwohl ein passendes Projekt existiert (z.B. weil dort stattdessen auf GitHub Releases
+        /// verwiesen wird, oder der Download-Link nicht-englisch beschriftet ist — live an CaramOS
+        /// gefunden).
+        ///
+        /// BUGFIX (live gefunden, 2026-08-17): die ursprüngliche Fassung suchte dafür über
+        /// DuckDuckGos HTML-Endpunkt ("site:sourceforge.net/projects"). Live-Test zeigte: DIESER
+        /// Endpunkt liefert einem reinen HTTP-Client (egal ob .NET HttpClient oder curl, auch mit
+        /// realistischem Browser-User-Agent) zuverlässig NICHT die echten Suchergebnisse, sondern
+        /// DuckDuckGos eigene Bot-Erkennungs-/"Anomaly"-Seite — nur ein echter Browser (die
+        /// Sitzung, mit der dieser Fund ursprünglich verifiziert wurde) kommt daran vorbei. Das
+        /// erklärt auch, warum die Auflösung bei CaramOS binnen ~1 Sekunde scheiterte, obwohl die
+        /// vollständige Kette (DistroWatch-Suche → Homepage → SourceForge-Suche → Websuche) real
+        /// mehrere Sekunden bräuchte: jeder DuckDuckGo-Schritt bricht sofort mit einer leeren/
+        /// nutzlosen Antwort ab, statt einen echten Roundtrip zu machen. Betrifft NICHT nur diese
+        /// Methode, sondern grundsätzlich jeden DuckDuckGo-Suchschritt in dieser Klasse (auch
+        /// ResolveViaDistroWatchAsync und ResolveViaWebSearchAsync) — ein bestehendes,
+        /// unabhängiges Risiko, das eine eigene Untersuchung braucht.
+        ///
+        /// Fix für DIESEN Schritt: statt eine Suchmaschine zu fragen, wird der SourceForge-
+        /// Projektname direkt aus dem Distro-Namen GERATEN (derselbe Normalisierungs-Helfer wie
+        /// beim Homepage-Link-Matching, NormalizeForMatch(FirstKeyword(...)) — bei CaramOS ergibt
+        /// das exakt "caramos", den echten Projektnamen) und direkt gegen SourceForges RSS-Feed
+        /// geprüft (TryResolveSourceForgeProjectAsync). Kein Suchmaschinen-Umweg mehr nötig: ein
+        /// falscher Rateversuch liefert einfach einen leeren/404-Feed zurück (derselbe gutmütige
+        /// Fehlschlag wie bei jedem der bereits fest verdrahteten SourceForge-Resolver, die ihren
+        /// Projektnamen ebenfalls nie zur Laufzeit nachschlagen, sondern ihn kennen).
         /// </summary>
         private async Task<(string, string, string)> ResolveViaSourceForgeSearchAsync(IsoEntry entry)
         {
             if (string.IsNullOrWhiteSpace(entry.Name)) return Empty;
-            try
-            {
-                string query = Uri.EscapeDataString($"{FirstKeyword(entry.Name)} site:sourceforge.net/projects");
-                string? searchHtml = await GetStringAsync($"https://html.duckduckgo.com/html/?q={query}", 15).ConfigureAwait(false);
-                if (searchHtml is null) return Empty;
-
-                var slugs = Regex.Matches(searchHtml, @"class=""result__a""[^>]*href=""([^""]+)""", RegexOptions.IgnoreCase)
-                    .Cast<Match>().Select(m => ResolveDuckDuckGoRedirect(m.Groups[1].Value))
-                    .Select(u => TryFindSourceForgeProjectSlug(u))
-                    .Where(s => !string.IsNullOrWhiteSpace(s))
-                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
-
-                foreach (string? slug in slugs)
-                {
-                    var sfResult = await TryResolveSourceForgeProjectAsync(slug!, entry.Filename).ConfigureAwait(false);
-                    if (sfResult != Empty) return sfResult;
-                }
-                return Empty;
-            }
-            catch (Exception ex) { Debug.WriteLine($"[SourceForgeSearch] {entry.Name}: {ex.Message}"); return Empty; }
+            string slug = NormalizeForMatch(FirstKeyword(entry.Name));
+            if (string.IsNullOrWhiteSpace(slug)) return Empty;
+            try { return await TryResolveSourceForgeProjectAsync(slug, entry.Filename).ConfigureAwait(false); }
+            catch (Exception ex) { Debug.WriteLine($"[SourceForgeGuess] {entry.Name}: {ex.Message}"); return Empty; }
         }
 
         /// <summary>
