@@ -256,6 +256,11 @@ namespace ULM.Views.Dialogs
         public List<IsoEntry> AddedEntries { get; } = new();
         public HashSet<IsoEntry> ToDownload { get; } = new();
 
+        // Nur eine Vorschau-Karte gleichzeitig offen: ein neuer Klick auf ein 🔍-Icon schließt eine
+        // bereits offene automatisch, statt sie stapeln zu lassen oder ein zweites "Schließen" zu
+        // verlangen.
+        private DistroPreviewDialog? _openPreviewDialog;
+
         private sealed class DiscoveryRow
         {
             public required Grid             Row;
@@ -394,7 +399,14 @@ namespace ULM.Views.Dialogs
                         FontSize = 11, Margin = new Thickness(0, 2, 6, 2),
                         ToolTip = LocalizationService.T(Str.Preview_OpenTooltip),
                     };
-                    previewBtn.Click += (_, _) => new DistroPreviewDialog(d.Name, d.Slug, d.Tags) { Owner = this }.ShowDialog();
+                    previewBtn.Click += (_, _) =>
+                    {
+                        _openPreviewDialog?.Close();
+                        var dlg = new DistroPreviewDialog(d.Name, d.Slug, d.Tags) { Owner = this };
+                        _openPreviewDialog = dlg;
+                        dlg.Closed += (_, _) => { if (_openPreviewDialog == dlg) _openPreviewDialog = null; };
+                        dlg.Show();
+                    };
                     Grid.SetColumn(previewBtn, 2); row.Children.Add(previewBtn);
 
                     var catCb = new ComboBox { Margin = new Thickness(6, 2, 6, 2), IsEnabled = !d.AlreadyInDb };
@@ -470,7 +482,12 @@ namespace ULM.Views.Dialogs
         {
             _name = name; _slug = slug; _tags = tags;
             Title = string.Format(LocalizationService.T(Str.Preview_DialogTitle), name);
-            Width = 380; SizeToContent = SizeToContent.Height; MaxHeight = 640;
+            // MaxHeight braucht deutlich mehr Puffer über dem ScrollViewer-internen MaxHeight
+            // (560) hinaus als nur Rundungstoleranz — sonst wird bei längeren Beschreibungen
+            // (z.B. SkillFishOS) die Fußzeile mit "Schließen"/"DistroWatch-Seite öffnen"
+            // abgeschnitten, weil beide zusammen (560 + Ränder + Fußzeile) fast exakt an ein zu
+            // knappes Limit stoßen (live beobachtet).
+            Width = 380; SizeToContent = SizeToContent.Height; MaxHeight = 720;
             ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.Manual;
             Background = (Brush)Application.Current.Resources["BrushBg"];
