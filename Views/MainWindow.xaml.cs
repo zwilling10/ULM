@@ -65,6 +65,17 @@ namespace ULM.Views
             _vm.StickUpdateAvailable += OnStickUpdateAvailable;
             _vm.RawUsbDiskDetected += OnRawUsbDiskDetected;
             _vm.StaleDuplicatesOnStickDetected += OnStaleDuplicatesOnStick;
+            // BUGFIX (live gefunden 2026-08-17): MissingOnStickDetected wird von
+            // ProcessStickScanResults bei JEDEM Stick-Scan gefeuert (Start-Scan UND jeder spätere,
+            // z.B. nach einer frischen Ventoy-Installation) — anders als alle Schwester-Events oben
+            // war hier aber nie ein Handler angehängt. Der fertige Handler OnMissingOnStickDetected
+            // existierte zwar schon (genutzt vom Direktaufruf in RunLocalFileMaintenanceAsync, der
+            // nur beim Programmstart UND nur bei zu diesem Zeitpunkt bereits ausgewähltem Stick
+            // griff), wurde aber nie an das Event selbst gehängt — ein frisch währenddessen
+            // erschienener/eingerichteter Stick löste die "lokal vorhandene ISO auf den Stick
+            // kopieren?"-Abfrage dadurch nie automatisch aus (nur über den manuellen
+            // "Verpasste Kopien nachholen"-Button erreichbar, der denselben Handler direkt aufruft).
+            _vm.MissingOnStickDetected += OnMissingOnStickDetected;
 
             _vm.NewerVersionsOnStickDetected += (matches, drive) =>
             {
@@ -570,11 +581,15 @@ namespace ULM.Views
                     else AppendLog(string.Format(LocalizationService.T(Str.Log_MaintenanceSkipped), candidates.Count));
                 }
 
-                if (!string.IsNullOrEmpty(_vm.SelectedDriveLetter))
-                {
-                    var missing = _vm.GetVerifiedCompleteEntriesMissingFromStick();
-                    if (missing.Count > 0) OnMissingOnStickDetected(missing, _vm.SelectedDriveLetter);
-                }
+                // BUGFIX (live gefunden 2026-08-17): dieser Direktaufruf deckte nur den Fall ab,
+                // dass beim Programmstart bereits ein Stick ausgewählt war — ein Stick, der erst
+                // SPÄTER dazukommt (z.B. nach frischer Ventoy-Einrichtung), löste ihn nie aus.
+                // MissingOnStickDetected ist jetzt (siehe Konstruktor oben) an OnMissingOnStickDetected
+                // gehängt und feuert bei JEDEM Stick-Scan (ProcessStickScanResults, gemeinsame
+                // Methode für Start-Scan UND jeden späteren Scan) — deckt den Start-Fall über den
+                // ohnehin laufenden automatischen Start-Stick-Scan bereits mit ab, dieser
+                // Direktaufruf wäre nur noch redundant (MarkCopyOffered dedupliziert zwar sicher,
+                // aber ohne echten Nutzen mehr).
             }
             catch (Exception ex) { AppendLog(string.Format(LocalizationService.T(Str.Log_FileMaintenanceError), ex.Message)); }
         }
