@@ -472,7 +472,7 @@ namespace ULM.Views.Dialogs
             Title = string.Format(LocalizationService.T(Str.Preview_DialogTitle), name);
             Width = 380; SizeToContent = SizeToContent.Height; MaxHeight = 640;
             ResizeMode = ResizeMode.NoResize;
-            WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            WindowStartupLocation = WindowStartupLocation.Manual;
             Background = (Brush)Application.Current.Resources["BrushBg"];
 
             var root = new Grid { Margin = new Thickness(16) };
@@ -507,6 +507,21 @@ namespace ULM.Views.Dialogs
             root.Children.Add(scroll); root.Children.Add(footer);
             Content = root;
 
+            // Statt CenterOwner (überlappt das Suchen-Fenster) dockt die Vorschau direkt rechts
+            // daneben an, mit Fallback links, falls rechts kein Platz mehr auf dem Bildschirm ist.
+            Loaded += (_, _) =>
+            {
+                if (Owner is null) return;
+                const double gap = 8;
+                double left = Owner.Left + Owner.ActualWidth + gap;
+                if (left + Width > SystemParameters.WorkArea.Right)
+                {
+                    double leftFallback = Owner.Left - Width - gap;
+                    if (leftFallback >= SystemParameters.WorkArea.Left) left = leftFallback;
+                }
+                Left = left;
+                Top = Owner.Top;
+            };
             Loaded += async (_, _) => await LoadAsync();
         }
 
@@ -531,7 +546,7 @@ namespace ULM.Views.Dialogs
                 byte[]? bytes = await HttpService.Instance.GetBytesAsync(preview.ScreenshotUrl).ConfigureAwait(true);
                 var bmp = bytes is null ? null : LoadImage(bytes);
                 if (bmp != null)
-                    _contentPanel.Children.Add(new Image { Source = bmp, Height = 130, Stretch = Stretch.UniformToFill, Margin = new Thickness(0, 0, 0, 12) });
+                    _contentPanel.Children.Add(new Image { Source = bmp, MaxHeight = 130, Stretch = Stretch.Uniform, Margin = new Thickness(0, 0, 0, 12) });
             }
 
             var factsGrid = new Grid();
