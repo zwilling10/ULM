@@ -82,8 +82,13 @@ namespace ULM.Core.Services
             // Wochenrückblick-Widget verwendet (gleiche Zeilenstruktur, aber href ist dort eine volle
             // URL oder "weekly.php?..."). Nur echte Distro-Slugs (reines Wort, kein "/"/"?"/"http")
             // gehören zur "Latest Additions"-Box — sonst rutschen Nachrichtenartikel mit rein.
+            // ACHTUNG: DistroWatch versieht die Links in dieser Box seit Kurzem mit einem
+            // vorangestellten title="…Beschreibung…"-Attribut (Hover-Vorschau) — href steht also
+            // NICHT mehr direkt nach <a. Ohne [^>]*-Toleranz vor href matcht kein einziger echter
+            // Eintrag mehr (leere Liste → "Keine Live-Medium-Distros gefunden", live beobachtet).
+            // FetchMostPopularAsync hat dieselbe Toleranz schon immer, hier fehlte sie.
             var matches = Regex.Matches(html,
-                @"<tr>\s*<th class=""News"">([\d-]+)</th>\s*<td class=""News""><a href=""([^""]+)"">([^<]+)</a></td>\s*</tr>",
+                @"<tr>\s*<th class=""News"">([\d-]+)</th>\s*<td class=""News""><a[^>]*\bhref=""([^""]+)""[^>]*>([^<]+)</a></td>\s*</tr>",
                 RegexOptions.IgnoreCase);
 
             var candidates = matches.Cast<Match>()
