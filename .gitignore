@@ -37,3 +37,4 @@ scratch_test/
 # IDE
 .vs/
 *.user
+.superpowers/
