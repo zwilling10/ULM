@@ -1406,7 +1406,13 @@ namespace ULM.ViewModels
         // abgeschlossenen Installation merken, damit OnNewDriveInserted einen kurz danach
         // auftauchenden, ähnlich großen Stick als denselben behandeln kann (siehe
         // IsLikelySameStick unten).
-        internal static readonly TimeSpan VentoyRecheckCooldown = TimeSpan.FromMinutes(2);
+        // BUGFIX-Nachtrag (live gefunden 2026-08-17): 2 Minuten waren zu knapp — im Testlauf
+        // vergingen zwischen erfolgreicher Installation und dem manuellen Neustecken (durch den
+        // Nutzer, verunsichert durch eine kurzzeitig veraltete "Kein Ventoy"-Anzeige) bereits 131
+        // Sekunden, knapp über dem damaligen Cooldown. Deutlich großzügiger gefasst, um
+        // realistische menschliche Reaktionszeit (Status ansehen, entscheiden, Stick greifen,
+        // neu stecken) sicher abzudecken.
+        internal static readonly TimeSpan VentoyRecheckCooldown = TimeSpan.FromMinutes(10);
         private (long SizeBytes, DateTime CompletedAtUtc)? _lastVentoyInstallCooldown;
 
         /// <summary>
@@ -1452,7 +1458,21 @@ namespace ULM.ViewModels
                 bool success = proc.ExitCode == 0;
                 _ui.Invoke(() =>
                 {
-                    SetBusy(false); ProgressPercent = success ? 100 : 0; OnPropertyChanged(nameof(DriveInfoText));
+                    SetBusy(false); ProgressPercent = success ? 100 : 0;
+                    // BUGFIX (live gefunden 2026-08-17): Ventoy2Disk kann beim Neupartitionieren
+                    // den Laufwerksbuchstaben ändern (z.B. F: → E:) — ein bloßes
+                    // OnPropertyChanged(nameof(DriveInfoText)) an dieser Stelle liest dann
+                    // weiterhin über den ALTEN, bereits ungültigen Buchstaben (letter/
+                    // SelectedDrive sind zu diesem Zeitpunkt noch nicht aktualisiert,
+                    // das übernimmt sonst erst der nächste 8-Sekunden-Timer-Tick in
+                    // MainWindow.CheckDriveChanges) — Directory.Exists auf einem nicht mehr
+                    // existierenden Buchstaben liefert "false", die Statusanzeige zeigt dadurch
+                    // fälschlich "Kein Ventoy", obwohl die Installation gerade erfolgreich war.
+                    // RefreshDrives() synchronisiert Drives/SelectedDrive sofort auf den
+                    // tatsächlichen aktuellen Zustand (inkl. Buchstaben-Wechsel), statt bis zum
+                    // nächsten Timer-Tick zu warten, und ruft OnPropertyChanged(DriveInfoText)
+                    // bereits selbst mit auf.
+                    RefreshDrives();
                     StatusText = success
                         ? (updateMode ? LocalizationService.T(Str.Log_VentoyUpdatedStatus) : LocalizationService.T(Str.Log_VentoyInstalledStatus))
                         : LocalizationService.T(Str.Log_VentoyFailedStatus);
