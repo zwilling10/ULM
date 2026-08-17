@@ -417,7 +417,7 @@ namespace ULM.Infrastructure
 
         // ── Log-Meldungen: Rohe (buchstabenlose) USB-Datenträger ──────────
         Log_RawUsbDiskDetected, Log_RawUsbDiskPrepared, Log_RawUsbDiskPrepareFailed,
-        Log_RawUsbDiskNoFreeLetter,
+        Log_RawUsbDiskNoFreeLetter, Log_LikelySameStickAfterVentoy,
 
         // ── Log-Meldungen: Download-Worker (Core/Workers/Workers.cs) ──
         Log_NoDownloadUrlFound, Log_Unreachable, Log_MirrorTest, Log_TryingUrl,

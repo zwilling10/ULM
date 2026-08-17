@@ -1395,10 +1395,45 @@ namespace ULM.ViewModels
 
         private void OnVentoy() { }
 
+        // BUGFIX (live gefunden 2026-08-17): Ventoy2Disk partitioniert die gesamte physische
+        // Platte neu, wonach Windows oft einen ANDEREN Laufwerksbuchstaben vergibt (z.B. F: →
+        // E:). Der neu auftauchende Buchstabe wird von OnNewDriveInserted (MainWindow.xaml.cs)
+        // dadurch als "brandneuer Stick" erkannt und zeigt trotz gerade erst erfolgreich
+        // abgeschlossener eigener Installation erneut den destruktiven "ALLE DATEN WERDEN
+        // GELÖSCHT"-Dialog — live reproduziert, sowohl automatisch beim Buchstaben-Wechsel als
+        // auch, weil eine kurzzeitig veraltete "Kein Ventoy"-Statusanzeige den Nutzer zum
+        // manuellen Neu-Stecken verleitet hat. Größe + Zeitstempel der zuletzt selbst
+        // abgeschlossenen Installation merken, damit OnNewDriveInserted einen kurz danach
+        // auftauchenden, ähnlich großen Stick als denselben behandeln kann (siehe
+        // IsLikelySameStick unten).
+        internal static readonly TimeSpan VentoyRecheckCooldown = TimeSpan.FromMinutes(2);
+        private (long SizeBytes, DateTime CompletedAtUtc)? _lastVentoyInstallCooldown;
+
+        /// <summary>
+        /// true, wenn vor Kurzem (siehe VentoyRecheckCooldown) eine eigene Ventoy-Installation
+        /// erfolgreich abgeschlossen wurde UND sizeBytes zur damaligen Stick-Größe passt (±5%
+        /// Toleranz — Ventoy legt zwei Partitionen an statt der einen zuvor, die von Windows
+        /// gemeldete Gesamtgröße kann sich dadurch geringfügig unterscheiden). Wird von
+        /// OnNewDriveInserted genutzt, um einen neu auftauchenden, wahrscheinlich denselben Stick
+        /// NICHT destruktiv als "brandneu" zu behandeln.
+        /// </summary>
+        public bool IsLikelyRecentlyVentoyInstalledStick(long sizeBytes) =>
+            _lastVentoyInstallCooldown is (long prevSize, DateTime completedAt)
+            && IsLikelySameStick(prevSize, completedAt, sizeBytes, DateTime.UtcNow, VentoyRecheckCooldown);
+
+        internal static bool IsLikelySameStick(long previousSizeBytes, DateTime previousCompletedAtUtc, long newSizeBytes, DateTime nowUtc, TimeSpan cooldown)
+        {
+            if (nowUtc - previousCompletedAtUtc >= cooldown) return false;
+            if (previousSizeBytes <= 0 || newSizeBytes <= 0) return false;
+            double ratio = (double)newSizeBytes / previousSizeBytes;
+            return ratio >= 0.95 && ratio <= 1.05;
+        }
+
         public async void StartVentoyInstall(bool updateMode)
         {
             if (string.IsNullOrEmpty(SelectedDriveLetter)) return;
             SetBusy(true); string letter = SelectedDriveLetter;
+            long installedDriveSizeBytes = SelectedDrive?.SizeBytes ?? 0;
             string action = updateMode
                 ? LocalizationService.T(Str.Log_VentoyActionWordUpdate)
                 : LocalizationService.T(Str.Log_VentoyActionWordInstall);
@@ -1422,7 +1457,11 @@ namespace ULM.ViewModels
                         ? (updateMode ? LocalizationService.T(Str.Log_VentoyUpdatedStatus) : LocalizationService.T(Str.Log_VentoyInstalledStatus))
                         : LocalizationService.T(Str.Log_VentoyFailedStatus);
                     Log(string.Format(LocalizationService.T(Str.Log_VentoyExitCode), StatusText, proc.ExitCode));
-                    if (success) TriggerUsbScan();
+                    if (success)
+                    {
+                        _lastVentoyInstallCooldown = (installedDriveSizeBytes, DateTime.UtcNow);
+                        TriggerUsbScan();
+                    }
                     else ShowMessageBox?.Invoke("Ventoy-Installation fehlgeschlagen.\nDetails im Ventoy-Installationsfenster.", true);
                 });
             }

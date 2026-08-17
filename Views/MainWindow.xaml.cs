@@ -744,6 +744,18 @@ namespace ULM.Views
             // kurz nach dem Einstecken (Mount-Timing) darf nicht zu einem unnötigen Lösch-Angebot
             // auf einem bereits fertigen Ventoy-Stick führen (live gefunden, siehe UsbService.cs).
             if (UsbService.IsVentoyInstalledWithRetry(nd.Letter)) { StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return; }
+            // BUGFIX (live gefunden 2026-08-17): Ventoy2Disk partitioniert die gesamte physische
+            // Platte neu und Windows vergibt danach oft einen ANDEREN Buchstaben (z.B. F: → E:) —
+            // selbst der obige Retry-Check kann diese Lücke nicht zuverlässig überbrücken (im
+            // Testlauf lag sie bei rund 30 Sekunden, ein UI-blockierender Retry über so lange
+            // wäre inakzeptabel). Ein kurz nach einer eigenen erfolgreichen Ventoy-Installation
+            // auftauchender, ähnlich großer Stick wird deshalb als derselbe behandelt statt erneut
+            // destruktiv nachzufragen — siehe MainViewModel.IsLikelySameStick.
+            if (_vm.IsLikelyRecentlyVentoyInstalledStick(nd.SizeBytes))
+            {
+                AppendLog(string.Format(LocalizationService.T(Str.Log_LikelySameStickAfterVentoy), nd.Letter));
+                StatusLbl.Text = $"✅ Ventoy-Stick: {nd.Letter}"; _vm.SelectedDrive = nd; return;
+            }
             if (MessageBox.Show(
                 string.Format(LocalizationService.T(Str.Msg_NewDriveDetected_Body),
                     nd.Letter, string.IsNullOrWhiteSpace(nd.Label) ? "—" : nd.Label, nd.SizeBytes / 1_073_741_824.0),
