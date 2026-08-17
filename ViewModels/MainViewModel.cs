@@ -1509,6 +1509,50 @@ namespace ULM.ViewModels
             { _ui.Invoke(() => { SetBusy(false); Log(string.Format(LocalizationService.T(Str.Log_GenericError), ex.Message)); StatusText = LocalizationService.T(Str.Log_ErrorStatus); ShowMessageBox?.Invoke($"Fehler: {ex.Message}", true); }); }
         }
 
+        /// <summary>
+        /// Wie StartVentoyInstall, aber für einen rohen (buchstabenlosen) USB-Datenträger: statt
+        /// zwei getrennter Bestätigungsdialoge + zwei UAC-Abfragen (erst UsbService.PrepareRawUsbDisk
+        /// vorbereiten, dann nach erneuter Erkennung als "neuer Stick" StartVentoyInstall) läuft
+        /// hier in EINEM elevierten Prozess sowohl die Vorbereitung als auch Ventoy2Disk — die
+        /// Vorbereitung passiert dabei INNERHALB von VentoyInstallWindow (siehe
+        /// App.xaml.cs --ventoy-install-raw), nicht hier. Nutzerwunsch, 2026-08-17.
+        /// </summary>
+        public async void StartRawDiskVentoyInstall(int diskIndex, long sizeBytes, bool secureBoot)
+        {
+            SetBusy(true);
+            string diskLabel = string.Format(LocalizationService.T(Str.Log_DiskLabel), diskIndex);
+            Log(string.Format(LocalizationService.T(Str.Log_VentoyActionStarted), LocalizationService.T(Str.Log_VentoyActionWordInstall), diskLabel));
+            Log(LocalizationService.T(Str.Log_StartingAsAdmin)); StatusText = LocalizationService.T(Str.Log_WaitingForUac);
+            string exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+            if (string.IsNullOrEmpty(exePath)) { Log(LocalizationService.T(Str.Log_ExePathNotFound)); _ui.Invoke(() => { SetBusy(false); StatusText = LocalizationService.T(Str.Log_ErrorStatus); }); return; }
+            string args = $"--ventoy-install-raw {diskIndex} {secureBoot.ToString().ToLowerInvariant()}";
+            var psi = new ProcessStartInfo(exePath, args) { UseShellExecute = true, Verb = "runas" };
+            try
+            {
+                Process? proc = Process.Start(psi);
+                if (proc is null) { Log(LocalizationService.T(Str.Log_AdminProcessFailed)); _ui.Invoke(() => { SetBusy(false); StatusText = LocalizationService.T(Str.Log_ErrorStatus); }); return; }
+                Log(LocalizationService.T(Str.Log_AdminProcessRunning)); StatusText = LocalizationService.T(Str.Log_VentoyInstallRunning); ProgressPercent = 50;
+                await Task.Run(() => proc.WaitForExit()).ConfigureAwait(false);
+                bool success = proc.ExitCode == 0;
+                _ui.Invoke(() =>
+                {
+                    SetBusy(false); ProgressPercent = success ? 100 : 0;
+                    // Reihenfolge wie in StartVentoyInstall: Cooldown MUSS vor RefreshDrives()
+                    // gesetzt sein, da RefreshDrives() DriveInfoText synchron mit auswertet.
+                    if (success) _lastVentoyInstallCooldown = (sizeBytes, DateTime.UtcNow);
+                    RefreshDrives();
+                    StatusText = success ? LocalizationService.T(Str.Log_VentoyInstalledStatus) : LocalizationService.T(Str.Log_VentoyFailedStatus);
+                    Log(string.Format(LocalizationService.T(Str.Log_VentoyExitCode), StatusText, proc.ExitCode));
+                    if (success) TriggerUsbScan();
+                    else ShowMessageBox?.Invoke("Ventoy-Installation fehlgeschlagen.\nDetails im Ventoy-Installationsfenster.", true);
+                });
+            }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            { _ui.Invoke(() => { SetBusy(false); Log(LocalizationService.T(Str.Log_UacDenied)); StatusText = LocalizationService.T(Str.Log_UacAbortedStatus); }); }
+            catch (Exception ex)
+            { _ui.Invoke(() => { SetBusy(false); Log(string.Format(LocalizationService.T(Str.Log_GenericError), ex.Message)); StatusText = LocalizationService.T(Str.Log_ErrorStatus); ShowMessageBox?.Invoke($"Fehler: {ex.Message}", true); }); }
+        }
+
         private void OnCancel()
         {
             _workerCts.Cancel();

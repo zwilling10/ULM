@@ -57,6 +57,29 @@ namespace ULM
             }
 
             // ─────────────────────────────────────────────────────────────
+            // Elevation-on-demand: roher (buchstabenloser) USB-Datenträger + Ventoy in EINEM
+            // UAC-Rutsch (Nutzerwunsch, 2026-08-17)
+            //
+            // Analog zu --ventoy-install oben, aber der Datenträger hat noch KEINEN
+            // Laufwerksbuchstaben — VentoyInstallWindow bereitet ihn selbst vor (läuft bereits
+            // in dieser erhöhten Instanz, kein zweites UAC), bevor Ventoy2Disk mit dem frisch
+            // zugewiesenen Buchstaben wie gewohnt läuft. Vorher: zwei getrennte Bestätigungs-
+            // dialoge + zwei UAC-Abfragen nacheinander (Vorbereitung, dann erneute Erkennung als
+            // "neuer Stick" + Ventoy-Installation).
+            // ─────────────────────────────────────────────────────────────
+            int rawIdx = Array.IndexOf(e.Args, "--ventoy-install-raw");
+            if (rawIdx >= 0)
+            {
+                int  diskIndex  = rawIdx + 1 < e.Args.Length && int.TryParse(e.Args[rawIdx + 1], out int di) ? di : -1;
+                bool secureBoot = rawIdx + 2 < e.Args.Length && e.Args[rawIdx + 2] == "true";
+
+                var win = new VentoyInstallWindow(diskIndex, secureBoot);
+                MainWindow = win;
+                win.Show();
+                return;
+            }
+
+            // ─────────────────────────────────────────────────────────────
             // Normaler Startup (ohne Admin)
             // ─────────────────────────────────────────────────────────────
 

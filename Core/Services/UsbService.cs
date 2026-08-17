@@ -241,8 +241,15 @@ foreach ($d in $disks) {
                 // erlaubt kein direktes RedirectStandardOutput. Nach dem Lauf wird zusätzlich über
                 // DriveInfo.DriveFormat geprüft, ob der zugewiesene Buchstabe wirklich ein
                 // Dateisystem hat.
+                // Läuft dieser Aufruf bereits INNERHALB eines schon erhöhten Prozesses (z.B. der
+                // per --ventoy-install-raw elevierten VentoyInstallWindow-Instanz, die
+                // Vorbereitung + Ventoy2Disk in einem einzigen UAC-Rutsch erledigt), braucht
+                // cmd.exe kein eigenes Verb="runas" mehr — Kindprozesse erben die Erhöhung bereits
+                // ohne erneute Sicherheitsabfrage. Ein zusätzliches runas hier wäre bestenfalls
+                // überflüssig, schlimmstenfalls eine störende zweite Abfrage.
                 var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", BuildDiskpartCommand(tempFile, logFile))
-                { UseShellExecute = true, Verb = "runas", WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
+                { UseShellExecute = true, WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
+                if (!IsAdmin()) psi.Verb = "runas";
                 using var proc = System.Diagnostics.Process.Start(psi);
                 if (proc is null) return false;
                 proc.WaitForExit(60_000);

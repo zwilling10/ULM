@@ -222,7 +222,7 @@ namespace ULM.Infrastructure
             [Str.Msg_RawUsbDiskDetected_Body]    =
                 "Ein nicht eingerichteter USB-Stick wurde erkannt (Größe ca. {0:F0} GB, kein " +
                 "lesbares Dateisystem — z.B. mit Rufus im ISO-Modus beschrieben).\n\n" +
-                "Jetzt vorbereiten, um ihn nutzbar zu machen? Windows fragt danach einmalig per " +
+                "Automatisch als Ventoy-Stick einrichten? Windows fragt danach einmalig per " +
                 "Sicherheitsabfrage (UAC) nach.\n\n⚠ ALLE DATEN AUF DIESEM STICK WERDEN GELÖSCHT!",
             [Str.Msg_RawUsbDiskDetected_Title]   = "Nicht eingerichteter USB-Stick erkannt",
             [Str.Msg_NoLabel]                    = "Kein Name",
@@ -825,6 +825,7 @@ namespace ULM.Infrastructure
             [Str.Log_RawUsbDiskPrepareFailed] = "⚠ Vorbereitung von Datenträger {0} fehlgeschlagen — konnte keinen Laufwerksbuchstaben zuweisen.",
             [Str.Log_RawUsbDiskNoFreeLetter]  = "⚠ Kein freier Laufwerksbuchstabe verfügbar — Datenträger {0} übersprungen.",
             [Str.Log_LikelySameStickAfterVentoy] = "ℹ {0}: vermutlich derselbe Stick, auf dem gerade eben Ventoy installiert wurde (ähnliche Größe, Buchstabe gewechselt) — kein erneutes Einrichten nötig.",
+            [Str.Log_DiskLabel] = "Datenträger {0}",
             [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy-Installation auf {0} wird gestartet …",
             [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy-{0} auf {1} …",
             [Str.Log_CheckingRequiredSpace]         = "🔍 Prüfe benötigten Speicherplatz …",
@@ -988,6 +989,11 @@ namespace ULM.Infrastructure
             [Str.VentoyWin_Log_ResultFailed]     = "❌ Fehlgeschlagen (ExitCode {0}{1}).",
             [Str.VentoyWin_Log_CliDoneSuffix]    = ", cli_done={0}",
             [Str.VentoyWin_Log_GeneralError]     = "Fehler: {0}: {1}",
+            [Str.VentoyWin_TitlePreparingRaw]           = "⚡ Bereite unformatierten Datenträger vor …",
+            [Str.VentoyWin_Log_PreparingRawDisk]        = "Bereite Datenträger {0} vor (Laufwerksbuchstabe zuweisen) …",
+            [Str.VentoyWin_Log_NoFreeLetterRaw]         = "⚠ Kein freier Laufwerksbuchstabe verfügbar.",
+            [Str.VentoyWin_Log_RawDiskPrepareFailedInWindow] = "⚠ Vorbereitung fehlgeschlagen — kein Dateisystem zugewiesen.",
+            [Str.VentoyWin_Log_RawDiskPrepared]         = "Datenträger vorbereitet — Laufwerk {0}",
 
             // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
             [Str.Dl_SlotsDialog_Title]        = "Parallele Downloads",
@@ -1250,8 +1256,8 @@ namespace ULM.Infrastructure
             [Str.Msg_RawUsbDiskDetected_Body]    =
                 "An unformatted USB stick was detected (size approx. {0:F0} GB, no readable " +
                 "file system — e.g. written with Rufus in ISO mode).\n\n" +
-                "Prepare it now to make it usable? Windows will then show a one-time security " +
-                "prompt (UAC).\n\n⚠ ALL DATA ON THIS STICK WILL BE ERASED!",
+                "Set it up automatically as a Ventoy stick? Windows will then show a one-time " +
+                "security prompt (UAC).\n\n⚠ ALL DATA ON THIS STICK WILL BE ERASED!",
             [Str.Msg_RawUsbDiskDetected_Title]   = "Unformatted USB Stick Detected",
             [Str.Msg_NoLabel]                    = "No Name",
             [Str.Msg_MultipleDrivesHeader]       = "{0} USB sticks are connected. Which one would you like to work with?",
@@ -1853,6 +1859,7 @@ namespace ULM.Infrastructure
             [Str.Log_RawUsbDiskPrepareFailed] = "⚠ Failed to prepare disk {0} — could not assign a drive letter.",
             [Str.Log_RawUsbDiskNoFreeLetter]  = "⚠ No free drive letter available — skipping disk {0}.",
             [Str.Log_LikelySameStickAfterVentoy] = "ℹ {0}: likely the same stick Ventoy was just installed on (similar size, letter changed) — no need to set it up again.",
+            [Str.Log_DiskLabel] = "Disk {0}",
             [Str.Log_VentoyInstallStartingOnDrive]  = "⚡ Ventoy installation starting on {0} …",
             [Str.Log_VentoyActionStartedEllipsis]   = "⚡ Ventoy {0} on {1} …",
             [Str.Log_CheckingRequiredSpace]         = "🔍 Checking required disk space …",
@@ -2016,6 +2023,11 @@ namespace ULM.Infrastructure
             [Str.VentoyWin_Log_ResultFailed]     = "❌ Failed (ExitCode {0}{1}).",
             [Str.VentoyWin_Log_CliDoneSuffix]    = ", cli_done={0}",
             [Str.VentoyWin_Log_GeneralError]     = "Error: {0}: {1}",
+            [Str.VentoyWin_TitlePreparingRaw]           = "⚡ Preparing unformatted disk …",
+            [Str.VentoyWin_Log_PreparingRawDisk]        = "Preparing disk {0} (assigning a drive letter) …",
+            [Str.VentoyWin_Log_NoFreeLetterRaw]         = "⚠ No free drive letter available.",
+            [Str.VentoyWin_Log_RawDiskPrepareFailedInWindow] = "⚠ Preparation failed — no file system assigned.",
+            [Str.VentoyWin_Log_RawDiskPrepared]         = "Disk prepared — drive {0}",
 
             // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
             [Str.Dl_SlotsDialog_Title]        = "Parallel Downloads",

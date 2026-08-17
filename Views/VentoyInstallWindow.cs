@@ -11,10 +11,12 @@
 // über Process.WaitForExit() und aktualisiert danach die Stick-Anzeige.
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using ULM.Core.Services;
 using ULM.Core.Workers;
 using ULM.Infrastructure;
 
@@ -22,7 +24,8 @@ namespace ULM.Views
 {
     public sealed class VentoyInstallWindow : Window
     {
-        private readonly string      _letter;
+        private string               _letter;
+        private readonly int?        _rawDiskIndex;
         private readonly bool        _updateMode;
         private readonly bool        _secureBoot;
 
@@ -45,10 +48,26 @@ namespace ULM.Views
         private static readonly SolidColorBrush BrushBorder  = new(Color.FromRgb(0x1A, 0x33, 0x55));
 
         public VentoyInstallWindow(string letter, bool updateMode, bool secureBoot)
+            : this(letter, rawDiskIndex: null, updateMode, secureBoot) { }
+
+        /// <summary>
+        /// Datenträger hat noch keinen Laufwerksbuchstaben (roher/unformatierter Stick) — wird
+        /// beim Start dieses Fensters ZUERST per UsbService.PrepareRawUsbDisk vorbereitet (läuft
+        /// bereits innerhalb dieses erhöhten Prozesses, kein zusätzliches UAC nötig — siehe
+        /// UsbService.PrepareRawUsbDisk-Kommentar), bevor Ventoy2Disk mit dem frisch zugewiesenen
+        /// Buchstaben wie gewohnt läuft. Ein einziger UAC-Rutsch für beide Schritte zusammen statt
+        /// zwei getrennter Erhöhungen (Nutzerwunsch, 2026-08-17 — vorher erschienen dafür zwei
+        /// separate Bestätigungsdialoge UND zwei UAC-Abfragen nacheinander).
+        /// </summary>
+        public VentoyInstallWindow(int rawDiskIndex, bool secureBoot)
+            : this(letter: string.Empty, rawDiskIndex, updateMode: false, secureBoot) { }
+
+        private VentoyInstallWindow(string letter, int? rawDiskIndex, bool updateMode, bool secureBoot)
         {
-            _letter     = letter;
-            _updateMode = updateMode;
-            _secureBoot = secureBoot;
+            _letter       = letter;
+            _rawDiskIndex = rawDiskIndex;
+            _updateMode   = updateMode;
+            _secureBoot   = secureBoot;
 
             Title             = "Universal Linux Manager — Ventoy";
             Width             = 520;
@@ -66,9 +85,14 @@ namespace ULM.Views
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });   // Schließen-Button
 
             // ── Titelzeile ─────────────────────────────────────────────────
+            // rawDiskIndex-Fall: der Buchstabe steht erst nach der Vorbereitung in
+            // RunInstallationAsync fest — Titel wird dort auf die normale Installations-Anzeige
+            // umgestellt, sobald er bekannt ist.
             _titleText = new TextBlock
             {
-                Text         = string.Format(LocalizationService.T(updateMode ? Str.VentoyWin_TitleUpdating : Str.VentoyWin_TitleInstalling), letter),
+                Text         = rawDiskIndex.HasValue
+                    ? LocalizationService.T(Str.VentoyWin_TitlePreparingRaw)
+                    : string.Format(LocalizationService.T(updateMode ? Str.VentoyWin_TitleUpdating : Str.VentoyWin_TitleInstalling), letter),
                 Foreground   = Brushes.White,
                 FontSize     = 14,
                 FontWeight   = FontWeights.SemiBold,
@@ -166,6 +190,30 @@ namespace ULM.Views
 
         private async Task RunInstallationAsync()
         {
+            if (_rawDiskIndex.HasValue)
+            {
+                AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_PreparingRawDisk), _rawDiskIndex.Value));
+                var usedLetters = System.IO.DriveInfo.GetDrives().Select(d => d.Name[0]);
+                char? freeLetter = UsbService.FindFreeDriveLetter(usedLetters);
+                if (freeLetter is null)
+                {
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_NoFreeLetterRaw));
+                    ShowFailure();
+                    return;
+                }
+                bool prepared = await Task.Run(() => UsbService.Instance.PrepareRawUsbDisk(_rawDiskIndex.Value, freeLetter.Value)).ConfigureAwait(true);
+                if (!prepared)
+                {
+                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_RawDiskPrepareFailedInWindow));
+                    ShowFailure();
+                    return;
+                }
+                _letter = $"{freeLetter.Value}:";
+                AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_RawDiskPrepared), _letter));
+                _titleText.Text = string.Format(LocalizationService.T(Str.VentoyWin_TitleInstalling), _letter);
+                AppendLog(new string('─', 52));
+            }
+
             AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_Drive), _letter));
             AppendLog(string.Format(LocalizationService.T(Str.VentoyWin_Log_Mode),
                 LocalizationService.T(_updateMode ? Str.VentoyWin_ModeUpdate : Str.VentoyWin_ModeFresh)));
@@ -205,22 +253,27 @@ namespace ULM.Views
                     _btnClose.BorderBrush   = BrushSuccess;
                     _btnClose.Visibility    = Visibility.Visible;
                 }
-                else
-                {
-                    // ── Fehler: Schließen-Button einblenden ───────────────────────────
-                    _exitCode              = 1;
-                    _titleText.Text        = LocalizationService.T(Str.VentoyWin_Failed);
-                    _titleText.Foreground  = BrushError;
-                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_CheckProtocol));
-                    AppendLog(LocalizationService.T(Str.VentoyWin_Log_CloseButtonExitCodeInfo));
-                    _btnClose.Content       = LocalizationService.T(Str.VentoyWin_Btn_CloseError);
-                    _btnClose.BorderBrush   = BrushError;
-                    _btnClose.Visibility    = Visibility.Visible;
-                }
+                else ShowFailure();
                 // Shutdown wird in beiden Fällen erst durch den Schließen-Button ausgelöst
             });
 
             await worker.RunAsync();
+        }
+
+        // ── Fehler: Schließen-Button einblenden ─────────────────────────────
+        // Gemeinsam genutzt vom regulären Ventoy2Disk-Fehlschlag UND einem Fehlschlag bereits
+        // beim vorgelagerten Vorbereitungsschritt (rawDiskIndex-Fall) — beide Male ist "kein
+        // erfolgreiches Ergebnis" bereits erreicht, die Anzeige darf sich nicht unterscheiden.
+        private void ShowFailure()
+        {
+            _exitCode              = 1;
+            _titleText.Text        = LocalizationService.T(Str.VentoyWin_Failed);
+            _titleText.Foreground  = BrushError;
+            AppendLog(LocalizationService.T(Str.VentoyWin_Log_CheckProtocol));
+            AppendLog(LocalizationService.T(Str.VentoyWin_Log_CloseButtonExitCodeInfo));
+            _btnClose.Content       = LocalizationService.T(Str.VentoyWin_Btn_CloseError);
+            _btnClose.BorderBrush   = BrushError;
+            _btnClose.Visibility    = Visibility.Visible;
         }
 
         private void AppendLog(string msg)

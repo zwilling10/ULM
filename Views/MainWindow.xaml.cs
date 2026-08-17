@@ -700,12 +700,17 @@ namespace ULM.Views
         }
 
         /// <summary>
-        /// Zeigt VOR jeder Vorbereitung eines rohen (buchstabenlosen) USB-Datenträgers dieselbe
-        /// Art Bestätigungsdialog wie bei einem normalen, bereits formatierten Stick — kein
+        /// Zeigt VOR der Einrichtung eines rohen (buchstabenlosen) USB-Datenträgers denselben Art
+        /// Bestätigungsdialog wie bei einem normalen, bereits formatierten Stick — kein
         /// ungefragtes Löschen mehr (siehe BUGFIX-Kommentar in MainViewModel.CheckRawUsbDisks).
-        /// Bestätigt der Nutzer, löst PrepareRawUsbDisk eine einmalige UAC-Abfrage aus; bei Erfolg
-        /// holt der nächste CheckDriveChanges()-Tick den Stick über den neuen Buchstaben ganz
-        /// normal ab und OnNewDriveInserted() übernimmt von dort unverändert.
+        ///
+        /// BUGFIX/Umbau (Nutzerwunsch, 2026-08-17): Vorbereitung (Laufwerksbuchstabe zuweisen) UND
+        /// Ventoy-Installation liefen bisher als ZWEI getrennte Schritte mit je eigenem
+        /// Bestätigungsdialog UND eigener UAC-Abfrage — die Vorbereitung hier, die Installation
+        /// erst nach erneuter Erkennung als "normaler neuer Stick" in OnNewDriveInserted. Jetzt
+        /// EIN Klick, EINE UAC-Abfrage: StartRawDiskVentoyInstall erledigt beide Schritte
+        /// innerhalb desselben elevierten Prozesses (siehe VentoyInstallWindow/
+        /// App.xaml.cs --ventoy-install-raw).
         /// </summary>
         private void OnRawUsbDiskDetected(RawUsbDiskCandidate candidate)
         {
@@ -715,15 +720,7 @@ namespace ULM.Views
                 LocalizationService.T(Str.Msg_RawUsbDiskDetected_Title), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
 
-            var usedLetters = System.IO.DriveInfo.GetDrives().Select(d => d.Name[0]);
-            char? letter = UsbService.FindFreeDriveLetter(usedLetters);
-            if (letter is null)
-            {
-                AppendLog(string.Format(LocalizationService.T(Str.Log_RawUsbDiskNoFreeLetter), candidate.DiskIndex));
-                return;
-            }
-
-            _vm.PrepareRawUsbDisk(candidate, letter.Value);
+            _vm.StartRawDiskVentoyInstall(candidate.DiskIndex, candidate.SizeBytes, _vm.SecureBoot);
         }
 
         private void OnNewDriveInserted()

@@ -417,7 +417,7 @@ namespace ULM.Infrastructure
 
         // ── Log-Meldungen: Rohe (buchstabenlose) USB-Datenträger ──────────
         Log_RawUsbDiskDetected, Log_RawUsbDiskPrepared, Log_RawUsbDiskPrepareFailed,
-        Log_RawUsbDiskNoFreeLetter, Log_LikelySameStickAfterVentoy,
+        Log_RawUsbDiskNoFreeLetter, Log_LikelySameStickAfterVentoy, Log_DiskLabel,
 
         // ── Log-Meldungen: Download-Worker (Core/Workers/Workers.cs) ──
         Log_NoDownloadUrlFound, Log_Unreachable, Log_MirrorTest, Log_TryingUrl,
@@ -472,6 +472,8 @@ namespace ULM.Infrastructure
         VentoyWin_Log_ExeNotFound, VentoyWin_Log_StartingExe, VentoyWin_Log_ExeStartFailed,
         VentoyWin_Log_Timeout, VentoyWin_Log_ResultFailed, VentoyWin_Log_CliDoneSuffix,
         VentoyWin_Log_GeneralError,
+        VentoyWin_TitlePreparingRaw, VentoyWin_Log_PreparingRawDisk, VentoyWin_Log_NoFreeLetterRaw,
+        VentoyWin_Log_RawDiskPrepareFailedInWindow, VentoyWin_Log_RawDiskPrepared,
 
         // ── Views/Dialogs/DownloadDialogs.cs ──────────────────────────────
         Dl_SlotsDialog_Title, Dl_SlotsSelectedCount, Dl_TestingSpeed, Dl_Label_ParallelDownloads,
