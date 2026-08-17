@@ -18,6 +18,10 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.41.2", new[]
+            {
+                "Fehlerbehebung: In \"🔍 ISO suchen\" schlug die automatische Kategorie-Zuordnung bei einigen DistroWatch-Neuzugängen fehl (z.B. wurde \"ThorOS\" als \"Einsteiger\" statt \"Fortgeschrittene\" vorgeschlagen) — die Zuordnung nutzte teils Tag-Namen, die es bei DistroWatch gar nicht gibt.",
+            }),
             ("2.41.1", new[]
             {
                 "Fehlerbehebung: Im Reiter \"Aktuellste\" von \"🔍 ISO suchen\" wurde fälschlich \"Keine Live-Medium-Distros gefunden\" angezeigt, weil DistroWatch die Linkstruktur seiner Neuzugänge-Liste geändert hatte.",
