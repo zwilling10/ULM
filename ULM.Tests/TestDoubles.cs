@@ -19,7 +19,7 @@ internal sealed class FakeUsbService : IUsbService
     public bool PrepareShouldSucceed { get; set; } = true;
 
     public List<UsbDrive> ListRemovableDrives() => DrivesToReturn;
-    public List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter() => RawDisksToReturn;
+    public List<RawUsbDiskCandidate> ListUsbDisksNeedingPreparation() => RawDisksToReturn;
     public bool PrepareRawUsbDisk(int diskIndex, char letter)
     {
         PrepareCalls.Add((diskIndex, letter));

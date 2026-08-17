@@ -488,8 +488,9 @@ namespace ULM.ViewModels
         }
 
         /// <summary>
-        /// Erkennt physische USB-Datenträger ohne Laufwerksbuchstaben (siehe
-        /// IUsbService.ListRawUsbDisksWithoutLetter) und bereitet neu aufgetauchte Kandidaten
+        /// Erkennt physische USB-Datenträger, die noch vorbereitet werden müssen — ohne
+        /// Laufwerksbuchstaben ODER mit Buchstabe, aber ohne erkanntes Dateisystem (siehe
+        /// IUsbService.ListUsbDisksNeedingPreparation) — und bereitet neu aufgetauchte Kandidaten
         /// automatisch vor (Buchstabe zuweisen). Läuft im selben Timer-Tick wie RefreshDrives(),
         /// bewusst VOR ihr aufgerufen (siehe Views/MainWindow.xaml.cs CheckDriveChanges) — dadurch
         /// sieht der direkt darauffolgende RefreshDrives()-Aufruf den frisch vorbereiteten Stick im
@@ -508,7 +509,7 @@ namespace ULM.ViewModels
 
         public void CheckRawUsbDisks()
         {
-            var candidates = _usb.ListRawUsbDisksWithoutLetter();
+            var candidates = _usb.ListUsbDisksNeedingPreparation();
             var currentIndices = candidates.Select(c => c.DiskIndex).ToList();
             var newIndices = UsbService.FindNewRawDiskIndices(_lastRawDiskIndices, currentIndices);
             _lastRawDiskIndices = currentIndices;

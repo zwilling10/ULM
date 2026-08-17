@@ -18,7 +18,7 @@ namespace ULM.Core.Services
     {
         List<UsbDrive> ListRemovableDrives();
         Task<(List<UsbService.StickIso> Found, List<UsbService.StickIso> Incomplete)> ScanStickVerifiedAsync(string letter, IReadOnlyList<IsoEntry> entries);
-        List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter();
+        List<RawUsbDiskCandidate> ListUsbDisksNeedingPreparation();
         bool PrepareRawUsbDisk(int diskIndex, char letter);
     }
 
@@ -105,7 +105,7 @@ foreach ($v in $vols) {
             // cmd/PowerShell-Argumentweitergabe), was dieses eingebettete Filter-Anführungszeichen
             // zerstörte und die Ausführung mit einem ParameterBindingException-Fehler abbrechen
             // ließ (empirisch reproduziert). GetSystemDiskIndex() gab dadurch IMMER null zurück —
-            // ListRawUsbDisksWithoutLetter() bricht bei null bewusst fail-closed mit einer leeren
+            // ListUsbDisksNeedingPreparation() bricht bei null bewusst fail-closed mit einer leeren
             // Liste ab (siehe dort), wodurch die gesamte Erkennung nie anschlug, auch nicht beim
             // Nutzer-Testlauf. Where-Object statt -Filter braucht keine eingebetteten
             // Anführungszeichen und ist von diesem Escaping-Problem nicht betroffen.
@@ -123,16 +123,22 @@ if ($sys) {
         }
 
         /// <summary>
-        /// Erkennt physische USB-Datenträger, denen Windows (noch) keinen Laufwerksbuchstaben
-        /// zugewiesen hat — z.B. mit Rufus im ISO/DD-Modus beschriebene Sticks, die in
+        /// Erkennt physische USB-Datenträger, die noch VORBEREITET werden müssen, bevor sie als
+        /// normales Laufwerk nutzbar sind — das sind zwei Fälle: (1) gar kein Laufwerksbuchstabe
+        /// zugewiesen (z.B. mit Rufus im ISO/DD-Modus beschriebene Sticks, die in
         /// ListRemovableDrives() (basiert auf Win32_LogicalDisk, listet nur Datenträger MIT
-        /// Buchstabe) nie auftauchen. Win32_DiskDrive arbeitet auf physischer Ebene, unabhängig
-        /// von Laufwerksbuchstaben — die WMI-Entsprechung dessen, was Rufus selbst über
+        /// Buchstabe UND Dateisystem) nie auftauchen), UND (2) ein Buchstabe ist zwar zugewiesen,
+        /// aber ohne erkanntes Dateisystem (RAW) — der Zustand, in dem ein Datenträger stecken
+        /// bleiben kann, wenn ein vorheriger PrepareRawUsbDisk-Aufruf den Buchstaben zwar
+        /// zugewiesen, das eigentliche Formatieren aber nicht geschafft hat (siehe BUGFIX-Kommentar
+        /// bei IsFormattedFileSystem) — sonst bliebe so ein Stick für immer unsichtbar, weder hier
+        /// noch in ListRemovableDrives() erkannt. Win32_DiskDrive arbeitet auf physischer Ebene,
+        /// unabhängig von Laufwerksbuchstaben — die WMI-Entsprechung dessen, was Rufus selbst über
         /// SetupDiGetClassDevs/IOCTL_STORAGE_QUERY_PROPERTY auf niedrigerer Ebene macht.
         /// Schlägt die Systemdatenträger-Ermittlung fehl, wird eine leere Liste zurückgegeben
         /// (fail-closed) statt ungeprüft alle USB-Datenträger anzubieten.
         /// </summary>
-        public List<RawUsbDiskCandidate> ListRawUsbDisksWithoutLetter()
+        public List<RawUsbDiskCandidate> ListUsbDisksNeedingPreparation()
         {
             var result = new List<RawUsbDiskCandidate>();
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return result;
@@ -143,13 +149,15 @@ if ($sys) {
             const string script = @"
 $disks = Get-CimInstance Win32_DiskDrive | Where-Object { $_.InterfaceType -eq 'USB' }
 foreach ($d in $disks) {
-  $hasLetter = $false
+  $hasFileSystem = $false
   $parts = Get-CimAssociatedInstance -InputObject $d -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue
   foreach ($p in $parts) {
     $lds = Get-CimAssociatedInstance -InputObject $p -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue
-    if ($lds) { $hasLetter = $true }
+    foreach ($ld in $lds) {
+      if ($ld.FileSystem) { $hasFileSystem = $true }
+    }
   }
-  if (-not $hasLetter) {
+  if (-not $hasFileSystem) {
     Write-Output ($d.Index.ToString() + '|' + [int64]$d.Size)
   }
 }";
@@ -175,7 +183,7 @@ foreach ($d in $disks) {
         /// eigentlichen Einrichtung ohnehin komplett neu (siehe VentoyInstallWorker).
         ///
         /// SICHERHEIT: Zweite, unabhängige Systemdatenträger-Prüfung unmittelbar vor dem
-        /// destruktiven diskpart-Aufruf — zusätzlich zur bereits in ListRawUsbDisksWithoutLetter()
+        /// destruktiven diskpart-Aufruf — zusätzlich zur bereits in ListUsbDisksNeedingPreparation()
         /// erfolgten Prüfung. Verhindert, dass sich zwischen Anzeige/Erkennung und tatsächlicher
         /// Ausführung etwas an den Datenträger-Indizes geändert hat (z.B. durch ein zwischenzeitlich
         /// weiteres eingestecktes Laufwerk).
@@ -206,40 +214,74 @@ foreach ($d in $disks) {
             int? systemDiskIndex = GetSystemDiskIndex();
             if (!IsSafeToPrepare(diskIndex, systemDiskIndex)) return false;
 
-            // BUGFIX: fs=fat32 schlug bei einem echten 114-GB-Teststick fehl — Windows' format-
-            // Tools (auch über diskpart) verweigern FAT32 grundsätzlich ab 32 GB (feste
-            // Microsoft-Beschränkung, unabhängig von der eigentlichen FAT32-Spezifikation). Die
-            // Partition wurde dabei bereits erstellt und bekam automatisch einen Buchstaben
-            // zugewiesen, bevor der format-Schritt scheiterte und das Skript abbrach — diskpart
-            // meldete dadurch trotzdem einen Fehler (Exit-Code ≠ 0). ntfs quick hat keine
-            // Größenbegrenzung und ist genauso schnell; die Wahl des Dateisystems ist hier ohnehin
-            // nur ein Übergangszustand, Ventoy2Disk formatiert bei der eigentlichen Einrichtung
-            // alles komplett neu.
+            // fs=ntfs statt fat32: FAT32 wird von Windows' format-Tools grundsätzlich ab 32 GB
+            // verweigert (feste Microsoft-Beschränkung). ntfs quick hat keine Größenbegrenzung und
+            // ist genauso schnell; die Wahl des Dateisystems ist hier ohnehin nur ein
+            // Übergangszustand, Ventoy2Disk formatiert bei der eigentlichen Einrichtung alles
+            // komplett neu.
             string script =
                 $"select disk {diskIndex}\nclean\ncreate partition primary\n" +
                 $"format fs=ntfs quick label=ULMPREP\nassign letter={letter}\nexit\n";
             string tempFile = Path.Combine(Path.GetTempPath(), "ulm_diskpart_raw.txt");
+            string logFile  = Path.Combine(Path.GetTempPath(), "ulm_diskpart_raw_log.txt");
             File.WriteAllText(tempFile, script, Encoding.ASCII);
+            try { File.Delete(logFile); } catch { }
             try
             {
-                // WindowStyle=Hidden funktioniert (anders als CreateNoWindow) auch zusammen mit
-                // UseShellExecute=true/Verb="runas" — unterdrückt das kurz aufblitzende
-                // diskpart-Konsolenfenster, ohne die UAC-Erhöhung zu beeinträchtigen.
-                var psi = new System.Diagnostics.ProcessStartInfo("diskpart", $"/s \"{tempFile}\"")
+                // BUGFIX (live gefunden 2026-08-17): diskpart bricht im /s-Skriptmodus bei einem
+                // fehlgeschlagenen Einzelbefehl NICHT ab — "format" kann scheitern, während
+                // "assign letter" trotzdem noch durchläuft und diskpart sich mit Exit-Code 0
+                // beendet. Der bisherige Code vertraute deshalb fälschlich einem "Erfolg", obwohl
+                // die Partition unformatiert (RAW) blieb — siehe IsFormattedFileSystem-Kommentar.
+                // diskpart läuft deshalb jetzt über cmd.exe (WindowStyle=Hidden funktioniert auch
+                // zusammen mit UseShellExecute=true/Verb="runas" und unterdrückt das kurz
+                // aufblitzende Konsolenfenster, ohne die UAC-Erhöhung zu beeinträchtigen), das die
+                // komplette diskpart-Ausgabe in logFile umleitet — UseShellExecute=true selbst
+                // erlaubt kein direktes RedirectStandardOutput. Nach dem Lauf wird zusätzlich über
+                // DriveInfo.DriveFormat geprüft, ob der zugewiesene Buchstabe wirklich ein
+                // Dateisystem hat.
+                var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", BuildDiskpartCommand(tempFile, logFile))
                 { UseShellExecute = true, Verb = "runas", WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden };
                 using var proc = System.Diagnostics.Process.Start(psi);
                 if (proc is null) return false;
                 proc.WaitForExit(60_000);
-                return proc.ExitCode == 0;
+
+                string? driveFormat = null;
+                try
+                {
+                    var di = new DriveInfo(letter.ToString());
+                    if (di.IsReady) driveFormat = di.DriveFormat;
+                }
+                catch { /* driveFormat bleibt null -> gilt unten als nicht formatiert */ }
+
+                bool formatted = IsFormattedFileSystem(driveFormat);
+                if (!formatted)
+                    Debug.WriteLine($"[PrepareRawUsbDisk] Datenträger {diskIndex} blieb nach diskpart unformatiert (DriveFormat='{driveFormat}'). diskpart-Ausgabe:\n{TryReadDiskpartLog(logFile)}");
+                return formatted;
             }
             catch (System.ComponentModel.Win32Exception)
             {
-                // Nutzer hat die UAC-Abfrage abgelehnt, oder Windows konnte diskpart aus einem
+                // Nutzer hat die UAC-Abfrage abgelehnt, oder Windows konnte cmd.exe aus einem
                 // anderen Grund nicht erhöht starten — kein ULM-Fehler, einfach als gescheiterte
                 // Vorbereitung werten.
                 return false;
             }
-            finally { try { File.Delete(tempFile); } catch { } }
+            finally
+            {
+                try { File.Delete(tempFile); } catch { }
+                try { File.Delete(logFile); } catch { }
+            }
+        }
+
+        private static string TryReadDiskpartLog(string logFile)
+        {
+            try
+            {
+                if (!File.Exists(logFile)) return "(keine Log-Datei erzeugt)";
+                string text = File.ReadAllText(logFile);
+                return text.Length > 2000 ? text[^2000..] : text;
+            }
+            catch (Exception ex) { return $"(Log nicht lesbar: {ex.Message})"; }
         }
 
         public static string DriveRoot(string letter)
@@ -594,5 +636,26 @@ foreach ($d in $disks) {
                 if (!used.Contains(c)) return c;
             return null;
         }
+
+        // BUGFIX (live gefunden 2026-08-17): diskpart bricht im /s-Skriptmodus bei einem
+        // fehlgeschlagenen Einzelbefehl NICHT ab — "format" kann scheitern, während "assign
+        // letter" trotzdem noch durchläuft. Der Prozess-Exit-Code von diskpart sagt daher nur
+        // "diskpart hat sich sauber beendet", NICHT "alle Befehle im Skript haben geklappt". Live
+        // beobachtet: Ein Stick blieb nach "erfolgreich" gemeldeter Vorbereitung RAW mit
+        // zugewiesenem Buchstaben — für ULM danach komplett unsichtbar (weder als roher
+        // Datenträger ohne Buchstaben noch als normales Laufwerk erkannt, siehe
+        // ListUsbDisksNeedingPreparation unten). Deshalb wird nach dem diskpart-Lauf zusätzlich
+        // das TATSÄCHLICHE Ergebnis über DriveInfo.DriveFormat geprüft.
+        internal static bool IsFormattedFileSystem(string? driveFormat) =>
+            !string.IsNullOrWhiteSpace(driveFormat) && !driveFormat.Trim().Equals("RAW", StringComparison.OrdinalIgnoreCase);
+
+        // UseShellExecute=true+Verb="runas" (nötig für die UAC-Erhöhung) erlaubt kein direktes
+        // RedirectStandardOutput auf den diskpart-Prozess selbst — cmd.exe übernimmt die Umleitung
+        // stattdessen (cmd.exe wird elevated gestartet, diskpart als dessen Kindprozess erbt die
+        // Erhöhung ohne eigene UAC-Abfrage). Ohne diese Umleitung gab es bei einem Fehlschlag
+        // bisher keinerlei diskpart-Fehlertext zur Diagnose — nur den (wie oben beschrieben)
+        // unzuverlässigen Exit-Code.
+        internal static string BuildDiskpartCommand(string scriptPath, string logPath) =>
+            $"/c diskpart /s \"{scriptPath}\" > \"{logPath}\" 2>&1";
     }
 }

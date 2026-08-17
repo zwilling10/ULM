@@ -70,5 +70,52 @@ namespace ULM.Tests
             char? result = UsbService.FindFreeDriveLetter(used);
             Assert.Null(result);
         }
+
+        // Regressionstest für einen live gefundenen Bug (2026-08-17): diskpart bricht im
+        // /s-Skriptmodus bei einem fehlgeschlagenen Einzelbefehl NICHT ab — "format" kann
+        // scheitern, während "assign letter" trotzdem noch durchläuft. proc.ExitCode==0 sagt
+        // dadurch nur "diskpart hat sich sauber beendet", NICHT "format hat geklappt". Live
+        // beobachtet: Stick blieb nach "erfolgreicher" Vorbereitung RAW mit zugewiesenem
+        // Buchstaben (E:) — komplett unsichtbar für ULM, weder als "roh ohne Buchstabe" noch als
+        // normales Laufwerk erkannt. IsFormattedFileSystem prüft deshalb das TATSÄCHLICHE Ergebnis
+        // (DriveInfo.DriveFormat) statt dem Exit-Code zu vertrauen.
+        [Fact]
+        public void IsFormattedFileSystem_Raw_ReturnsFalse()
+        {
+            Assert.False(UsbService.IsFormattedFileSystem("RAW"));
+        }
+
+        [Fact]
+        public void IsFormattedFileSystem_RawLowercase_ReturnsFalse()
+        {
+            Assert.False(UsbService.IsFormattedFileSystem("raw"));
+        }
+
+        [Fact]
+        public void IsFormattedFileSystem_NullOrEmpty_ReturnsFalse()
+        {
+            Assert.False(UsbService.IsFormattedFileSystem(null));
+            Assert.False(UsbService.IsFormattedFileSystem(string.Empty));
+            Assert.False(UsbService.IsFormattedFileSystem("   "));
+        }
+
+        [Fact]
+        public void IsFormattedFileSystem_Ntfs_ReturnsTrue()
+        {
+            Assert.True(UsbService.IsFormattedFileSystem("NTFS"));
+        }
+
+        [Fact]
+        public void IsFormattedFileSystem_Fat32_ReturnsTrue()
+        {
+            Assert.True(UsbService.IsFormattedFileSystem("FAT32"));
+        }
+
+        [Fact]
+        public void BuildDiskpartCommand_RedirectsOutputToLogFile()
+        {
+            string cmd = UsbService.BuildDiskpartCommand(@"C:\temp\script.txt", @"C:\temp\log.txt");
+            Assert.Equal("""/c diskpart /s "C:\temp\script.txt" > "C:\temp\log.txt" 2>&1""", cmd);
+        }
     }
 }
