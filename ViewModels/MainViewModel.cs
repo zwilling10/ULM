@@ -71,7 +71,20 @@ namespace ULM.ViewModels
             get
             {
                 if (_selectedDrive is null) return string.Empty;
-                bool   v = UsbService.IsVentoyInstalled(_selectedDrive.Letter);
+                // BUGFIX (live gefunden 2026-08-17): DriveInfoText wird NICHT laufend neu
+                // ausgewertet, sondern nur bei echten, seltenen Ereignissen (SelectedDrive-
+                // Wechsel, RefreshDrives() bei tatsächlicher Laufwerksänderung, Ventoy-Installation
+                // abgeschlossen) — die frühere Sorge, eine Wiederholungsprüfung würde hier "oft"
+                // stören, traf nicht zu. Die bisherige Einmal-Prüfung (IsVentoyInstalled) konnte
+                // direkt nach einem Buchstaben-Wechsel durch Ventoy2Disk fälschlich "false" liefern
+                // — und weil RefreshDrives() die Laufwerks-Signatur danach als "unverändert"
+                // einstuft, wurde diese falsche Anzeige NIE wieder neu geprüft, bis sich die
+                // Laufwerksliste erneut ändert (live beobachtet: Status blieb dauerhaft auf "Kein
+                // Ventoy" hängen, obwohl die Installation nachweislich erfolgreich war). Jetzt
+                // dieselbe Wiederholungsprüfung wie beim destruktiven Dialog PLUS denselben
+                // Cooldown-Fallback wie dort.
+                bool v = UsbService.IsVentoyInstalledWithRetry(_selectedDrive.Letter)
+                    || IsLikelyRecentlyVentoyInstalledStick(_selectedDrive.SizeBytes);
                 double f = UsbService.DriveFreeMb(_selectedDrive.Letter);
                 double t = UsbService.DriveTotalMb(_selectedDrive.Letter);
                 string ventoy = v ? "✅ Ventoy" : LocalizationService.T(Str.Main_DriveInfo_NoVentoy);
