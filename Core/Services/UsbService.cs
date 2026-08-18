@@ -378,16 +378,10 @@ foreach ($d in $disks) {
         }
 
         // ── Ventoy-Theme ──────────────────────────────────────────────────
-        public static void EnsureVentoyTheme(string letter)
-        {
-            try
-            {
-                string themeDir = Path.Combine(DriveRoot(letter), "ventoy", "themes", "ulm");
-                Directory.CreateDirectory(themeDir);
-                UpdateVentoyMenu(letter, Array.Empty<IsoEntry>());
-            }
-            catch (Exception ex) { Debug.WriteLine($"[EnsureVentoyTheme] {ex.Message}"); }
-        }
+        // UpdateVentoyMenu legt den Theme-Ordner inzwischen selbst unbedingt an — dieser Wrapper
+        // bleibt als benannter Einstiegspunkt für "direkt nach Ventoy-Installation/-Update einmalig
+        // einrichten" (Aufrufer: VentoyInstallWorker) bestehen, macht aber nichts anderes mehr.
+        public static void EnsureVentoyTheme(string letter) => UpdateVentoyMenu(letter, Array.Empty<IsoEntry>());
 
         // Vertikale Aufteilung (0-100% der Bildschirmhöhe), so gewählt, dass sich Titel,
         // Untertitel, Boot-Menü, Distro-Tipp (menu_tip, siehe UpdateVentoyMenu), Tasten-Hinweis
@@ -459,11 +453,16 @@ foreach ($d in $disks) {
                     { string fn = Path.GetFileName(iso); stickIsos.Add(($"/{fn}", fn, string.Empty)); }
                 }
 
-                if (Directory.Exists(themeDir))
-                {
-                    WriteBackgroundPng(themeDir);
-                    WriteThemeTxt(themeDir, letter, DriveTotalMb(letter), DriveFreeMb(letter), stickIsos.Count);
-                }
+                // Immer anlegen/schreiben statt nur bei bereits vorhandenem Ordner: ventoy.json
+                // verweist weiter unten UNBEDINGT auf /ventoy/themes/ulm/theme.txt — existierte der
+                // Ordner (noch) nicht (z.B. weil EnsureVentoyTheme direkt nach dem Formatieren an
+                // einem noch nicht frisch gemounteten Laufwerksbuchstaben scheiterte, oder weil ein
+                // Ventoy-Update statt einer Neuinstallation lief), zeigte der Verweis für immer ins
+                // Leere und background.png/theme.txt fehlten dauerhaft — auch nach jeder weiteren
+                // Stick-Kopie, die UpdateVentoyMenu ja gerade JETZT gerade aufruft.
+                Directory.CreateDirectory(themeDir);
+                WriteBackgroundPng(themeDir);
+                WriteThemeTxt(themeDir, letter, DriveTotalMb(letter), DriveFreeMb(letter), stickIsos.Count);
 
                 var byFn = new Dictionary<string, IsoEntry>(StringComparer.OrdinalIgnoreCase);
                 foreach (var e in dbEntries) if (!string.IsNullOrWhiteSpace(e.Filename) && !byFn.ContainsKey(e.Filename)) byFn[e.Filename] = e;

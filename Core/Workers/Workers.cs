@@ -165,7 +165,10 @@ namespace ULM.Core.Workers
                     ? LocalizationService.T(_updateMode ? Str.Log_VentoyUpdatedStatus : Str.Log_VentoyInstalledStatus)
                     : string.Format(LocalizationService.T(Str.VentoyWin_Log_ResultFailed), proc.ExitCode,
                         doneOk is not null ? string.Format(LocalizationService.T(Str.VentoyWin_Log_CliDoneSuffix), doneOk.Value ? 0 : 1) : ""));
-                if (ok && !_updateMode) { Progress?.Invoke(88, "Richte Theme ein …"); UsbService.EnsureVentoyTheme(_letter); }
+                // Auch bei einem Ventoy-UPDATE (nicht nur Neuinstallation) ausfuehren: UpdateVentoyMenu
+                // legt den Theme-Ordner inzwischen unbedingt an, es gibt keinen Grund mehr, das bei
+                // einem Update zu unterlassen — vorher blieb background.png dort dauerhaft unsichtbar.
+                if (ok) { Progress?.Invoke(88, "Richte Theme ein …"); UsbService.EnsureVentoyTheme(_letter); }
                 Progress?.Invoke(100, ok ? "Fertig." : "Fehlgeschlagen."); Completed?.Invoke(ok);
             }
             catch (Exception ex) { ProgressLog?.Invoke(string.Format(LocalizationService.T(Str.VentoyWin_Log_GeneralError), ex.GetType().Name, ex.Message)); Completed?.Invoke(false); }
