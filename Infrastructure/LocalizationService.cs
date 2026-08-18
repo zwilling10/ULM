@@ -923,6 +923,10 @@ namespace ULM.Infrastructure
             [Str.UpdateDl_Btn_Setup]          = "⬇ Setup-Installer (.exe)",
             [Str.UpdateDl_Btn_OpenReleasePage]= "🌐 Zur Release-Seite öffnen",
 
+            [Str.Changelog_Title]           = "Was ist neu?",
+            [Str.Changelog_UpdatedHeader]   = "🆕 Aktualisiert von v{0} auf v{1}",
+            [Str.Changelog_Btn_Understood]  = "✔ Verstanden",
+
             [Str.Preview_DialogTitle]       = "Vorschau: {0}",
             [Str.Preview_OpenTooltip]       = "Vorschau anzeigen",
             [Str.Preview_LoadError]         = "⚠ Vorschau konnte nicht geladen werden ({0}).",
@@ -1975,6 +1979,10 @@ namespace ULM.Infrastructure
             [Str.UpdateDl_Btn_Portable]       = "⬇ Portable .exe (no installation)",
             [Str.UpdateDl_Btn_Setup]          = "⬇ Setup installer (.exe)",
             [Str.UpdateDl_Btn_OpenReleasePage]= "🌐 Open release page",
+
+            [Str.Changelog_Title]           = "What's new?",
+            [Str.Changelog_UpdatedHeader]   = "🆕 Updated from v{0} to v{1}",
+            [Str.Changelog_Btn_Understood]  = "✔ Got it",
 
             [Str.Preview_DialogTitle]       = "Preview: {0}",
             [Str.Preview_OpenTooltip]       = "Show preview",

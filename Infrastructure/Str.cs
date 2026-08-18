@@ -452,6 +452,9 @@ namespace ULM.Infrastructure
         UpdateDl_Title, UpdateDl_Body, UpdateDl_Btn_Portable, UpdateDl_Btn_Setup,
         UpdateDl_Btn_OpenReleasePage,
 
+        // ── Views/Dialogs/ChangelogDialog.cs ───────────────────────────────
+        Changelog_Title, Changelog_UpdatedHeader, Changelog_Btn_Understood,
+
         Preview_DialogTitle, Preview_OpenTooltip, Preview_LoadError, Preview_Label_BasedOn,
         Preview_Label_Origin, Preview_Label_Architecture, Preview_Label_Desktop,
         Preview_Label_Status, Preview_Status_Active, Preview_Status_Inactive,
