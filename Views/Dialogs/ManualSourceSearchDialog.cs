@@ -33,7 +33,7 @@ namespace ULM.Views.Dialogs
         public ManualSourceSearchDialog(IsoEntry entry)
         {
             _entry = entry;
-            Title  = $"Quelle manuell suchen: {entry.Name}";
+            Title  = string.Format(LocalizationService.T(Str.ManualSearch_Title), entry.Name);
             Width  = 640;
             SizeToContent = SizeToContent.Height;
             MaxHeight = SystemParameters.WorkArea.Height - 40;
@@ -44,23 +44,23 @@ namespace ULM.Views.Dialogs
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var root   = new StackPanel { Margin = new Thickness(20) };
 
-            _tbName    = AppRes.AddField(root, "Name *",          entry.Name);
+            _tbName    = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Name),        entry.Name);
             _cbCat     = AppRes.AddCategoryCombo(root, entry.Category);
-            _tbUrl     = AppRes.AddField(root, "Primäre URL",     entry.Url);
-            _tbFilename= AppRes.AddField(root, "Dateiname *",     entry.Filename);
-            _tbMirror1 = AppRes.AddField(root, "Mirror 1",        entry.Mirror1);
-            _tbMirror2 = AppRes.AddField(root, "Mirror 2",        entry.Mirror2);
-            _tbMirror3 = AppRes.AddField(root, "Mirror 3",        entry.Mirror3);
-            _tbGhRepo  = AppRes.AddField(root, "GitHub Repo",     entry.GithubRepo);
-            _tbGhAsset = AppRes.AddField(root, "GitHub Asset",    entry.GithubAsset);
-            _tbTip     = AppRes.AddField(root, "Beschreibung",    entry.Tip, multiLine: true);
+            _tbUrl     = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_PrimaryUrl),  entry.Url);
+            _tbFilename= AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Filename),    entry.Filename);
+            _tbMirror1 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror1),     entry.Mirror1);
+            _tbMirror2 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror2),     entry.Mirror2);
+            _tbMirror3 = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Mirror3),     entry.Mirror3);
+            _tbGhRepo  = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubRepo),  entry.GithubRepo);
+            _tbGhAsset = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_GithubAsset), entry.GithubAsset);
+            _tbTip     = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_Description), entry.Tip, multiLine: true);
             _tbTipEn   = AppRes.AddField(root, LocalizationService.T(Str.Db_Field_DescriptionEn), entry.TipEn, multiLine: true);
 
             root.Children.Add(new Border { Height = 1, Margin = new Thickness(0, 6, 0, 14), Background = AppRes.Brush("BrushBorder") });
-            root.Children.Add(new TextBlock { Text = "Manuelle Suche", FontWeight = FontWeights.Bold, FontSize = 13.5, Foreground = AppRes.Brush("BrushHeader"), Margin = new Thickness(0, 0, 0, 8) });
+            root.Children.Add(new TextBlock { Text = LocalizationService.T(Str.ManualSearch_Header), FontWeight = FontWeights.Bold, FontSize = 13.5, Foreground = AppRes.Brush("BrushHeader"), Margin = new Thickness(0, 0, 0, 8) });
 
             var searchRow = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            var searchBtn = new Button { Content = "🔍 Suchen", Style = AppRes.Style("BtnPrimary"), Width = 110 };
+            var searchBtn = new Button { Content = LocalizationService.T(Str.ManualSearch_Btn_Search), Style = AppRes.Style("BtnPrimary"), Width = 110 };
             DockPanel.SetDock(searchBtn, Dock.Right);
             _tbSearch = new TextBox { Text = $"{entry.Name} iso", Margin = new Thickness(0, 0, 8, 0), VerticalContentAlignment = VerticalAlignment.Center };
             searchRow.Children.Add(searchBtn);
@@ -76,9 +76,9 @@ namespace ULM.Views.Dialogs
             searchBtn.Click += async (_, _) => await RunSearchAsync();
 
             var btns = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-            var ok = new Button { Content = "✔ Speichern", Style = AppRes.Style("BtnPrimary"), Width = 110 };
+            var ok = new Button { Content = LocalizationService.T(Str.Db_Btn_Save), Style = AppRes.Style("BtnPrimary"), Width = 110 };
             ok.Click += OkBtn_Click;
-            var cancel = new Button { Content = "Abbrechen", Style = AppRes.Style("BtnGhost"), Width = 100, Margin = new Thickness(8, 0, 0, 0) };
+            var cancel = new Button { Content = LocalizationService.T(Str.Db_Btn_Cancel), Style = AppRes.Style("BtnGhost"), Width = 100, Margin = new Thickness(8, 0, 0, 0) };
             cancel.Click += (_, _) => DialogResult = false;
             btns.Children.Add(ok); btns.Children.Add(cancel);
             root.Children.Add(btns);
@@ -92,26 +92,26 @@ namespace ULM.Views.Dialogs
             string query = _tbSearch.Text.Trim();
             if (string.IsNullOrWhiteSpace(query)) return;
             _resultsPanel.Children.Clear();
-            _searchStatus.Text = "🔍 Suche läuft …";
+            _searchStatus.Text = LocalizationService.T(Str.ManualSearch_Status_Searching);
             var hits = await HttpService.Instance.SearchIsoLinksAsync(query);
 
             if (hits.Count == 0)
             {
-                _searchStatus.Text = "Keine Treffer in ULM — öffne Browser-Suche …";
+                _searchStatus.Text = LocalizationService.T(Str.ManualSearch_Status_NoHitsOpeningBrowser);
                 try
                 {
                     string url = $"https://duckduckgo.com/?q={Uri.EscapeDataString(query + " download")}";
                     Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-                    _searchStatus.Text = "Keine Treffer in ULM — Browser-Suche geöffnet. Gefundene URL bitte oben manuell eintragen.";
+                    _searchStatus.Text = LocalizationService.T(Str.ManualSearch_Status_NoHitsBrowserOpened);
                 }
                 catch (Exception ex)
                 {
-                    _searchStatus.Text = $"Keine Treffer, Browser konnte nicht geöffnet werden: {ex.Message}";
+                    _searchStatus.Text = string.Format(LocalizationService.T(Str.ManualSearch_Status_BrowserOpenFailed), ex.Message);
                 }
                 return;
             }
 
-            _searchStatus.Text = $"{hits.Count} Treffer gefunden — auswählen zum Übernehmen:";
+            _searchStatus.Text = string.Format(LocalizationService.T(Str.ManualSearch_Status_HitsFound), hits.Count);
             foreach (var hit in hits)
             {
                 var row = new Button
@@ -129,17 +129,15 @@ namespace ULM.Views.Dialogs
         private void OkBtn_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(_tbName.Text) || string.IsNullOrWhiteSpace(_tbFilename.Text))
-            { MessageBox.Show("Name und Dateiname sind Pflichtfelder.", "Eingabe unvollständig", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+            { MessageBox.Show(LocalizationService.T(Str.Db_RequiredFields_Body), LocalizationService.T(Str.Db_RequiredFields_Title), MessageBoxButton.OK, MessageBoxImage.Warning); return; }
 
             string newName = _tbName.Text.Trim();
             bool nameTaken = IsoDatabaseService.Instance.Entries.Any(other =>
                 !ReferenceEquals(other, _entry) && string.Equals(other.Name, newName, StringComparison.OrdinalIgnoreCase));
             if (nameTaken)
             {
-                MessageBox.Show($"Der Name \"{newName}\" wird bereits von einem anderen Eintrag verwendet.\n\n" +
-                    "Bitte einen eindeutigen Namen vergeben — gleiche Namen können beim Download " +
-                    "(z.B. dem \"(schneller)\"-Button) zu Verwechslungen zwischen den Einträgen führen.",
-                    "Name bereits vergeben", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(string.Format(LocalizationService.T(Str.Db_NameTaken_Body), newName),
+                    LocalizationService.T(Str.Db_NameTaken_Title), MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 

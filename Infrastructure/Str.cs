@@ -442,6 +442,16 @@ namespace ULM.Infrastructure
         Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
         Db_Discovery_AddedOn, Db_Discovery_RankHits,
 
+        // ── Views/Dialogs/ManualSourceSearchDialog.cs ─────────────────────
+        ManualSearch_Title, ManualSearch_Header, ManualSearch_Btn_Search,
+        ManualSearch_Status_Searching, ManualSearch_Status_NoHitsOpeningBrowser,
+        ManualSearch_Status_NoHitsBrowserOpened, ManualSearch_Status_BrowserOpenFailed,
+        ManualSearch_Status_HitsFound,
+
+        // ── Views/Dialogs/UpdateDownloadDialog.cs ─────────────────────────
+        UpdateDl_Title, UpdateDl_Body, UpdateDl_Btn_Portable, UpdateDl_Btn_Setup,
+        UpdateDl_Btn_OpenReleasePage,
+
         Preview_DialogTitle, Preview_OpenTooltip, Preview_LoadError, Preview_Label_BasedOn,
         Preview_Label_Origin, Preview_Label_Architecture, Preview_Label_Desktop,
         Preview_Label_Status, Preview_Status_Active, Preview_Status_Inactive,

@@ -908,6 +908,21 @@ namespace ULM.Infrastructure
             [Str.Db_Discovery_AddedOn]      = "Hinzugefügt: {0}",
             [Str.Db_Discovery_RankHits]     = "#{0} · {1} Hits/Tag",
 
+            [Str.ManualSearch_Title]                     = "Quelle manuell suchen: {0}",
+            [Str.ManualSearch_Header]                    = "Manuelle Suche",
+            [Str.ManualSearch_Btn_Search]                = "🔍 Suchen",
+            [Str.ManualSearch_Status_Searching]           = "🔍 Suche läuft …",
+            [Str.ManualSearch_Status_NoHitsOpeningBrowser]= "Keine Treffer in ULM — öffne Browser-Suche …",
+            [Str.ManualSearch_Status_NoHitsBrowserOpened] = "Keine Treffer in ULM — Browser-Suche geöffnet. Gefundene URL bitte oben manuell eintragen.",
+            [Str.ManualSearch_Status_BrowserOpenFailed]   = "Keine Treffer, Browser konnte nicht geöffnet werden: {0}",
+            [Str.ManualSearch_Status_HitsFound]           = "{0} Treffer gefunden — auswählen zum Übernehmen:",
+
+            [Str.UpdateDl_Title]              = "Programm-Update herunterladen",
+            [Str.UpdateDl_Body]               = "Version v{0} steht bereit.\nWie möchtest du sie beziehen?",
+            [Str.UpdateDl_Btn_Portable]       = "⬇ Portable .exe (ohne Installation)",
+            [Str.UpdateDl_Btn_Setup]          = "⬇ Setup-Installer (.exe)",
+            [Str.UpdateDl_Btn_OpenReleasePage]= "🌐 Zur Release-Seite öffnen",
+
             [Str.Preview_DialogTitle]       = "Vorschau: {0}",
             [Str.Preview_OpenTooltip]       = "Vorschau anzeigen",
             [Str.Preview_LoadError]         = "⚠ Vorschau konnte nicht geladen werden ({0}).",
@@ -1945,6 +1960,21 @@ namespace ULM.Infrastructure
             [Str.Db_DiscoveryError]         = "⚠ Error: {0}",
             [Str.Db_Discovery_AddedOn]      = "Added: {0}",
             [Str.Db_Discovery_RankHits]     = "#{0} · {1} hits/day",
+
+            [Str.ManualSearch_Title]                     = "Search source manually: {0}",
+            [Str.ManualSearch_Header]                    = "Manual search",
+            [Str.ManualSearch_Btn_Search]                = "🔍 Search",
+            [Str.ManualSearch_Status_Searching]           = "🔍 Searching …",
+            [Str.ManualSearch_Status_NoHitsOpeningBrowser]= "No hits in ULM — opening browser search …",
+            [Str.ManualSearch_Status_NoHitsBrowserOpened] = "No hits in ULM — browser search opened. Please enter the found URL above manually.",
+            [Str.ManualSearch_Status_BrowserOpenFailed]   = "No hits, browser could not be opened: {0}",
+            [Str.ManualSearch_Status_HitsFound]           = "{0} hits found — select one to use it:",
+
+            [Str.UpdateDl_Title]              = "Download program update",
+            [Str.UpdateDl_Body]               = "Version v{0} is available.\nHow would you like to get it?",
+            [Str.UpdateDl_Btn_Portable]       = "⬇ Portable .exe (no installation)",
+            [Str.UpdateDl_Btn_Setup]          = "⬇ Setup installer (.exe)",
+            [Str.UpdateDl_Btn_OpenReleasePage]= "🌐 Open release page",
 
             [Str.Preview_DialogTitle]       = "Preview: {0}",
             [Str.Preview_OpenTooltip]       = "Show preview",

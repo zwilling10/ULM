@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using ULM.Core.Services;
+using ULM.Infrastructure;
 
 namespace ULM.Views.Dialogs
 {
@@ -17,7 +18,7 @@ namespace ULM.Views.Dialogs
 
         public UpdateDownloadDialog(UlmUpdateInfo info)
         {
-            Title  = "Programm-Update herunterladen";
+            Title  = LocalizationService.T(Str.UpdateDl_Title);
             Width  = 460; SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.NoResize;
@@ -26,7 +27,7 @@ namespace ULM.Views.Dialogs
             var root = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
             root.Children.Add(new TextBlock
             {
-                Text = $"Version v{info.LatestVersion} steht bereit.\nWie möchtest du sie beziehen?",
+                Text = string.Format(LocalizationService.T(Str.UpdateDl_Body), info.LatestVersion),
                 TextWrapping = TextWrapping.Wrap, FontSize = 12.5,
                 Margin = new Thickness(0, 0, 0, 16), Foreground = AppRes.Brush("BrushHeader"),
             });
@@ -35,25 +36,25 @@ namespace ULM.Views.Dialogs
             if (!string.IsNullOrWhiteSpace(info.PortableExeUrl))
             {
                 any = true;
-                var b = new Button { Content = "⬇ Portable .exe (ohne Installation)", Style = AppRes.Style("BtnPrimary"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
+                var b = new Button { Content = LocalizationService.T(Str.UpdateDl_Btn_Portable), Style = AppRes.Style("BtnPrimary"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
                 b.Click += (_, _) => { ChosenUrl = info.PortableExeUrl; DialogResult = true; Close(); };
                 root.Children.Add(b);
             }
             if (!string.IsNullOrWhiteSpace(info.SetupExeUrl))
             {
                 any = true;
-                var b = new Button { Content = "⬇ Setup-Installer (.exe)", Style = AppRes.Style("BtnSuccess"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
+                var b = new Button { Content = LocalizationService.T(Str.UpdateDl_Btn_Setup), Style = AppRes.Style("BtnSuccess"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
                 b.Click += (_, _) => { ChosenUrl = info.SetupExeUrl; DialogResult = true; Close(); };
                 root.Children.Add(b);
             }
             if (!any)
             {
-                var b = new Button { Content = "🌐 Zur Release-Seite öffnen", Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
+                var b = new Button { Content = LocalizationService.T(Str.UpdateDl_Btn_OpenReleasePage), Style = AppRes.Style("BtnGhost"), Margin = new Thickness(0, 0, 0, 8), Padding = new Thickness(10, 8, 10, 8) };
                 b.Click += (_, _) => { OpenReleasePageInstead = true; DialogResult = true; Close(); };
                 root.Children.Add(b);
             }
 
-            var bCancel = new Button { Content = "Abbrechen", Style = AppRes.Style("BtnGhost"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+            var bCancel = new Button { Content = LocalizationService.T(Str.Db_Btn_Cancel), Style = AppRes.Style("BtnGhost"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
             bCancel.Click += (_, _) => { DialogResult = false; Close(); };
             root.Children.Add(bCancel);
 
