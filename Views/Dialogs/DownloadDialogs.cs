@@ -175,6 +175,18 @@ namespace ULM.Views.Dialogs
         private readonly bool        _hasDownload;
         private readonly bool        _hasCopy;
 
+        // BUGFIX (live gefunden, Screenshot: Titel/Kopfzeile zeigten "Download" bei einem reinen
+        // Kopiervorgang ohne jeden Download, z.B. MissingOnStickDetected beim Programmstart). Ein
+        // echter Download läuft, sobald hasDownload gesetzt ist (auch im gemischten Fall
+        // hasDownload+hasCopy — dort ist "Download" weiterhin die zutreffende Primärbezeichnung,
+        // die Kopie folgt erst danach) — nur der Fall "ausschließlich Kopieren" braucht eigenen
+        // Wortlaut.
+        private bool IsPureCopyMode => !_hasDownload && _hasCopy;
+
+        private Str RunningLabel(int count) => IsPureCopyMode
+            ? (count == 1 ? Str.Dl_CopyRunningSingle     : Str.Dl_CopyRunningMultiple)
+            : (count == 1 ? Str.Dl_DownloadRunningSingle : Str.Dl_DownloadRunningMultiple);
+
         private sealed class Row
         {
             public required Border      Container;
@@ -203,7 +215,7 @@ namespace ULM.Views.Dialogs
         {
             var names = isoNames.ToList();
             _total = names.Count; _hasDownload = hasDownload; _hasCopy = hasCopy;
-            Title = LocalizationService.T(Str.Dl_ProgressDialog_Title);
+            Title = LocalizationService.T(IsPureCopyMode ? Str.Dl_CopyProgressDialog_Title : Str.Dl_ProgressDialog_Title);
             Width = 540;
             // Feste Höhe (480) zeigte bei mehreren parallelen Downloads nur einen Bruchteil der
             // Zeilen — der Rest war nur per Scrollbalken erreichbar, wo die %-Anzeige kaum noch zu
@@ -225,7 +237,7 @@ namespace ULM.Views.Dialogs
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
             var header = new StackPanel();
-            _summaryText = new TextBlock { Text = LocalizationService.T(names.Count == 1 ? Str.Dl_DownloadRunningSingle : Str.Dl_DownloadRunningMultiple), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
+            _summaryText = new TextBlock { Text = LocalizationService.T(RunningLabel(names.Count)), FontWeight = FontWeights.Bold, FontSize = 14, Margin = new Thickness(0, 0, 0, 10), Foreground = AppRes.Brush("BrushHeader") };
             header.Children.Add(_summaryText);
 
             // Gesamt-Fortschrittsbalken: nur bei mehreren Einträgen sinnvoll (bei einem einzigen
@@ -446,7 +458,7 @@ namespace ULM.Views.Dialogs
             // neutralen "läuft"-Text — SetOverallComplete() überschreibt ihn danach wie gewohnt mit
             // der finalen Bilanz.
             if (done < _total)
-                _summaryText.Text = LocalizationService.T(_total == 1 ? Str.Dl_DownloadRunningSingle : Str.Dl_DownloadRunningMultiple);
+                _summaryText.Text = LocalizationService.T(RunningLabel(_total));
         }
 
         // BUGFIX: Gesamt-Balken/-Text wurden hier bisher hart auf 100%/"{_total}/{_total} fertig"

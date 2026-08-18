@@ -483,6 +483,12 @@ namespace ULM.Infrastructure
         Dl_ProgressDialog_Title, Dl_DownloadRunningSingle, Dl_DownloadRunningMultiple,
         Dl_OverallStatus, Dl_Btn_CancelX, Dl_Btn_ManualSearch, Dl_Waiting, Dl_Btn_Faster,
         Dl_Tooltip_Faster, Dl_CopyingToStickSuffix, Dl_SummaryPartial,
+        // BUGFIX (live gefunden, Screenshot: Titel "Download-Fortschritt" + "↓ Downloads laufen …"
+        // bei einem reinen Kopiervorgang ohne jeden Download): DownloadProgressDialog zeigte Titel
+        // und Kopfzeile bisher IMMER mit Download-Wortlaut, auch im reinen Kopier-Modus
+        // (hasDownload:false, hasCopy:true — z.B. MissingOnStickDetected beim Programmstart).
+        // Eigene Kopier-Varianten für genau diesen Fall.
+        Dl_CopyProgressDialog_Title, Dl_CopyRunningSingle, Dl_CopyRunningMultiple,
 
         Dl_OrphanedDefaultTitle, Dl_OrphanedDefaultItemLabel, Dl_OrphanedFoundText,
         Dl_Btn_DeleteSelected,

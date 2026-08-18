@@ -1017,6 +1017,9 @@ namespace ULM.Infrastructure
             [Str.Dl_Tooltip_Faster]            = "Aktuellen Server abbrechen und zum nächsten (bereits getesteten) Mirror wechseln",
             [Str.Dl_CopyingToStickSuffix]      = "{0}  —  Kopiere auf Stick",
             [Str.Dl_SummaryPartial]            = "⚠ {0}",
+            [Str.Dl_CopyProgressDialog_Title]  = "Kopier-Fortschritt",
+            [Str.Dl_CopyRunningSingle]         = "📋 Kopiervorgang läuft ...",
+            [Str.Dl_CopyRunningMultiple]       = "📋 Kopiervorgänge laufen ...",
 
             [Str.Dl_OrphanedDefaultTitle]      = "Unvollständige Downloads gefunden",
             [Str.Dl_OrphanedDefaultItemLabel]  = "unvollständige Download-Datei(en)",
@@ -2051,6 +2054,9 @@ namespace ULM.Infrastructure
             [Str.Dl_Tooltip_Faster]            = "Cancel the current server and switch to the next (already tested) mirror",
             [Str.Dl_CopyingToStickSuffix]      = "{0}  —  Copying to stick",
             [Str.Dl_SummaryPartial]            = "⚠ {0}",
+            [Str.Dl_CopyProgressDialog_Title]  = "Copy Progress",
+            [Str.Dl_CopyRunningSingle]         = "📋 Copy in progress ...",
+            [Str.Dl_CopyRunningMultiple]       = "📋 Copies in progress ...",
 
             [Str.Dl_OrphanedDefaultTitle]      = "Incomplete downloads found",
             [Str.Dl_OrphanedDefaultItemLabel]  = "incomplete download file(s)",
