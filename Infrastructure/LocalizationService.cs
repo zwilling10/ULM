@@ -905,6 +905,8 @@ namespace ULM.Infrastructure
             [Str.Db_DistrowatchTags]        = "DistroWatch-Tags: {0}",
             [Str.Db_TakenOverStatus]        = "✔ {0} übernommen — {1}",
             [Str.Db_DiscoveryError]         = "⚠ Fehler: {0}",
+            [Str.Db_Discovery_AddedOn]      = "Hinzugefügt: {0}",
+            [Str.Db_Discovery_RankHits]     = "#{0} · {1} Hits/Tag",
 
             [Str.Preview_DialogTitle]       = "Vorschau: {0}",
             [Str.Preview_OpenTooltip]       = "Vorschau anzeigen",
@@ -1941,6 +1943,8 @@ namespace ULM.Infrastructure
             [Str.Db_DistrowatchTags]        = "DistroWatch tags: {0}",
             [Str.Db_TakenOverStatus]        = "✔ {0} added — {1}",
             [Str.Db_DiscoveryError]         = "⚠ Error: {0}",
+            [Str.Db_Discovery_AddedOn]      = "Added: {0}",
+            [Str.Db_Discovery_RankHits]     = "#{0} · {1} hits/day",
 
             [Str.Preview_DialogTitle]       = "Preview: {0}",
             [Str.Preview_OpenTooltip]       = "Show preview",

@@ -440,6 +440,7 @@ namespace ULM.Infrastructure
         Db_Btn_CloseSimple, Db_Btn_Refresh, Db_Btn_TakeOver, Db_Loading, Db_NoDiscoveryResults,
         Db_FromCache, Db_FreshlyLoaded, Db_DiscoveryStatusSuffix, Db_NameAlreadyInDb,
         Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
+        Db_Discovery_AddedOn, Db_Discovery_RankHits,
 
         Preview_DialogTitle, Preview_OpenTooltip, Preview_LoadError, Preview_Label_BasedOn,
         Preview_Label_Origin, Preview_Label_Architecture, Preview_Label_Desktop,

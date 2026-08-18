@@ -97,7 +97,7 @@ namespace ULM.Core.Services
                 .Take(20)
                 .ToList();
 
-            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: $"Hinzugefügt: {c.Date}")).ToList())
+            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: string.Format(LocalizationService.T(Str.Db_Discovery_AddedOn), c.Date))).ToList())
                 .ConfigureAwait(false);
         }
 
@@ -120,7 +120,7 @@ namespace ULM.Core.Services
                 .Take(20)
                 .ToList();
 
-            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: $"#{c.Rank} · {c.Hits} Hits/Tag")).ToList())
+            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: string.Format(LocalizationService.T(Str.Db_Discovery_RankHits), c.Rank, c.Hits))).ToList())
                 .ConfigureAwait(false);
         }
 
