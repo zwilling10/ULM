@@ -18,6 +18,15 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] Notes)[] History =
         {
+            ("2.43.0", new[]
+            {
+                "Neu: Unformatierte (\"rohe\") USB-Sticks werden jetzt zuverlässig erkannt und lassen sich in einem einzigen Rutsch (nur noch eine Benutzerkontensteuerung-Abfrage statt zwei) als Ventoy-Stick einrichten.",
+                "Fehlerbehebung: Nach eigener Ventoy-Installation wurde der Stick manchmal kurzzeitig fälschlich wieder als \"kein Ventoy\" erkannt und der destruktive Löschen-Dialog angeboten; außerdem wurden lokal bereits heruntergeladene ISOs beim Einstecken eines frisch eingerichteten Sticks nicht mehr automatisch zum Kopieren angeboten.",
+                "Neu: Die automatische Quellauflösung findet jetzt auch Distros über eine gezielte SourceForge-Projektsuche, wenn die offizielle Projekt-Homepage keinen direkten Download-Link bietet.",
+                "Fehlerbehebung: Die Sammel-Kopfzeile im Download-Fortschrittsfenster blieb nach einem manuellen Quellen-Nachtrag (\"🔧 Quelle manuell suchen\") auf der alten Bilanz des ersten Versuchs stehen, statt den laufenden Fortschritt zu zeigen; außerdem zeigte das Fenster \"Download-Fortschritt\", obwohl nur lokal vorhandene ISOs auf den Stick kopiert wurden.",
+                "Fehlerbehebung: Der DB-Gesundheitscheck öffnete sein Ergebnis-Popup auch bei automatischen Prüfungen im Hintergrund (z.B. nach \"ISO suchen\") — erscheint jetzt nur noch nach einem Klick auf den Gesundheitscheck-Button.",
+                "Neu: In \"🔍 ISO suchen\" reicht jetzt ein Häkchen pro Zeile, um eine Distro zur Datenbank hinzuzufügen und direkt herunterzuladen — die separate \"Direkt herunterladen\"-Checkbox ist entfallen.",
+            }),
             ("2.42.0", new[]
             {
                 "Neu: In \"🔍 ISO suchen\" zeigt ein neues 🔍-Vorschau-Icon pro Zeile eine Karte mit Screenshot, Kurzfakten (Basiert auf, Desktop, Herkunft, Architektur, Status, Popularität), Beschreibung und Tags — bevor man eine Distro herunterlädt, direkt in der App und ohne DistroWatch im Browser aufzurufen.",
