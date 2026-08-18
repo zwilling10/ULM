@@ -22,6 +22,15 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] NotesDe, string[] NotesEn)[] History =
         {
+            ("2.44.1",
+            new[]
+            {
+                "Fehlerbehebung: In \"🔍 ISO suchen\" blieben die Info-Texte pro Zeile (\"Hinzugefügt: …\", \"Hits/Tag\") nach einem Sprachwechsel bis zu 24 Stunden in der alten Sprache hängen, weil sie bereits fertig formatiert zwischengespeichert wurden — werden jetzt immer live in der aktuell eingestellten Sprache angezeigt.",
+            },
+            new[]
+            {
+                "Fix: In \"🔍 Search ISO\", the per-row info texts (\"Added: …\", \"hits/day\") kept showing the old language for up to 24 hours after a language switch because they were cached already fully formatted — now always rendered live in the currently selected language.",
+            }),
             ("2.44.0",
             new[]
             {
