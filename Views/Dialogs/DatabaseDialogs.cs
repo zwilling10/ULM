@@ -274,7 +274,6 @@ namespace ULM.Views.Dialogs
         {
             public required StackPanel RowsPanel;
             public required TextBlock  StatusTb;
-            public required CheckBox   AlsoDownloadChk;
             public readonly List<DiscoveryRow> Rows = new();
             public bool Loaded;
         }
@@ -284,9 +283,8 @@ namespace ULM.Views.Dialogs
 
         private static DiscoveryTab MakeTabState() => new()
         {
-            RowsPanel       = new StackPanel(),
-            StatusTb        = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
-            AlsoDownloadChk = new CheckBox { Content = LocalizationService.T(Str.Db_Chk_DownloadImmediately), VerticalAlignment = VerticalAlignment.Center, Foreground = (Brush)Application.Current.Resources["BrushHeader"] },
+            RowsPanel = new StackPanel(),
+            StatusTb  = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
         };
 
         public IsoSearchDialog()
@@ -346,7 +344,6 @@ namespace ULM.Views.Dialogs
             DockPanel.SetDock(takeBtn, Dock.Right);
             takeBtn.Click += (_, _) => TakeSelected(tab);
             footer.Children.Add(takeBtn);
-            footer.Children.Add(tab.AlsoDownloadChk);
             Grid.SetRow(footer, 2);
 
             refreshBtn.Click += async (_, _) => await LoadDiscoveryTabAsync(tab, forceRefresh: true, fetch);
@@ -380,7 +377,10 @@ namespace ULM.Views.Dialogs
                     row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                     ApplyRowHighlight(row, d);
 
-                    var chk = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 4, 4, 4), IsEnabled = !d.AlreadyInDb };
+                    // Nutzerwunsch: bei bereits in der DB stehenden Distros verschwindet die Checkbox
+                    // komplett (nicht nur deaktiviert/ausgegraut) — es gibt dort ohnehin nichts mehr
+                    // anzuklicken.
+                    var chk = new CheckBox { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 4, 4, 4), Visibility = d.AlreadyInDb ? Visibility.Collapsed : Visibility.Visible };
                     Grid.SetColumn(chk, 0); row.Children.Add(chk);
 
                     var nameTb = new TextBlock
@@ -428,7 +428,6 @@ namespace ULM.Views.Dialogs
 
         private void TakeSelected(DiscoveryTab tab)
         {
-            bool alsoDownload = tab.AlsoDownloadChk.IsChecked == true;
             int taken = 0;
             foreach (var row in tab.Rows)
             {
@@ -436,10 +435,13 @@ namespace ULM.Views.Dialogs
                 string category = AppRes.SelectedCategory(row.CatCb);
                 var entry = new IsoEntry { Name = row.Distro.Name, Category = category };
                 AddedEntries.Add(entry);
-                if (alsoDownload) ToDownload.Add(entry);
+                // Nutzerwunsch: die separate "Direkt herunterladen"-Checkbox ist entfallen (war
+                // doppelt gemoppelt) — eine angehakte Zeile bedeutet jetzt automatisch beides,
+                // zur DB hinzufügen UND herunterladen.
+                ToDownload.Add(entry);
 
                 row.Distro.AlreadyInDb = true;
-                row.Chk.IsChecked = false; row.Chk.IsEnabled = false; row.CatCb.IsEnabled = false;
+                row.Chk.IsChecked = false; row.Chk.Visibility = Visibility.Collapsed; row.CatCb.IsEnabled = false;
                 row.NameTb.Text = string.Format(LocalizationService.T(Str.Db_NameAlreadyInDb), row.Distro.Name);
                 row.NameTb.Foreground = (Brush)Application.Current.Resources["BrushDim"];
                 row.NameTb.ToolTip = null;

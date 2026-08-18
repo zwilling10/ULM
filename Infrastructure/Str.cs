@@ -436,7 +436,7 @@ namespace ULM.Infrastructure
         Db_Field_GithubRepo, Db_Field_GithubAsset, Db_Field_Description, Db_Btn_Save, Db_Btn_Cancel,
         Db_RequiredFields_Body, Db_RequiredFields_Title, Db_NameTaken_Body, Db_NameTaken_Title,
 
-        Db_SearchDialog_Title, Db_Tab_Latest, Db_Tab_Popular, Db_Chk_DownloadImmediately,
+        Db_SearchDialog_Title, Db_Tab_Latest, Db_Tab_Popular,
         Db_Btn_CloseSimple, Db_Btn_Refresh, Db_Btn_TakeOver, Db_Loading, Db_NoDiscoveryResults,
         Db_FromCache, Db_FreshlyLoaded, Db_DiscoveryStatusSuffix, Db_NameAlreadyInDb,
         Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
