@@ -22,6 +22,15 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] NotesDe, string[] NotesEn)[] History =
         {
+            ("2.44.2",
+            new[]
+            {
+                "Fehlerbehebung: Das Boot-Menü-Hintergrundbild (background.png) fehlte dauerhaft, wenn der Theme-Ordner beim allerersten Einrichten nicht angelegt werden konnte (z.B. bei einem Ventoy-Update statt Neuinstallation, oder direkt nach dem Formatieren eines rohen Sticks) — betraf auch jede spätere ISO-Kopie auf den Stick, da der fehlende Ordner sich nie von selbst reparierte. Wird jetzt bei jeder Stick-Kopie automatisch nachgeholt.",
+            },
+            new[]
+            {
+                "Fix: The boot menu background image (background.png) was permanently missing if the theme folder couldn't be created during the very first setup (e.g. a Ventoy update instead of a fresh install, or right after formatting a raw stick) — this also affected every later ISO copy to the stick, since the missing folder never fixed itself. Now automatically restored on every stick copy.",
+            }),
             ("2.44.1",
             new[]
             {
