@@ -97,7 +97,7 @@ namespace ULM.Core.Services
                 .Take(20)
                 .ToList();
 
-            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: string.Format(LocalizationService.T(Str.Db_Discovery_AddedOn), c.Date))).ToList())
+            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, InfoKind: DiscoveryInfoKind.AddedOn, InfoArg1: c.Date, InfoArg2: string.Empty)).ToList())
                 .ConfigureAwait(false);
         }
 
@@ -120,7 +120,7 @@ namespace ULM.Core.Services
                 .Take(20)
                 .ToList();
 
-            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, Info: string.Format(LocalizationService.T(Str.Db_Discovery_RankHits), c.Rank, c.Hits))).ToList())
+            return await ResolveLiveMediumCandidatesAsync(candidates.Select(c => (c.Slug, c.Name, InfoKind: DiscoveryInfoKind.RankHits, InfoArg1: c.Rank, InfoArg2: c.Hits)).ToList())
                 .ConfigureAwait(false);
         }
 
@@ -129,7 +129,7 @@ namespace ULM.Core.Services
         /// "Live Medium" (per USB-Stick bootfähig, keine reine Installations-/Server-Distro) bleibt
         /// er in der Liste. Bricht ab, sobald 10 gültige Kandidaten gefunden wurden.
         /// </summary>
-        private async Task<List<DiscoveredDistro>> ResolveLiveMediumCandidatesAsync(List<(string Slug, string Name, string Info)> candidates)
+        private async Task<List<DiscoveredDistro>> ResolveLiveMediumCandidatesAsync(List<(string Slug, string Name, DiscoveryInfoKind InfoKind, string InfoArg1, string InfoArg2)> candidates)
         {
             var result = new List<DiscoveredDistro>();
             foreach (var c in candidates)
@@ -145,7 +145,7 @@ namespace ULM.Core.Services
                     var tags = Regex.Matches(profileHtml, @"category=[^""#]+#simple"">([^<]+)<", RegexOptions.IgnoreCase)
                         .Cast<Match>().Select(m => m.Groups[1].Value).ToList();
 
-                    result.Add(new DiscoveredDistro { Name = c.Name, Slug = c.Slug, Info = c.Info, SuggestedCategory = GuessCategory(tags), Tags = tags });
+                    result.Add(new DiscoveredDistro { Name = c.Name, Slug = c.Slug, InfoKind = c.InfoKind, InfoArg1 = c.InfoArg1, InfoArg2 = c.InfoArg2, SuggestedCategory = GuessCategory(tags), Tags = tags });
                 }
                 catch (Exception ex) { Debug.WriteLine($"[Discovery] {c.Slug}: {ex.Message}"); }
             }
@@ -200,11 +200,17 @@ namespace ULM.Core.Services
                 string name = d.GetValueOrDefault("Name", string.Empty);
                 string slug = d.GetValueOrDefault("Slug", string.Empty);
                 if (name.Length == 0 || slug.Length == 0) continue;
+                // Cache-Eintrag stammt noch aus dem alten Format (fertig formatiertes "Info"
+                // statt InfoKind/InfoArg1/InfoArg2) — kompletten Cache verwerfen statt mit
+                // eingefrorenem Text weiterzuarbeiten; GetAsync holt dann automatisch frisch.
+                if (!Enum.TryParse(d.GetValueOrDefault("InfoKind", string.Empty), out DiscoveryInfoKind infoKind)) return null;
                 string tagsRaw = d.GetValueOrDefault("Tags", string.Empty);
                 items.Add(new DiscoveredDistro
                 {
                     Name = name, Slug = slug,
-                    Info = d.GetValueOrDefault("Info", string.Empty),
+                    InfoKind = infoKind,
+                    InfoArg1 = d.GetValueOrDefault("InfoArg1", string.Empty),
+                    InfoArg2 = d.GetValueOrDefault("InfoArg2", string.Empty),
                     SuggestedCategory = d.GetValueOrDefault("Category", "Einsteiger"),
                     Tags = tagsRaw.Length == 0 ? Array.Empty<string>() : tagsRaw.Split('|', StringSplitOptions.RemoveEmptyEntries),
                 });
@@ -229,7 +235,9 @@ namespace ULM.Core.Services
                     {
                         ["Name"]     = items[i].Name,
                         ["Slug"]     = items[i].Slug,
-                        ["Info"]     = items[i].Info,
+                        ["InfoKind"] = items[i].InfoKind.ToString(),
+                        ["InfoArg1"] = items[i].InfoArg1,
+                        ["InfoArg2"] = items[i].InfoArg2,
                         ["Category"] = items[i].SuggestedCategory,
                         ["Tags"]     = string.Join('|', items[i].Tags),
                     };
