@@ -22,6 +22,17 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] NotesDe, string[] NotesEn)[] History =
         {
+            ("2.44.0",
+            new[]
+            {
+                "Fehlerbehebung: Mehrere bisher übersehene Dialoge (\"🔧 Quelle manuell suchen\", Update-Herunterladen-Auswahl, dieser \"Was ist neu?\"-Verlauf) sowie die Info-Texte in \"🔍 ISO suchen\" (\"Hinzugefügt: …\", \"Hits/Tag\") zeigten immer Deutsch, unabhängig von der eingestellten Sprache — jetzt vollständig zweisprachig.",
+                "Sicherheit: Ein Beispielpfad in einem Code-Kommentar enthielt versehentlich einen echten Nutzernamen — entfernt.",
+            },
+            new[]
+            {
+                "Fix: Several previously overlooked dialogs (\"🔧 Search source manually\", the update-download choice, this \"What's new?\" history) as well as the info texts in \"🔍 Search ISO\" (\"Added: …\", \"hits/day\") always showed German regardless of the selected language — now fully bilingual.",
+                "Security: An example path in a code comment accidentally contained a real username — removed.",
+            }),
             ("2.43.0",
             new[]
             {
