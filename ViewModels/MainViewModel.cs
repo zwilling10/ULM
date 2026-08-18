@@ -1352,15 +1352,24 @@ namespace ULM.ViewModels
         /// die aktuelle Download-URL auf und meldet einen vollständigen Erreichbarkeits-Bericht —
         /// macht sonst im Protokoll versteckte Ausfälle sofort sichtbar.
         /// </summary>
-        private void OnHealthCheck() => RunHealthCheck();
+        private void OnHealthCheck() => RunHealthCheck(showDialog: true);
 
         /// <summary>
         /// Läuft nach jeder Download- oder Scan-Funktion automatisch (siehe TriggerUsbScan/StartDownload)
         /// UND manuell über HealthCheckCommand. Bereinigt zuerst Duplikate, damit nicht doppelt geprüft
         /// wird, und zeigt den Fortschritt genau wie der Online-Scan über einen eigenen Active/Percent-
         /// Status an — nicht über das generische IsBusy, damit die App währenddessen bedienbar bleibt.
+        ///
+        /// BUGFIX (Nutzerwunsch): die automatischen Aufrufe (nach Stick-Import, Online-Suche,
+        /// manuellem DB-Hinzufügen — siehe Aufrufer) öffneten bisher IMMER auch das
+        /// DbHealthCheckDialog-Popup (über HealthCheckCompleted), sobald der Check fertig war —
+        /// selbst wenn der Nutzer den Gesundheitscheck nie angestoßen hatte. Das Popup soll nur
+        /// noch erscheinen, wenn der Nutzer aktiv den Gesundheitscheck-Button klickt
+        /// (showDialog: true, siehe OnHealthCheck oben). Der Check selbst (inkl. Log-Zeilen,
+        /// Speichern neu gefundener Quellen, Stick-Update-Angebot) läuft in beiden Fällen
+        /// unverändert — nur das abschließende Popup ist jetzt an showDialog gebunden.
         /// </summary>
-        public void RunHealthCheck()
+        public void RunHealthCheck(bool showDialog = false)
         {
             if (IsBusy || HealthCheckActive) return;
             DeduplicateEntries();
@@ -1391,7 +1400,10 @@ namespace ULM.ViewModels
                 // der noch offene Gesundheitscheck-Dialog erscheinen und sich mit ihm überlagern
                 // konnte (WPFs verschachtelte Message-Pump verarbeitet den _ui.Invoke des Rescans
                 // bereits während ShowDialog() läuft). Erst NACH dem Schließen des Dialogs starten.
-                HealthCheckCompleted?.Invoke(results);
+                // Nur bei explizitem Button-Klick feuern (showDialog) — die zahlreichen
+                // automatischen Aufrufer (Stick-Import, Online-Suche, DB-Editor) sollen den Check
+                // weiterhin still im Hintergrund laufen lassen, siehe Doku an RunHealthCheck.
+                if (showDialog) HealthCheckCompleted?.Invoke(results);
                 // BUGFIX: RunHealthCheck löste zwar dieselben Remote-Versionen wie
                 // TriggerAutoVersionCheck auf (zeigte ein gefundenes Update bereits als "Update
                 // verfügbar" im Hauptfenster), bot es aber nie sofort zum Aktualisieren auf dem
