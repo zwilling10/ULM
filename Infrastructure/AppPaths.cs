@@ -13,7 +13,7 @@ namespace ULM.Infrastructure
     ///
     /// Beispiele je nach Einsatzort:
     ///   USB-Stick:   E:\ULM\ULM_Data\
-    ///   Desktop:     C:\Users\Max\Desktop\ULM\ULM_Data\
+    ///   Desktop:     C:\Users\Name\Desktop\ULM\ULM_Data\
     ///   Netzlaufwerk:\\Server\Tools\ULM\ULM_Data\
     ///
     /// Dadurch können EXE + Daten gemeinsam kopiert, auf einem
