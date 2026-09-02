@@ -68,6 +68,7 @@ namespace ULM.Infrastructure
         public string DatabaseIni       { get; private set; } = string.Empty;
         public string LogFile           { get; private set; } = string.Empty;
         public string DiscoveryCacheIni { get; private set; } = string.Empty;
+        public string UserAgentCacheIni { get; private set; } = string.Empty;
 
         // ── Temp-Pfade (system-weit, kein Portabilitätsproblem) ────────
         public string TempDownloadDir { get; } =
@@ -102,6 +103,7 @@ namespace ULM.Infrastructure
             DatabaseIni       = Path.Combine(baseDirectory, "ulm_isos.ini");
             LogFile           = Path.Combine(baseDirectory, "ulm_log.txt");
             DiscoveryCacheIni = Path.Combine(baseDirectory, "ulm_discovery_cache.ini");
+            UserAgentCacheIni = Path.Combine(baseDirectory, "ulm_useragent_cache.ini");
         }
 
         /// <summary>

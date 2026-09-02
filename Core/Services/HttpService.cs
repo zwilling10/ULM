@@ -86,13 +86,91 @@ namespace ULM.Core.Services
                 MaxAutomaticRedirections = 10,
             };
             _client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
+            // BUGFIX (live gefunden, 2026-09-02): DistroWatch blockte "ISO suchen" (Reiter
+            // "Aktuellste" UND "Beliebteste") komplett mit 403 Forbidden, obwohl es ein
+            // vollstaendiger, realistisch aussehender Chrome-User-Agent-String war — lag NICHT
+            // am Regex/HTML-Parsing (das liefert mit einer durchgelassenen Anfrage weiterhin
+            // korrekte Treffer). Isoliert per curl A/B-Test verifiziert: exakt "Chrome/124.0.0.0"
+            // wurde geblockt (403), andere aktuelle Versionsnummern (126/128/130/131/132, alle
+            // .0.0.0) kamen zuverlässig durch (200) — 124.0.0.0 war offenbar als weit verbreiteter
+            // Scraper-Default-Wert auf DistroWatchs Blockliste gelandet. Eine fest einprogrammierte
+            // Versionsnummer geht über kurz oder lang denselben Weg — deshalb hier direkt der
+            // eingebaute Wert nur als Fallback, siehe RefreshUserAgentAsync() für die eigentliche
+            // Lösung (analog zu den >20 dedizierten Distro-URL-Resolvern: nichts hart verdrahten,
+            // was sich online selbst aktuell halten lässt).
             _client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+                "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36");
             _client.DefaultRequestHeaders.TryAddWithoutValidation("Accept",
                 "text/html,application/xhtml+xml,*/*;q=0.9");
             _client.DefaultRequestHeaders.TryAddWithoutValidation("Accept-Language",
                 "de-DE,de;q=0.9,en-US;q=0.8");
+        }
+
+        // ── Selbst-aktualisierender User-Agent ──────────────────────────────
+        // Statt eine Chrome-Versionsnummer dauerhaft fest einzuprogrammieren (die irgendwann
+        // wieder auf eine Blockliste wandern kann, wie "124.0.0.0" es bereits getan hat), wird die
+        // aktuell echte Chrome-Stable-Version über Googles offizielle "Chrome for Testing"-API
+        // abgefragt — von Google selbst genau für diesen Zweck (Tooling/Automatisierung braucht
+        // die aktuelle Chrome-Version) bereitgestellt, kein inoffizielles Scraping. 7-Tage-Cache
+        // (Chrome released grob monatlich, deckt sich mit dem "alle 3-4 Wochen"-Rhythmus, den
+        // niemand mehr manuell prüfen soll) — bei Offline/Fehler bleibt einfach der zuletzt
+        // bekannte bzw. der oben eingebaute Fallback-Wert bestehen, nichts bricht dadurch.
+        private const string ChromeVersionApiUrl =
+            "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions.json";
+        private static readonly TimeSpan UserAgentCacheTtl = TimeSpan.FromDays(7);
+        private readonly object _userAgentLock = new();
+        private Task? _userAgentRefreshTask;
+
+        private Task EnsureCurrentUserAgentAsync()
+        {
+            lock (_userAgentLock)
+            {
+                _userAgentRefreshTask ??= RefreshUserAgentAsync();
+                return _userAgentRefreshTask;
+            }
+        }
+
+        private async Task RefreshUserAgentAsync()
+        {
+            try
+            {
+                string path = AppPaths.Instance.UserAgentCacheIni;
+                string version = IniService.Read(path, "ChromeUA", "MajorVersion");
+                string fetchedAtRaw = IniService.Read(path, "ChromeUA", "FetchedAtUtc");
+                bool fresh = DateTimeOffset.TryParse(fetchedAtRaw, out var fetchedAt)
+                             && DateTimeOffset.UtcNow - fetchedAt < UserAgentCacheTtl;
+
+                if (!fresh)
+                {
+                    // Direkt über _client, NICHT über GetStringAsync (das würde wiederum diese
+                    // Methode aufrufen — Rekursion). Eigener kurzer Timeout, damit ein hängender
+                    // Versions-Check nie den ersten echten Request der Sitzung nennenswert verzögert.
+                    using var cts  = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                    string   json  = await _client.GetStringAsync(ChromeVersionApiUrl, cts.Token).ConfigureAwait(false);
+                    using var doc  = JsonDocument.Parse(json);
+                    string fullVersion = doc.RootElement.GetProperty("channels").GetProperty("Stable").GetProperty("version").GetString() ?? "";
+                    string major = fullVersion.Split('.')[0];
+                    if (major.Length > 0 && int.TryParse(major, out _))
+                    {
+                        version = major;
+                        IniService.Write(path, "ChromeUA", "MajorVersion", major);
+                        IniService.Write(path, "ChromeUA", "FetchedAtUtc", DateTimeOffset.UtcNow.ToString("o"));
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(version))
+                {
+                    // Reale Chrome-Browser senden seit der User-Agent-Reduktion ohnehin nur noch
+                    // "{Major}.0.0.0" (Minor/Build/Patch sind eingefroren) — das treffen wir hier
+                    // exakt nach, nicht nur zufällig ähnlich.
+                    _client.DefaultRequestHeaders.Remove("User-Agent");
+                    _client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent",
+                        $"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+                        $"(KHTML, like Gecko) Chrome/{version}.0.0.0 Safari/537.36");
+                }
+            }
+            catch (Exception ex) { Debug.WriteLine($"[UserAgentRefresh] {ex.Message}"); }
         }
 
         private async Task<string?> GetCachedAsync(string key)
@@ -194,6 +272,7 @@ namespace ULM.Core.Services
         public async Task<string?> GetStringAsync(string url, int timeoutSeconds = 15)
         {
             if (string.IsNullOrWhiteSpace(url)) return null;
+            await EnsureCurrentUserAgentAsync().ConfigureAwait(false);
             string cacheKey = "get:" + url;
             string? cached  = await GetCachedAsync(cacheKey).ConfigureAwait(false);
             if (cached is not null) return cached;
