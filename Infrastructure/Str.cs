@@ -438,6 +438,7 @@ namespace ULM.Infrastructure
 
         Db_SearchDialog_Title, Db_Tab_Latest, Db_Tab_Popular,
         Db_Btn_CloseSimple, Db_Btn_Refresh, Db_Btn_TakeOver, Db_Loading, Db_NoDiscoveryResults,
+        Db_DiscoverySearchFallback,
         Db_FromCache, Db_FreshlyLoaded, Db_DiscoveryStatusSuffix, Db_NameAlreadyInDb,
         Db_SuggestedCategory, Db_DistrowatchTags, Db_TakenOverStatus, Db_DiscoveryError,
         Db_Discovery_AddedOn, Db_Discovery_RankHits,

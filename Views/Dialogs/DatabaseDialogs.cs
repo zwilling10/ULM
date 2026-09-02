@@ -274,17 +274,21 @@ namespace ULM.Views.Dialogs
         {
             public required StackPanel RowsPanel;
             public required TextBlock  StatusTb;
+            public required string     FallbackQuery;
             public readonly List<DiscoveryRow> Rows = new();
             public bool Loaded;
         }
 
-        private readonly DiscoveryTab _latestTab  = MakeTabState();
-        private readonly DiscoveryTab _popularTab = MakeTabState();
+        // Fallback-Suchbegriffe bewusst auf Englisch (DistroWatch selbst ist englischsprachig,
+        // liefert unabhängig von der ULM-UI-Sprache dieselben brauchbaren Treffer).
+        private readonly DiscoveryTab _latestTab  = MakeTabState("distrowatch.com latest distributions");
+        private readonly DiscoveryTab _popularTab = MakeTabState("distrowatch.com most popular distributions");
 
-        private static DiscoveryTab MakeTabState() => new()
+        private static DiscoveryTab MakeTabState(string fallbackQuery) => new()
         {
-            RowsPanel = new StackPanel(),
-            StatusTb  = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
+            RowsPanel     = new StackPanel(),
+            StatusTb      = new TextBlock { FontSize = 10.5, Foreground = (Brush)Application.Current.Resources["BrushDim"], Margin = new Thickness(0, 0, 0, 8) },
+            FallbackQuery = fallbackQuery,
         };
 
         public IsoSearchDialog()
@@ -363,6 +367,27 @@ namespace ULM.Views.Dialogs
                 if (result.Items.Count == 0)
                 {
                     tab.StatusTb.Text = LocalizationService.T(Str.Db_NoDiscoveryResults);
+
+                    // Nutzerwunsch: kein Sackgassen-Zustand — bietet einen Ausweichlink an, der
+                    // dieselbe Suche manuell im Standardbrowser über DuckDuckGo öffnet (identisches
+                    // Muster wie ManualSourceSearchDialog.RunSearchAsync bei "keine Treffer").
+                    var fallbackBtn = new Button
+                    {
+                        Content = LocalizationService.T(Str.Db_DiscoverySearchFallback),
+                        Style = (Style)Application.Current.Resources["BtnGhost"],
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Margin = new Thickness(0, 4, 0, 0),
+                    };
+                    fallbackBtn.Click += (_, _) =>
+                    {
+                        try
+                        {
+                            string url = $"https://duckduckgo.com/?q={Uri.EscapeDataString(tab.FallbackQuery)}";
+                            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                        }
+                        catch (Exception ex) { Debug.WriteLine($"[DiscoveryFallback] {ex.Message}"); }
+                    };
+                    tab.RowsPanel.Children.Add(fallbackBtn);
                     return;
                 }
                 tab.StatusTb.Text = (result.FromCache ? LocalizationService.T(Str.Db_FromCache) : LocalizationService.T(Str.Db_FreshlyLoaded))
