@@ -22,6 +22,17 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] NotesDe, string[] NotesEn)[] History =
         {
+            ("2.45.0",
+            new[]
+            {
+                "Fehlerbehebung: In \"🔍 ISO suchen\" lieferten \"Aktuellste\" und \"Beliebteste\" keine Ergebnisse mehr, weil DistroWatch Anfragen ohne echten Browser-User-Agent blockierte — wird jetzt mit einem passenden User-Agent abgefragt.",
+                "Neu: Bleibt die DistroWatch-Antwort trotzdem leer, zeigt \"🔍 ISO suchen\" jetzt automatisch einen DuckDuckGo-Ausweichlink an, damit die Suche auch bei künftigen Blockaden nicht komplett ins Leere läuft.",
+            },
+            new[]
+            {
+                "Fix: In \"🔍 Search ISO\", \"Latest\" and \"Popular\" stopped returning results because DistroWatch blocked requests without a real browser user agent — now sent with a proper user agent.",
+                "New: If the DistroWatch response is still empty, \"🔍 Search ISO\" now automatically shows a DuckDuckGo fallback link, so the search doesn't come up completely empty if blocked again in the future.",
+            }),
             ("2.44.2",
             new[]
             {
