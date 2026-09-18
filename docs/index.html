@@ -79,10 +79,14 @@
   }
   header.hero .wrap{position:relative;z-index:1;text-align:center}
   .eyebrow{
-    display:inline-flex;align-items:center;gap:8px;
+    display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;
     font-size:12.5px;font-weight:600;letter-spacing:.4px;color:var(--teal);
     background:rgba(26,188,156,.12);border:1px solid rgba(26,188,156,.35);
     padding:6px 14px;border-radius:999px;margin-bottom:22px;
+  }
+  .badge-new{
+    background:linear-gradient(135deg,var(--blue),var(--blue-deep));color:#fff;
+    padding:3px 10px;border-radius:999px;font-weight:700;font-size:11.5px;
   }
   h1{
     font-size:clamp(34px,6vw,56px);font-weight:800;letter-spacing:-1px;
@@ -100,6 +104,8 @@
   .btn-primary:hover{box-shadow:0 14px 36px rgba(0,117,190,.5)}
   .btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--card-border);color:var(--text)}
   .btn-ghost:hover{border-color:var(--text-mute)}
+  .btn-linux{background:linear-gradient(135deg,var(--amber),#c8660f);color:#fff;box-shadow:0 10px 30px rgba(230,126,34,.3)}
+  .btn-linux:hover{box-shadow:0 14px 36px rgba(230,126,34,.45)}
   .meta-row{
     display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:28px;
     font-size:12.5px;color:var(--text-mute);
@@ -201,15 +207,20 @@
 
 <header class="hero">
   <div class="wrap">
-    <div class="eyebrow"><span class="dot"></span> <span data-i18n="hero.eyebrow">v2.45.0 · Open Source · Portabel oder installierbar</span></div>
+    <div class="eyebrow">
+      <span class="dot"></span> <span data-i18n="hero.eyebrow">v2.45.0 · Open Source · Portabel oder installierbar</span>
+      <span class="badge-new" data-i18n="hero.badge.linux">🆕 Neu: jetzt auch für Linux (v2.0.0)</span>
+    </div>
     <h1 data-i18n="hero.h1">Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten</h1>
     <p class="tagline" data-i18n="hero.tagline">ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.</p>
     <div class="cta-row">
-      <a class="btn btn-primary" href="#download" data-i18n="hero.cta.download">⬇ Download für Windows</a>
+      <a class="btn btn-primary" href="#download" data-i18n="hero.cta.download">🪟 Download für Windows</a>
+      <a class="btn btn-linux" href="#download" data-i18n="hero.cta.downloadLinux">🐧 Download für Linux</a>
       <a class="btn btn-ghost" href="https://github.com/zwilling10/ULM" target="_blank" rel="noopener" data-i18n="hero.cta.source">Quellcode auf GitHub</a>
     </div>
     <div class="meta-row">
       <span><span class="dot"></span> Windows 10 / 11 (x64)</span>
+      <span><span class="dot" style="background:var(--amber)"></span> Linux (x86_64)</span>
       <span data-i18n="hero.meta.noinstall">Keine Installation nötig</span>
       <span data-i18n="hero.meta.nonet">Keine .NET-Runtime nötig</span>
       <span data-i18n="hero.meta.mit">MIT-lizenziert</span>
@@ -406,12 +417,14 @@
     "nav.faq": { de: "FAQ", en: "FAQ" },
     "nav.download": { de: "Download", en: "Download" },
     "hero.eyebrow": { de: "v2.45.0 · Open Source · Portabel oder installierbar", en: "v2.45.0 · Open Source · Portable or installable" },
+    "hero.badge.linux": { de: "🆕 Neu: jetzt auch für Linux (v2.0.0)", en: "🆕 New: now also for Linux (v2.0.0)" },
     "hero.h1": { de: "Multiboot-USB-Sticks in&nbsp;Sekunden aktuell&nbsp;halten", en: "Keep multiboot USB&nbsp;sticks up to&nbsp;date in seconds" },
     "hero.tagline": {
       de: "ULM lädt Linux-Live-ISOs automatisch von den offiziellen Quellen, kopiert sie auf deinen Ventoy-Stick und hält den ganzen Katalog dauerhaft auf dem neuesten Stand — auch ohne konfigurierte URLs.",
       en: "ULM automatically downloads Linux live ISOs from official sources, copies them to your Ventoy stick, and keeps the whole catalog permanently up to date — even without configured URLs."
     },
-    "hero.cta.download": { de: "⬇ Download für Windows", en: "⬇ Download for Windows" },
+    "hero.cta.download": { de: "🪟 Download für Windows", en: "🪟 Download for Windows" },
+    "hero.cta.downloadLinux": { de: "🐧 Download für Linux", en: "🐧 Download for Linux" },
     "hero.cta.source": { de: "Quellcode auf GitHub", en: "Source code on GitHub" },
     "hero.meta.noinstall": { de: "Keine Installation nötig", en: "No installation required" },
     "hero.meta.nonet": { de: "Keine .NET-Runtime nötig", en: "No .NET runtime required" },
