@@ -55,6 +55,10 @@ CloseApplications=yes
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+german.AdminInstallWarning=Du hast die Installation für alle Benutzer gewählt (Administratorrechte erforderlich).%n%nULM speichert seine Einstellungen und heruntergeladenen Daten direkt im Installationsordner. Im Administratormodus kann ULM danach beim normalen Programmstart nicht mehr in diesen Ordner schreiben, was zu Abstürzen führt.%n%nEmpfohlen wird stattdessen die Option "Nur für mich installieren" (keine Administratorrechte nötig).%n%nTrotzdem im Administratormodus fortfahren?
+english.AdminInstallWarning=You chose to install for all users (administrator rights required).%n%nULM stores its settings and downloaded data directly inside its installation folder. In administrator mode, ULM will no longer be able to write to that folder during normal use afterwards, which will cause it to crash.%n%nInstalling for the current user only (no administrator rights needed) is recommended instead.%n%nContinue anyway in administrator mode?
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -70,6 +74,35 @@ Name: "{autodesktop}\Universal Linux Manager"; Filename: "{app}\UniversalLinuxMa
 Filename: "{app}\UniversalLinuxManager.exe"; Description: "{cm:LaunchProgram,Universal Linux Manager}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+// Warnt, wenn der Nutzer im (durch PrivilegesRequiredOverridesAllowed=dialog optionalen)
+// Modus-Dialog "Für alle Benutzer installieren" wählt: ULM ist portabel (siehe AppPaths.cs)
+// und schreibt ulm_settings.ini sowie ULM_Data IMMER neben die eigene EXE. Landet die EXE
+// dadurch im administrativen Modus im echten "Program Files" (statt {localappdata}\Programs
+// bei "Nur für mich installieren"), kann der normal gestartete, nicht-elevierte ULM-Prozess
+// dort anschliessend nicht mehr schreiben — genau der Absturz (UnauthorizedAccessException
+// beim Schreiben von ulm_settings.ini), den ein Tester gemeldet hat. Rückfrage statt reiner
+// Info: bei "Nein" springt der Assistent bis zum Anfang zurück, damit der Nutzer die
+// Installationsart erneut wählen kann (Standard-Auswahl ist "Nein", siehe MB_DEFBUTTON2).
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  PrevPageID: Integer;
+begin
+  Result := True;
+  if (CurPageID = wpReady) and IsAdminInstallMode then
+  begin
+    if MsgBox(ExpandConstant('{cm:AdminInstallWarning}'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDNO then
+    begin
+      PrevPageID := -1;
+      while (WizardForm.CurPageID <> wpWelcome) and (WizardForm.CurPageID <> PrevPageID) do
+      begin
+        PrevPageID := WizardForm.CurPageID;
+        WizardForm.BackButton.OnClick(WizardForm.BackButton);
+      end;
+      Result := False;
+    end;
+  end;
+end;
+
 // ULM ist portabel: Einstellungen (ulm_settings.ini) UND, bei nicht-elevierter Installation nach
 // {autopf}=LocalAppData\Programs, auch der komplette Datenordner "ULM_Data" (heruntergeladene
 // ISOs, Datenbank, Log) landen NEBEN der EXE, siehe Infrastructure/AppPaths.cs — der Deinstaller
