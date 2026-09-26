@@ -22,6 +22,15 @@ namespace ULM.Views.Dialogs
     {
         private static readonly (string Version, string[] NotesDe, string[] NotesEn)[] History =
         {
+            ("2.46.0",
+            new[]
+            {
+                "Neu: Der Windows-Installer warnt jetzt vor, wenn \"Für alle Benutzer installieren\" (Administratorrechte) gewählt wird — ULM speichert seine Einstellungen sonst dort, wo der normale Programmstart nicht mehr schreiben darf, was zu einem Absturz führte.",
+            },
+            new[]
+            {
+                "New: The Windows installer now warns when \"Install for all users\" (administrator rights) is selected — ULM would otherwise store its settings somewhere the normal program start can no longer write to, causing a crash.",
+            }),
             ("2.45.0",
             new[]
             {
